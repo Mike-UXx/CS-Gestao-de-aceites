@@ -165,7 +165,7 @@ export function DestinatariosStep() {
       >
           {/* Cabeçalho do card */}
           <Text strong style={{ fontSize: 15, color: colorTokens.textPrimary, display: 'block', marginBottom: 2 }}>
-            Destinatários
+            Público-alvo
           </Text>
           <Text style={{ fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 28 }}>
             Defina quem receberá o documento para assinatura.
@@ -181,8 +181,8 @@ export function DestinatariosStep() {
             >
               <RadioCard
                 value="departamento"
-                title="Por departamento"
-                description="Selecione um ou mais departamento específicos"
+                title="Por departamentos"
+                description="Selecione um ou mais departamentos específicos"
                 selected={modalidade === 'departamento'}
                 onClick={() => {
                   setModalidade('departamento')
@@ -192,8 +192,8 @@ export function DestinatariosStep() {
               />
               <RadioCard
                 value="colaborador"
-                title="Colaboradores individuais"
-                description="Busque e selecione colaboradores pelo nome"
+                title="Pessoas específicas"
+                description="Busque e selecione pessoas específicas pelo nome"
                 selected={modalidade === 'colaborador'}
                 onClick={() => {
                   setModalidade('colaborador')
@@ -213,8 +213,8 @@ export function DestinatariosStep() {
                 help={selectionEmpty ? 'Campo de seleção obrigatória.' : undefined}
               >
                 <FieldLabel
-                  label="Departamentos"
-                  required
+                  label="Departamentos *"
+                  required={false}
                   tooltip="Todos os colaboradores dos departamentos selecionados receberão o documento."
                 />
                 <Select
@@ -258,9 +258,9 @@ export function DestinatariosStep() {
                 help={selectionEmpty ? 'Campo de seleção obrigatória.' : undefined}
               >
                 <FieldLabel
-                  label="Colaboradores"
-                  required
-                  tooltip="Selecione os colaboradores que receberão o documento individualmente."
+                  label="Pessoas *"
+                  required={false}
+                  tooltip="Selecione as pessoas que receberão o documento individualmente."
                 />
 
                 {/* Wrapper relativo para sobrepor o contador */}

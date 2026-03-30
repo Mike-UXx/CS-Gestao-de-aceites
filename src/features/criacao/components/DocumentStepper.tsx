@@ -1,7 +1,7 @@
 import { Steps } from 'antd'
 import { colorTokens } from '@/theme/tokens'
 
-const STEPS = ['Informações', 'Destinatários', 'Configurações', 'Revisão']
+const STEPS = ['Informações', 'Público-alvo', 'Configurações', 'Revisão']
 
 interface DocumentStepperProps {
   current: number

@@ -106,7 +106,7 @@ export function RevisaoStep() {
   const destLabel =
     data.modalidadeEnvio === 'departamento'
       ? `${totalDest} departamento${totalDest !== 1 ? 's' : ''}`
-      : `${totalDest} colaborador${totalDest !== 1 ? 'es' : ''}`
+      : `${totalDest} pessoa${totalDest !== 1 ? 's' : ''}`
 
   /* ── Labels resolvidos ── */
   const classificacaoLabel = labelOf(CLASSIFICATIONS,      data.classificacao)
@@ -226,14 +226,14 @@ export function RevisaoStep() {
 
         <Divider style={{ margin: '16px 0 4px' }} />
 
-        {/* ══ BLOCO 2 — Destinatários ═══════════════════════════ */}
-        <BlockHeader title="Destinatários" editRoute="/documentos/criar/destinatarios" />
+        {/* ══ BLOCO 2 — Público-alvo ════════════════════════════ */}
+        <BlockHeader title="Público-alvo" editRoute="/documentos/criar/destinatarios" />
 
         <Divider style={{ margin: '8px 0 4px' }} />
 
         {data.modalidadeEnvio === 'departamento' ? (
           <ReviewRow
-            label="Departamento"
+            label="Departamentos"
             value={
               deptTags.length > 0
                 ? (
@@ -250,7 +250,7 @@ export function RevisaoStep() {
           />
         ) : (
           <ReviewRow
-            label="Colaboradores"
+            label="Pessoas"
             value={
               colabTags.length > 0
                 ? (
@@ -345,7 +345,7 @@ export function RevisaoStep() {
               <Space size={6}>
                 <VerticalAlignBottomOutlined style={{ color: colorTokens.primary }} />
                 <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.primary }}>
-                  Por departamento ({data.departamentos.length} dept{data.departamentos.length !== 1 ? 's' : ''})
+                  Por departamentos ({data.departamentos.length} dept{data.departamentos.length !== 1 ? 's' : ''})
                 </Text>
               </Space>
             }
