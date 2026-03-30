@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react'
 import {
   Form, Input, Select, Button, Typography,
-  Tooltip, Spin, Space, message, Row, Col,
+  Tooltip, Spin, Space, message, Row, Col, Alert,
 } from 'antd'
 import {
   InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled,
   InboxOutlined, DeleteOutlined,
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
 import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
@@ -41,7 +41,9 @@ function FieldLabel({
 
 /* ─── Componente principal ────────────────────────────────────── */
 export function InformacoesStep() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const fromTemplate = (location.state as { fromTemplate?: boolean } | null)?.fromTemplate ?? false
   const [form] = Form.useForm()
   const { data, dispatch, saveDraft } = useDocumentForm()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -128,6 +130,31 @@ export function InformacoesStep() {
       hasFormError={hasFormError}
       backLabel="Cancelar"
     >
+      {/* ── Alert: modelo baixado ────────────────────────────── */}
+      {fromTemplate && (
+        <Alert
+          type="info"
+          showIcon
+          style={{
+            marginBottom: 16,
+            fontFamily: "'Montserrat', sans-serif",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+          message={
+            <span style={{ fontWeight: 600, fontFamily: "'Montserrat', sans-serif" }}>
+              Modelo baixado com sucesso! 📄
+            </span>
+          }
+          description={
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+              Basta editá-lo conforme as diretrizes da sua empresa e, em seguida, fazer o upload no campo{' '}
+              <strong>"Arquivo do documento"</strong> para continuarmos.
+            </span>
+          }
+        />
+      )}
+
       {/* ── Content card ─────────────────────────────────────── */}
       <div style={{ overflowY: 'auto' }}>
         {/* Cartão branco do formulário — full width */}

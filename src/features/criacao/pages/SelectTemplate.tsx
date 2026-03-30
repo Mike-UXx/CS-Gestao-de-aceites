@@ -137,7 +137,12 @@ export function SelectTemplate() {
               description={template.description}
               headerColor={template.headerColor}
               onDownload={() => {
-                /* TODO: download handler */
+                /* Simula download do modelo e navega para Informações com flag */
+                const link = document.createElement('a')
+                link.href = `/modelos/${template.id}.docx`   // substituir por URL real da API
+                link.download = `${template.title}.docx`
+                link.click()
+                navigate('/documentos/criar/informacoes', { state: { fromTemplate: true, templateTitle: template.title } })
               }}
             />
           </Col>
