@@ -25,7 +25,7 @@ export interface DocumentFormData {
   fileHash: string
   fileName: string
   description: string
-  classificacao: string
+  classificacoes: string[]
   gestaoResponsavel: string
   // Step 2 — Destinatários
   modalidadeEnvio: 'departamento' | 'colaborador'
@@ -49,7 +49,7 @@ const INITIAL_STATE: DocumentFormData = {
   fileHash: '',
   fileName: '',
   description: '',
-  classificacao: '',
+  classificacoes: [],
   gestaoResponsavel: '',
   modalidadeEnvio: 'departamento',
   departamentos: [],
@@ -71,8 +71,8 @@ const DRAFT_KEY = 'gestao_aceites_draft'
 /* ─── Actions ──────────────────────────────────────────────────── */
 type Action =
   | { type: 'SET_FILE'; file: File; hash: string }
-  | { type: 'SET_FIELD'; field: keyof Omit<DocumentFormData, 'file' | 'fileHash' | 'departamentos' | 'colaboradores' | 'deptConfig'>; value: string | number | boolean }
-  | { type: 'SET_MULTI'; field: 'departamentos' | 'colaboradores'; value: string[] }
+  | { type: 'SET_FIELD'; field: keyof Omit<DocumentFormData, 'file' | 'fileHash' | 'departamentos' | 'colaboradores' | 'classificacoes' | 'deptConfig'>; value: string | number | boolean }
+  | { type: 'SET_MULTI'; field: 'departamentos' | 'colaboradores' | 'classificacoes'; value: string[] }
   | { type: 'SET_STEP3'; config: Partial<Step3Config> }
   | { type: 'LOAD_DRAFT'; draft: Partial<DocumentFormData> }
   | { type: 'RESET' }

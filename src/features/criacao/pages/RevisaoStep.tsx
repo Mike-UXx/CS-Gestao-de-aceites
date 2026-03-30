@@ -109,7 +109,7 @@ export function RevisaoStep() {
       : `${totalDest} pessoa${totalDest !== 1 ? 's' : ''}`
 
   /* ── Labels resolvidos ── */
-  const classificacaoLabel = labelOf(CLASSIFICATIONS,      data.classificacao)
+  const classificacoesLabels = (data.classificacoes ?? []).map((v) => labelOf(CLASSIFICATIONS, v))
   const gestaoLabel        = labelOf(GESTOES_RESPONSAVEIS, data.gestaoResponsavel)
   const tempoLabel         = TEMPO_LABELS[data.tempoLeituraGlobal] ?? `${data.tempoLeituraGlobal}s`
   const validadeLabel      = VALIDADE_LABELS[data.validadeAceite]  ?? data.validadeAceite
@@ -202,8 +202,16 @@ export function RevisaoStep() {
         <ReviewRow
           label="Classificação"
           value={
-            classificacaoLabel
-              ? <Tag color="blue" style={{ fontFamily: FONT, borderRadius: 4, fontWeight: 500 }}>{classificacaoLabel}</Tag>
+            classificacoesLabels.length > 0
+              ? (
+                <Space size={[4, 4]} wrap>
+                  {classificacoesLabels.map((label) => (
+                    <Tag key={label} color="blue" style={{ fontFamily: FONT, borderRadius: 4, fontWeight: 500, margin: 0 }}>
+                      {label}
+                    </Tag>
+                  ))}
+                </Space>
+              )
               : <Text style={{ fontFamily: FONT, color: colorTokens.textSecondary }}>—</Text>
           }
         />

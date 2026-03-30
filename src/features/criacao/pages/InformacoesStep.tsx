@@ -280,7 +280,7 @@ export function InformacoesStep() {
             initialValues={{
               nome: data.fileName || undefined,
               descricao: data.description || undefined,
-              classificacao: data.classificacao || undefined,
+              classificacoes: data.classificacoes?.length ? data.classificacoes : undefined,
               gestaoResponsavel: data.gestaoResponsavel || undefined,
             }}
             requiredMark={false}
@@ -327,23 +327,30 @@ export function InformacoesStep() {
               />
             </Form.Item>
 
-            {/* Classificação */}
+            {/* Classificação — múltipla seleção */}
             <Form.Item
-              name="classificacao"
+              name="classificacoes"
               label={
                 <FieldLabel
                   label="Classificação"
                   required
-                  tooltip="Categorize o documento (ex: Política, Cartilha) para facilitar a organização do repositório e a geração de indicadores automáticos em seus relatórios de auditoria"
+                  tooltip="Categorize o documento (ex: Política, Cartilha). Selecione quantas categorias forem necessárias para facilitar a organização e os relatórios de auditoria."
                 />
               }
               rules={[{ required: true, message: 'Campo de seleção obrigatória' }]}
               style={{ marginBottom: 20 }}
             >
               <Select
+                mode="multiple"
                 placeholder="Selecione"
                 options={CLASSIFICATIONS}
-                onChange={(v) => dispatch({ type: 'SET_FIELD', field: 'classificacao', value: v })}
+                maxTagCount="responsive"
+                maxTagPlaceholder={(omitted) => (
+                  <span style={{ color: colorTokens.primary }}>+{omitted.length}</span>
+                )}
+                onChange={(vals: string[]) =>
+                  dispatch({ type: 'SET_MULTI', field: 'classificacoes', value: vals })
+                }
               />
             </Form.Item>
 
