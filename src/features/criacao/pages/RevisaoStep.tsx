@@ -195,7 +195,7 @@ export function RevisaoStep() {
         />
 
         <ReviewRow
-          label="Nome"
+          label="Título"
           value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{data.fileName || '—'}</Text>}
         />
 
@@ -286,7 +286,7 @@ export function RevisaoStep() {
           label="Tipo de documento"
           value={
             <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
-              {data.tipoDocumento === 'adesao' ? 'Adesão' : 'Ciência'}
+              {data.tipoDocumento === 'adesao' ? 'Documentos com versão' : 'Documentos sem versão'}
             </Text>
           }
         />

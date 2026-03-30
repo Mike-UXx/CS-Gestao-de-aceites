@@ -262,7 +262,7 @@ export function InformacoesStep() {
             {/* Nome */}
             <Form.Item
               name="nome"
-              label={<FieldLabel label="Nome do documento" required />}
+              label={<FieldLabel label="Título do documento" required />}
               rules={[
                 { required: true, message: 'Campo de preenchimento obrigatória' },
                 {
@@ -278,7 +278,7 @@ export function InformacoesStep() {
               style={{ marginBottom: 20 }}
             >
               <Input
-                placeholder="Ex: Código de conduta"
+                placeholder="Ex: Código de Conduta 2026"
                 size="middle"
                 onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'fileName', value: e.target.value })}
               />

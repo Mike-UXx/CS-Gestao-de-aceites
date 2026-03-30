@@ -371,16 +371,16 @@ export function ConfiguracoesStep() {
         <div role="radiogroup" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
           <RadioCard
             value="adesao"
-            title="Adesão"
-            description="Para políticas e normas que exigem controle de vigência e novos aceites a cada atualização"
+            title="Documentos com versão"
+            description="Documentos com prazo de vigência e controle de versões."
             selected={tipoDoc === 'adesao'}
             onClick={() => handleTipoDocChange('adesao')}
             style={{ flex: '1 1 260px' }}
           />
           <RadioCard
             value="ciencia"
-            title="Ciência"
-            description="Para comunicados e avisos pontuais (one-time). Documento estático sem histórico de versões"
+            title="Documentos sem versão"
+            description="Documentos de envio único e sem controle de versões futuras."
             selected={tipoDoc === 'ciencia'}
             onClick={() => handleTipoDocChange('ciencia')}
             style={{ flex: '1 1 260px' }}
@@ -420,7 +420,7 @@ export function ConfiguracoesStep() {
                     help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
                   >
                     <FieldLabel label="Data de lançamento" required
-                      tooltip="Data em que o documento será disparado para os destinatários."
+                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
                     />
                     <DatePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
@@ -463,7 +463,7 @@ export function ConfiguracoesStep() {
                     help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
                   >
                     <FieldLabel label="Data de lançamento" required
-                      tooltip="Data em que o documento será disparado para os destinatários."
+                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
                     />
                     <DatePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
