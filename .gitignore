@@ -40,3 +40,7 @@ Thumbs.db
 
 # Testes / cobertura
 coverage/
+
+# Deploy (Vercel / Netlify — configs locais geradas automaticamente)
+.vercel/
+.netlify/
