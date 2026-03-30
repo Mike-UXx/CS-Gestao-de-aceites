@@ -8,10 +8,10 @@ import {
   InboxOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { StepPageLayout } from '@/components/CreateDocument/StepPageLayout'
-import { CancelModal } from '@/components/CreateDocument/CancelModal'
-import { useDocumentForm } from '@/context/DocumentFormContext'
-import { computeSha256, validatePdfFile } from '@/utils/fileHash'
+import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
+import { CancelModal } from '@/features/criacao/components/CancelModal'
+import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
+import { computeSha256, validatePdfFile } from '@/features/criacao/utils/fileHash'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS, EXISTING_DOCUMENT_NAMES } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 

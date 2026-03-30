@@ -8,9 +8,9 @@ import {
   ClockCircleOutlined, VerticalAlignBottomOutlined, CloseCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { StepPageLayout } from '@/components/CreateDocument/StepPageLayout'
-import { CancelModal } from '@/components/CreateDocument/CancelModal'
-import { useDocumentForm } from '@/context/DocumentFormContext'
+import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
+import { CancelModal } from '@/features/criacao/components/CancelModal'
+import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
 import {
   CLASSIFICATIONS, GESTOES_RESPONSAVEIS,
   DEPARTAMENTOS, COLABORADORES,

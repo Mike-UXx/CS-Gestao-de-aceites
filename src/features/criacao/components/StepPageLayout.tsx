@@ -16,7 +16,7 @@
 import { ReactNode } from 'react'
 import { Button, Typography, Space } from 'antd'
 import { ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons'
-import { DocumentStepper } from '@/components/CreateDocument/DocumentStepper'
+import { DocumentStepper } from '@/features/criacao/components/DocumentStepper'
 import { colorTokens } from '@/theme/tokens'
 
 const { Title } = Typography
