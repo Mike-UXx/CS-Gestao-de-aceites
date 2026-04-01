@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Form, Typography, Select, Input,
-  Space, Checkbox, Divider, message, Tag, Tooltip,
+  Space, Checkbox, Divider, Tag, Tooltip,
 } from 'antd'
 import { InfoCircleOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -154,7 +154,7 @@ export function DestinatariosStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => navigate('/documentos/criar/informacoes')}
       onNext={handleNext}
-      onSaveDraft={() => { saveDraft(); message.success('Rascunho salvo!') }}
+      onSaveDraft={() => { saveDraft(1); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
     >
       {/* ── Card branco de conteúdo ───────────────────────────── */}
       <div

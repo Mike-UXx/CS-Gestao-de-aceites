@@ -100,7 +100,10 @@ function reducer(state: DocumentFormData, action: Action): DocumentFormData {
 interface DocumentFormContextValue {
   data: DocumentFormData
   dispatch: React.Dispatch<Action>
-  saveDraft: () => void
+  /** Persiste o rascunho no localStorage com metadados de rastreamento */
+  saveDraft: (stepAtual?: number) => void
+  /** Remove o rascunho do localStorage (após publicação ou exclusão) */
+  clearDraft: () => void
 }
 
 const DocumentFormContext = createContext<DocumentFormContextValue | null>(null)
@@ -120,13 +123,27 @@ export function DocumentFormProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const saveDraft = () => {
+  const saveDraft = (stepAtual = 0) => {
     const { file: _file, ...serializable } = data
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(serializable))
+    // Preserva o ID existente para não gerar um novo a cada save
+    const existingRaw  = localStorage.getItem(DRAFT_KEY)
+    const existingId   = existingRaw
+      ? (JSON.parse(existingRaw) as Record<string, unknown>)._draftId
+      : null
+    const meta = {
+      _draftId:   existingId ?? `draft-${Date.now().toString(36)}`,
+      _savedAt:   new Date().toISOString(),
+      _stepAtual: stepAtual,
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...serializable, ...meta }))
+  }
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY)
   }
 
   return (
-    <DocumentFormContext.Provider value={{ data, dispatch, saveDraft }}>
+    <DocumentFormContext.Provider value={{ data, dispatch, saveDraft, clearDraft }}>
       {children}
     </DocumentFormContext.Provider>
   )

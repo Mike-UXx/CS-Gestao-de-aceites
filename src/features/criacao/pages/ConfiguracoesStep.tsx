@@ -356,7 +356,7 @@ export function ConfiguracoesStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => navigate('/documentos/criar/destinatarios')}
       onNext={handleNext}
-      onSaveDraft={() => { saveDraft(); message.success('Rascunho salvo!') }}
+      onSaveDraft={() => { saveDraft(2); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
     >
       <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '100%' }}>
 

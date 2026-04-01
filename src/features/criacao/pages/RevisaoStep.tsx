@@ -87,7 +87,7 @@ function BlockHeader({ title, editRoute }: { title: string; editRoute: string })
 /* ═══════════════════════════════════════════════════════════════ */
 export function RevisaoStep() {
   const navigate = useNavigate()
-  const { data, dispatch, saveDraft } = useDocumentForm()
+  const { data, dispatch, saveDraft, clearDraft } = useDocumentForm()
 
   const [showCancel,  setShowCancel]  = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -127,6 +127,7 @@ export function RevisaoStep() {
   /* ── Confirmar envio ── */
   function handleConfirmSend() {
     setShowConfirm(false)
+    clearDraft()           // remove o rascunho do localStorage após publicação
     dispatch({ type: 'RESET' })
     message.success(
       isToday
@@ -134,7 +135,7 @@ export function RevisaoStep() {
         : `Envio agendado para ${lancamento?.format('DD/MM/YYYY')} às 08:00h.`,
       4,
     )
-    navigate('/documentos/criar')
+    navigate('/documentos/listagem')
   }
 
   /* ─── JSX ─────────────────────────────────────────────────────── */
@@ -144,7 +145,7 @@ export function RevisaoStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => navigate('/documentos/criar/configuracoes')}
       onNext={() => setShowConfirm(true)}
-      onSaveDraft={() => { saveDraft(); message.success('Rascunho salvo!') }}
+      onSaveDraft={() => { saveDraft(3); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
       nextLabel={actionLabel}
     >
 

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import {
   Form, Input, Select, Button, Typography,
-  Tooltip, Spin, Space, message, Row, Col, Alert,
+  Tooltip, Spin, Space, Row, Col, Alert,
 } from 'antd'
 import {
   InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled,
@@ -126,7 +126,7 @@ export function InformacoesStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => setShowCancel(true)}
       onNext={handleNext}
-      onSaveDraft={() => { saveDraft(); message.success('Rascunho salvo!') }}
+      onSaveDraft={() => { saveDraft(0); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
       hasFormError={hasFormError}
       backLabel="Cancelar"
     >
