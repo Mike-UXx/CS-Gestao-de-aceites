@@ -29,7 +29,7 @@ export interface Documento {
   /** Data de criação do rascunho ou documento */
   criadoEm: string // ISO 8601
 
-  /** Data de lançamento/envio (pode ser futura — Agendado) */
+  /** Data de lançamento/envio — início da vigência ativa */
   dataLancamento: string | null // ISO 8601
 
   /** Data de expiração da validade do aceite (apenas tipoDocumento === 'adesao') */
@@ -46,6 +46,12 @@ export interface Documento {
 
   /** Nome original do arquivo PDF */
   fileName: string | null
+
+  /**
+   * Labels resumidos dos destinatários para exibição na coluna "Público".
+   * Ex.: ['RH', 'Jurídico'] — excedentes são indicados com "+N".
+   */
+  destinatariosPreview?: string[]
 }
 
 /** Filtros aplicados na listagem */
