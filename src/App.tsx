@@ -10,6 +10,7 @@ import { DestinatariosStep } from '@/features/criacao/pages/DestinatariosStep'
 import { ConfiguracoesStep } from '@/features/criacao/pages/ConfiguracoesStep'
 import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
+import { ListagemPage } from '@/features/listagem'
 import { colorTokens } from '@/theme/tokens'
 
 const { Content } = Layout
@@ -32,6 +33,7 @@ function AppShell() {
                 <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
                 <Route path="/documentos/criar/configuracoes" element={<ConfiguracoesStep />} />
                 <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
+                <Route path="/documentos/listagem" element={<ListagemPage />} />
                 <Route path="*" element={<Navigate to="/documentos/criar" replace />} />
               </Routes>
             </div>
