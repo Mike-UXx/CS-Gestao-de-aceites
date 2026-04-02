@@ -299,6 +299,23 @@ export function RevisaoStep() {
           }
         />
 
+        <ReviewRow
+          label="Aceite formal"
+          value={
+            data.exigeAceite !== false ? (
+              <Space size={6}>
+                <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
+              </Space>
+            ) : (
+              <Space size={6}>
+                <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não exigido</Text>
+              </Space>
+            )
+          }
+        />
+
         {/* Campos exclusivos de Adesão */}
         {data.tipoDocumento === 'adesao' && data.vigenciaInicio && (
           <ReviewRow
@@ -312,39 +329,43 @@ export function RevisaoStep() {
             value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaFim).format('DD/MM/YYYY')}</Text>}
           />
         )}
-        {data.tipoDocumento === 'adesao' && (
+        {data.exigeAceite !== false && data.tipoDocumento === 'adesao' && (
           <ReviewRow
             label="Reciclagem"
             value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{validadeLabel}</Text>}
           />
         )}
 
-        <ReviewRow
-          label="Trava de leitura"
-          value={
-            <Space size={6}>
-              <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
-              <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
-            </Space>
-          }
-        />
+        {data.exigeAceite !== false && (
+          <ReviewRow
+            label="Trava de leitura"
+            value={
+              <Space size={6}>
+                <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
+              </Space>
+            }
+          />
+        )}
 
-        <ReviewRow
-          label="Scroll obrigatório"
-          value={
-            data.scrollObrigatorioGlobal ? (
-              <Space size={6}>
-                <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
-                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
-              </Space>
-            ) : (
-              <Space size={6}>
-                <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
-                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
-              </Space>
-            )
-          }
-        />
+        {data.exigeAceite !== false && (
+          <ReviewRow
+            label="Scroll obrigatório"
+            value={
+              data.scrollObrigatorioGlobal ? (
+                <Space size={6}>
+                  <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
+                </Space>
+              ) : (
+                <Space size={6}>
+                  <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
+                </Space>
+              )
+            }
+          />
+        )}
 
         {data.personalizarPorDept && (
           <ReviewRow

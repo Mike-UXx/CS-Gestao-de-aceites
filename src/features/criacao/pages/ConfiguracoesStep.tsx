@@ -4,7 +4,7 @@ import 'dayjs/locale/pt-br'
 import {
   Typography, Switch, Table, Space,
   Tooltip, Modal, message, Divider, DatePicker,
-  ConfigProvider, Form, Select, Row, Col,
+  ConfigProvider, Form, Select, Row, Col, Radio,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import ptBR from 'antd/locale/pt_BR'
@@ -149,6 +149,9 @@ export function ConfiguracoesStep() {
 
   /* ── Tipo de documento ── */
   const [tipoDoc, setTipoDoc] = useState<'adesao' | 'ciencia'>(data.tipoDocumento ?? 'adesao')
+
+  /* ── Exige aceite formal ── */
+  const [exigeAceite, setExigeAceite] = useState<boolean>(data.exigeAceite ?? true)
 
   /* ── Vigência — RangePicker (só Adesão) ── */
   const [vigRange, setVigRange] = useState<[Dayjs | null, Dayjs | null]>([null, null])
@@ -335,15 +338,16 @@ export function ConfiguracoesStep() {
       type: 'SET_STEP3',
       config: {
         tipoDocumento:           tipoDoc,
+        exigeAceite,
         vigenciaInicio:          vigRange[0]?.toISOString()    ?? '',
         vigenciaFim:             vigRange[1]?.toISOString()    ?? '',
         dataLancamento:          dataLancamento?.toISOString() ?? '',
-        validadeAceite,
+        validadeAceite:          exigeAceite ? validadeAceite : 'sem_validade',
         prazoAceite:             0,
-        tempoLeituraGlobal:      effectiveTempo,
-        scrollObrigatorioGlobal: scrollObrigatorio,
-        personalizarPorDept,
-        deptConfig,
+        tempoLeituraGlobal:      exigeAceite ? effectiveTempo : 0,
+        scrollObrigatorioGlobal: exigeAceite ? scrollObrigatorio : false,
+        personalizarPorDept:     exigeAceite ? personalizarPorDept : false,
+        deptConfig:              exigeAceite ? deptConfig : {},
       },
     })
     navigate('/documentos/criar/revisao')
@@ -387,10 +391,37 @@ export function ConfiguracoesStep() {
           />
         </div>
 
+        {/* ══ 1B. EXIGIR ACEITE FORMAL ═════════════════════════════ */}
+        <div style={{ marginBottom: 24 }}>
+          <FieldLabel
+            label="Exigir aceite formal dos destinatários?"
+            tooltip="Quando ativado, os destinatários precisarão confirmar a leitura do documento."
+          />
+          <div style={{ marginTop: 8 }}>
+            <Radio.Group
+              value={exigeAceite ? 'sim' : 'nao'}
+              onChange={(e) => setExigeAceite(e.target.value === 'sim')}
+              optionType="button"
+              buttonStyle="solid"
+            >
+              <Radio.Button value="sim">Sim</Radio.Button>
+              <Radio.Button value="nao">Não</Radio.Button>
+            </Radio.Group>
+          </div>
+          {!exigeAceite && (
+            <Text style={{
+              display: 'block', fontSize: 12, color: colorTokens.textSecondary,
+              fontFamily: FONT, marginTop: 8,
+            }}>
+              Este documento ficará disponível apenas para consulta, sem gerar pendência de assinatura.
+            </Text>
+          )}
+        </div>
+
         {/* ══ 2A. ADESÃO — Vigência + Lançamento + Validade ═══════ */}
         {tipoDoc === 'adesao' && (
           <>
-            <SectionDivider title="Vigência, lançamento e prazo de aceite" />
+            <SectionDivider title={exigeAceite ? 'Vigência, lançamento e prazo de aceite' : 'Vigência e data de lançamento'} />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} sm={8}>
@@ -432,28 +463,30 @@ export function ConfiguracoesStep() {
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={8}>
-                  <Form.Item style={{ margin: 0 }}>
-                    <FieldLabel label="Validade do aceite (Reciclagem)"
-                      tooltip="Define de quanto em quanto tempo o colaborador precisará reaceitar este documento."
-                    />
-                    <Select
-                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      value={validadeAceite}
-                      onChange={setValidadeAceite}
-                      options={VALIDADE_OPTIONS}
-                    />
-                  </Form.Item>
-                </Col>
+                {exigeAceite && (
+                  <Col xs={24} sm={8}>
+                    <Form.Item style={{ margin: 0 }}>
+                      <FieldLabel label="Recorrência do aceite"
+                        tooltip="Define de quanto em quanto tempo o colaborador precisará reaceitar este documento."
+                      />
+                      <Select
+                        style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                        value={validadeAceite}
+                        onChange={setValidadeAceite}
+                        options={VALIDADE_OPTIONS}
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
               </Row>
             </ConfigProvider>
           </>
         )}
 
-        {/* ══ 2B. CIÊNCIA — Apenas data de lançamento ════════════ */}
+        {/* ══ 2B. CIÊNCIA — Lançamento + Recorrência (desabilitada se exige aceite) ══ */}
         {tipoDoc === 'ciencia' && (
           <>
-            <SectionDivider title="Data de lançamento" />
+            <SectionDivider title={exigeAceite ? 'Data de lançamento e recorrência do aceite' : 'Data de lançamento'} />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} sm={8}>
@@ -475,12 +508,28 @@ export function ConfiguracoesStep() {
                     />
                   </Form.Item>
                 </Col>
+                {exigeAceite && (
+                  <Col xs={24} sm={8}>
+                    <Form.Item style={{ margin: 0 }}>
+                      <FieldLabel label="Recorrência do aceite"
+                        tooltip="Documentos sem versão não suportam recorrência de aceite."
+                      />
+                      <Select
+                        style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                        value="sem_validade"
+                        disabled
+                        options={[{ value: 'sem_validade', label: 'Sem recorrência' }]}
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
               </Row>
             </ConfigProvider>
           </>
         )}
 
         {/* ══ 3. MECANISMO DE GARANTIA DE LEITURA ════════════════ */}
+        {exigeAceite && (
         <>
           <Divider style={{ margin: '0 0 20px' }} />
 
@@ -581,6 +630,7 @@ export function ConfiguracoesStep() {
             </div>
           )}
         </>
+        )}
 
       </div>
 
