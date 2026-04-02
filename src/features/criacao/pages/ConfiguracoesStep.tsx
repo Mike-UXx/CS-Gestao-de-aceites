@@ -4,7 +4,7 @@ import 'dayjs/locale/pt-br'
 import {
   Typography, Switch, Table, Space,
   Tooltip, Modal, message, Divider, DatePicker,
-  ConfigProvider, Form, Select, Row, Col,
+  ConfigProvider, Form, Select, Row, Col, Radio,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import ptBR from 'antd/locale/pt_BR'
@@ -149,6 +149,9 @@ export function ConfiguracoesStep() {
 
   /* ── Tipo de documento ── */
   const [tipoDoc, setTipoDoc] = useState<'adesao' | 'ciencia'>(data.tipoDocumento ?? 'adesao')
+
+  /* ── Exige aceite formal ── */
+  const [exigeAceite, setExigeAceite] = useState<boolean>(data.exigeAceite ?? true)
 
   /* ── Vigência — RangePicker (só Adesão) ── */
   const [vigRange, setVigRange] = useState<[Dayjs | null, Dayjs | null]>([null, null])
@@ -324,10 +327,13 @@ export function ConfiguracoesStep() {
   /* ── Validação e avanço ── */
   function handleNext() {
     setSubmitted(true)
-    if (!dataLancamento) { message.error('Informe a data de lançamento.'); return }
     if (tipoDoc === 'adesao' && (!vigRange[0] || !vigRange[1])) {
-      message.error('Informe o período de vigência do aceite.'); return
+      message.error('Informe o período de vigência do documento.'); return
     }
+
+    // envioImediato é derivado: null = imediato, data preenchida = agendado
+    const envioImediato = !dataLancamento
+
     const deptConfig = Object.fromEntries(
       deptRows.map((r) => [r.key, { scrollObrigatorio: r.scrollObrigatorio, tempoLeitura: r.tempoLeitura }])
     )
@@ -335,15 +341,17 @@ export function ConfiguracoesStep() {
       type: 'SET_STEP3',
       config: {
         tipoDocumento:           tipoDoc,
+        exigeAceite,
+        envioImediato,
         vigenciaInicio:          vigRange[0]?.toISOString()    ?? '',
         vigenciaFim:             vigRange[1]?.toISOString()    ?? '',
         dataLancamento:          dataLancamento?.toISOString() ?? '',
-        validadeAceite,
+        validadeAceite:          exigeAceite ? validadeAceite : 'sem_validade',
         prazoAceite:             0,
-        tempoLeituraGlobal:      effectiveTempo,
-        scrollObrigatorioGlobal: scrollObrigatorio,
-        personalizarPorDept,
-        deptConfig,
+        tempoLeituraGlobal:      exigeAceite ? effectiveTempo : 0,
+        scrollObrigatorioGlobal: exigeAceite ? scrollObrigatorio : false,
+        personalizarPorDept:     exigeAceite ? personalizarPorDept : false,
+        deptConfig:              exigeAceite ? deptConfig : {},
       },
     })
     navigate('/documentos/criar/revisao')
@@ -387,20 +395,49 @@ export function ConfiguracoesStep() {
           />
         </div>
 
-        {/* ══ 2A. ADESÃO — Vigência + Lançamento + Validade ═══════ */}
+        {/* ══ 1B. EXIGIR ACEITE FORMAL ═════════════════════════════ */}
+        <div style={{ marginBottom: 24 }}>
+          <FieldLabel
+            label="Exigir aceite formal dos destinatários?"
+            tooltip="Quando ativado, os destinatários precisarão confirmar a leitura do documento."
+          />
+          <div style={{ marginTop: 8 }}>
+            <Radio.Group
+              value={exigeAceite ? 'sim' : 'nao'}
+              onChange={(e) => setExigeAceite(e.target.value === 'sim')}
+              optionType="button"
+              buttonStyle="solid"
+            >
+              <Radio.Button value="sim">Sim</Radio.Button>
+              <Radio.Button value="nao">Não</Radio.Button>
+            </Radio.Group>
+          </div>
+          {!exigeAceite && (
+            <Text style={{
+              display: 'block', fontSize: 12, color: colorTokens.textSecondary,
+              fontFamily: FONT, marginTop: 8,
+            }}>
+              Este documento ficará disponível apenas para consulta, sem gerar pendência de assinatura.
+            </Text>
+          )}
+        </div>
+
+        {/* ══ 2A. ADESÃO — Vigência | Recorrência | Data de envio ═══ */}
         {tipoDoc === 'adesao' && (
           <>
-            <SectionDivider title="Vigência, lançamento e prazo de aceite" />
+            <SectionDivider title={exigeAceite ? 'Vigência, prazo de aceite e data de envio' : 'Vigência e data de envio'} />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+
+                {/* Col 1 — Vigência do documento */}
                 <Col xs={24} sm={8}>
                   <Form.Item
                     style={{ margin: 0 }}
                     validateStatus={submitted && (!vigRange[0] || !vigRange[1]) ? 'error' : ''}
                     help={submitted && (!vigRange[0] || !vigRange[1]) ? 'Campo obrigatório.' : undefined}
                   >
-                    <FieldLabel label="Vigência do aceite" required
-                      tooltip="Período em que este documento estará ativo e exigindo aceite dos colaboradores."
+                    <FieldLabel label="Vigência do documento" required
+                      tooltip="Período em que este documento estará ativo para os destinatários."
                     />
                     <RangePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
@@ -413,64 +450,73 @@ export function ConfiguracoesStep() {
                     />
                   </Form.Item>
                 </Col>
+
+                {/* Col 2 — Recorrência do aceite (só quando exige aceite) */}
+                {exigeAceite && (
+                  <Col xs={24} sm={8}>
+                    <Form.Item style={{ margin: 0 }}>
+                      <FieldLabel label="Recorrência do aceite"
+                        tooltip="Define de quanto em quanto tempo o colaborador precisará reaceitar este documento."
+                      />
+                      <Select
+                        style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                        value={validadeAceite}
+                        onChange={setValidadeAceite}
+                        options={VALIDADE_OPTIONS}
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
+
+                {/* Col 3 — Data de envio (default inteligente: imediato) */}
                 <Col xs={24} sm={8}>
-                  <Form.Item
-                    style={{ margin: 0 }}
-                    validateStatus={submitted && !dataLancamento ? 'error' : ''}
-                    help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
-                  >
-                    <FieldLabel label="Data de lançamento" required
-                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
+                  <Form.Item style={{ margin: 0 }}>
+                    <FieldLabel
+                      label="Data de envio"
+                      tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
                     />
                     <DatePicker
+                      className="envio-picker"
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY"
-                      placeholder="Selecione"
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      allowClear
+                      placeholder="🕒  Imediato (ao publicar)"
                       value={dataLancamento}
-                      onChange={(d) => setDataLancamento(d)}
+                      onChange={(d) => setDataLancamento(d ?? null)}
                       disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={8}>
-                  <Form.Item style={{ margin: 0 }}>
-                    <FieldLabel label="Validade do aceite (Reciclagem)"
-                      tooltip="Define de quanto em quanto tempo o colaborador precisará reaceitar este documento."
-                    />
-                    <Select
-                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      value={validadeAceite}
-                      onChange={setValidadeAceite}
-                      options={VALIDADE_OPTIONS}
-                    />
-                  </Form.Item>
-                </Col>
+
               </Row>
             </ConfigProvider>
           </>
         )}
 
-        {/* ══ 2B. CIÊNCIA — Apenas data de lançamento ════════════ */}
+        {/* ══ 2B. CIÊNCIA — Data de envio ═══════════════════════════ */}
         {tipoDoc === 'ciencia' && (
           <>
-            <SectionDivider title="Data de lançamento" />
+            <SectionDivider title="Data de envio" />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} sm={8}>
-                  <Form.Item
-                    style={{ margin: 0 }}
-                    validateStatus={submitted && !dataLancamento ? 'error' : ''}
-                    help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
-                  >
-                    <FieldLabel label="Data de lançamento" required
-                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
+                  <Form.Item style={{ margin: 0 }}>
+                    <FieldLabel
+                      label="Data de envio"
+                      tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
                     />
                     <DatePicker
+                      className="envio-picker"
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY"
-                      placeholder="Selecione"
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      allowClear
+                      placeholder="🕒  Imediato (ao publicar)"
                       value={dataLancamento}
-                      onChange={(d) => setDataLancamento(d)}
+                      onChange={(d) => setDataLancamento(d ?? null)}
                       disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
                     />
                   </Form.Item>
@@ -481,6 +527,7 @@ export function ConfiguracoesStep() {
         )}
 
         {/* ══ 3. MECANISMO DE GARANTIA DE LEITURA ════════════════ */}
+        {exigeAceite && (
         <>
           <Divider style={{ margin: '0 0 20px' }} />
 
@@ -517,7 +564,7 @@ export function ConfiguracoesStep() {
             {/* Card 1 — Tempo de leitura */}
             <ReadingGuardCard
               title="Tempo de leitura"
-              description="Tempo mínimo de leitura antes de habilitar o aceite"
+              description="O aceite só será possível após atingimento do tempo mínimo de leitura"
               active={tempoEnabled}
               disabled={personalizarPorDept}
               right={
@@ -543,7 +590,7 @@ export function ConfiguracoesStep() {
             {/* Card 2 — Scroll obrigatório */}
             <ReadingGuardCard
               title={scrollObrigatorio ? 'Scroll obrigatório até o fim (ativado)' : 'Scroll obrigatório até o fim'}
-              description="Botão de aceite só habilita após rolar todo o documento"
+              description="O botão de aceite só será habilitado após rolagem de todo o documento"
               active={scrollObrigatorio}
               disabled={personalizarPorDept}
               right={
@@ -581,6 +628,7 @@ export function ConfiguracoesStep() {
             </div>
           )}
         </>
+        )}
 
       </div>
 

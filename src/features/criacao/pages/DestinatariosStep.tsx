@@ -168,7 +168,7 @@ export function DestinatariosStep() {
             Público-alvo
           </Text>
           <Text style={{ fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 28 }}>
-            Defina quem receberá o documento para assinatura.
+            Defina quem deve receber este documento.
           </Text>
 
           <Form form={form} layout="vertical">
@@ -192,8 +192,8 @@ export function DestinatariosStep() {
               />
               <RadioCard
                 value="colaborador"
-                title="Pessoas específicas"
-                description="Busque e selecione pessoas específicas pelo nome"
+                title="Destinatários específicos"
+                description="Busque e selecione destinatários específicos pelo nome"
                 selected={modalidade === 'colaborador'}
                 onClick={() => {
                   setModalidade('colaborador')
@@ -258,9 +258,9 @@ export function DestinatariosStep() {
                 help={selectionEmpty ? 'Campo de seleção obrigatória.' : undefined}
               >
                 <FieldLabel
-                  label="Pessoas *"
+                  label="Destinatários *"
                   required={false}
-                  tooltip="Selecione as pessoas que receberão o documento individualmente."
+                  tooltip="Selecione os destinatários que receberão o documento individualmente."
                 />
 
                 {/* Wrapper relativo para sobrepor o contador */}
