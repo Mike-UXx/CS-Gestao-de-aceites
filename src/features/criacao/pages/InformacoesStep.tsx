@@ -171,7 +171,7 @@ export function InformacoesStep() {
             Informações do documento
           </Text>
           <Text style={{ fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 28 }}>
-            Configure nome, arquivo e classificação do documento.
+            Configure as principais informações do documento a ser enviado.
           </Text>
 
           <Row>
@@ -332,7 +332,7 @@ export function InformacoesStep() {
               name="classificacoes"
               label={
                 <FieldLabel
-                  label="Classificação"
+                  label="Classificações"
                   required
                   tooltip="Categorize o documento (ex: Política, Cartilha). Selecione quantas categorias forem necessárias para facilitar a organização e os relatórios de auditoria."
                 />

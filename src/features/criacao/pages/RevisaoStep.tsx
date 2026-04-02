@@ -206,7 +206,7 @@ export function RevisaoStep() {
         />
 
         <ReviewRow
-          label="Classificação"
+          label="Classificações"
           value={
             classificacoesLabels.length > 0
               ? (
@@ -264,7 +264,7 @@ export function RevisaoStep() {
           />
         ) : (
           <ReviewRow
-            label="Pessoas"
+            label="Destinatário(s)"
             value={
               colabTags.length > 0
                 ? (

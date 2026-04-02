@@ -564,7 +564,7 @@ export function ConfiguracoesStep() {
             {/* Card 1 — Tempo de leitura */}
             <ReadingGuardCard
               title="Tempo de leitura"
-              description="Tempo mínimo de leitura antes de habilitar o aceite"
+              description="O aceite só será possível após atingimento do tempo mínimo de leitura"
               active={tempoEnabled}
               disabled={personalizarPorDept}
               right={
@@ -590,7 +590,7 @@ export function ConfiguracoesStep() {
             {/* Card 2 — Scroll obrigatório */}
             <ReadingGuardCard
               title={scrollObrigatorio ? 'Scroll obrigatório até o fim (ativado)' : 'Scroll obrigatório até o fim'}
-              description="Botão de aceite só habilita após rolar todo o documento"
+              description="O botão de aceite só será habilitado após rolagem de todo o documento"
               active={scrollObrigatorio}
               disabled={personalizarPorDept}
               right={
