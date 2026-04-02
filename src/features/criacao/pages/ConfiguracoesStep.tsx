@@ -472,12 +472,14 @@ export function ConfiguracoesStep() {
                     help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
                   >
                     <FieldLabel label="Data de envio" required
-                      tooltip="Define o dia em que o documento será disparado automaticamente aos destinatários."
+                      tooltip="Define a data e hora exata em que o documento será disparado e ficará disponível para aceite dos destinatários."
                     />
                     <DatePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY"
-                      placeholder="Selecione"
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      placeholder="Selecione a data e hora"
                       value={dataLancamento}
                       onChange={(d) => setDataLancamento(d)}
                       disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
@@ -503,12 +505,14 @@ export function ConfiguracoesStep() {
                     help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
                   >
                     <FieldLabel label="Data de envio" required
-                      tooltip="Define o dia em que o documento será disparado automaticamente aos destinatários."
+                      tooltip="Define a data e hora exata em que o documento será disparado e ficará disponível para aceite dos destinatários."
                     />
                     <DatePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY"
-                      placeholder="Selecione"
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      placeholder="Selecione a data e hora"
                       value={dataLancamento}
                       onChange={(d) => setDataLancamento(d)}
                       disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}

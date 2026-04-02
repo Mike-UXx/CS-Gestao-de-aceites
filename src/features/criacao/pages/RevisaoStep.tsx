@@ -158,7 +158,7 @@ export function RevisaoStep() {
           <CalendarOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
           <Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary }}>
             Este documento será disparado automaticamente em{' '}
-            <strong>{lancamento.format('DD/MM/YYYY')}</strong> às 08:00h.
+            <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
           </Text>
         </div>
       )}
@@ -340,7 +340,7 @@ export function RevisaoStep() {
         {lancamento && (
           <ReviewRow
             label="Data de envio"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{lancamento.format('DD/MM/YYYY')}</Text>}
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{lancamento.format('DD/MM/YYYY HH:mm')}</Text>}
           />
         )}
 
@@ -423,7 +423,7 @@ export function RevisaoStep() {
           {!isToday && lancamento && (
             <p style={{ marginBottom: 8, color: colorTokens.primary }}>
               <CalendarOutlined style={{ marginRight: 6 }} />
-              Disparo automático em <strong>{lancamento.format('DD/MM/YYYY')}</strong> às 08:00h.
+              Disparo automático em <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
             </p>
           )}
           <p style={{ color: colorTokens.textSecondary, fontSize: 12, marginBottom: 0 }}>
