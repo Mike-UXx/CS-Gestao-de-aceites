@@ -319,20 +319,28 @@ export function RevisaoStep() {
         {/* Campos exclusivos de Adesão */}
         {data.tipoDocumento === 'adesao' && data.vigenciaInicio && (
           <ReviewRow
-            label="Início da vigência"
+            label="Vigência (início)"
             value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaInicio).format('DD/MM/YYYY')}</Text>}
           />
         )}
         {data.tipoDocumento === 'adesao' && data.vigenciaFim && (
           <ReviewRow
-            label="Fim da vigência"
+            label="Vigência (fim)"
             value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaFim).format('DD/MM/YYYY')}</Text>}
           />
         )}
         {data.exigeAceite !== false && data.tipoDocumento === 'adesao' && (
           <ReviewRow
-            label="Reciclagem"
+            label="Recorrência do aceite"
             value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{validadeLabel}</Text>}
+          />
+        )}
+
+        {/* Data de envio — sempre presente */}
+        {lancamento && (
+          <ReviewRow
+            label="Data de envio"
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{lancamento.format('DD/MM/YYYY')}</Text>}
           />
         )}
 

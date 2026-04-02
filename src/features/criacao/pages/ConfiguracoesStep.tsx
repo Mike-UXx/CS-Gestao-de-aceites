@@ -418,20 +418,22 @@ export function ConfiguracoesStep() {
           )}
         </div>
 
-        {/* ══ 2A. ADESÃO — Vigência + Lançamento + Validade ═══════ */}
+        {/* ══ 2A. ADESÃO — Vigência | Recorrência | Data de envio ═══ */}
         {tipoDoc === 'adesao' && (
           <>
-            <SectionDivider title={exigeAceite ? 'Vigência, lançamento e prazo de aceite' : 'Vigência e data de lançamento'} />
+            <SectionDivider title="Vigência, prazo de aceite e data de envio" />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+
+                {/* Col 1 — Vigência do documento */}
                 <Col xs={24} sm={8}>
                   <Form.Item
                     style={{ margin: 0 }}
                     validateStatus={submitted && (!vigRange[0] || !vigRange[1]) ? 'error' : ''}
                     help={submitted && (!vigRange[0] || !vigRange[1]) ? 'Campo obrigatório.' : undefined}
                   >
-                    <FieldLabel label="Vigência do aceite" required
-                      tooltip="Período em que este documento estará ativo e exigindo aceite dos colaboradores."
+                    <FieldLabel label="Vigência do documento" required
+                      tooltip="Período em que este documento estará ativo para os destinatários."
                     />
                     <RangePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
@@ -444,25 +446,8 @@ export function ConfiguracoesStep() {
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={8}>
-                  <Form.Item
-                    style={{ margin: 0 }}
-                    validateStatus={submitted && !dataLancamento ? 'error' : ''}
-                    help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
-                  >
-                    <FieldLabel label="Data de lançamento" required
-                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
-                    />
-                    <DatePicker
-                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY"
-                      placeholder="Selecione"
-                      value={dataLancamento}
-                      onChange={(d) => setDataLancamento(d)}
-                      disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
-                    />
-                  </Form.Item>
-                </Col>
+
+                {/* Col 2 — Recorrência do aceite (só quando exige aceite) */}
                 {exigeAceite && (
                   <Col xs={24} sm={8}>
                     <Form.Item style={{ margin: 0 }}>
@@ -478,25 +463,16 @@ export function ConfiguracoesStep() {
                     </Form.Item>
                   </Col>
                 )}
-              </Row>
-            </ConfigProvider>
-          </>
-        )}
 
-        {/* ══ 2B. CIÊNCIA — Lançamento + Recorrência (desabilitada se exige aceite) ══ */}
-        {tipoDoc === 'ciencia' && (
-          <>
-            <SectionDivider title={exigeAceite ? 'Data de lançamento e recorrência do aceite' : 'Data de lançamento'} />
-            <ConfigProvider locale={ptBR}>
-              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                {/* Col 3 — Data de envio */}
                 <Col xs={24} sm={8}>
                   <Form.Item
                     style={{ margin: 0 }}
                     validateStatus={submitted && !dataLancamento ? 'error' : ''}
                     help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
                   >
-                    <FieldLabel label="Data de lançamento" required
-                      tooltip="Define o dia exato em que o documento será disparado e ficará disponível para aceite dos destinatários."
+                    <FieldLabel label="Data de envio" required
+                      tooltip="Define o dia em que o documento será disparado automaticamente aos destinatários."
                     />
                     <DatePicker
                       style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
@@ -508,21 +484,37 @@ export function ConfiguracoesStep() {
                     />
                   </Form.Item>
                 </Col>
-                {exigeAceite && (
-                  <Col xs={24} sm={8}>
-                    <Form.Item style={{ margin: 0 }}>
-                      <FieldLabel label="Recorrência do aceite"
-                        tooltip="Documentos sem versão não suportam recorrência de aceite."
-                      />
-                      <Select
-                        style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                        value="sem_validade"
-                        disabled
-                        options={[{ value: 'sem_validade', label: 'Sem recorrência' }]}
-                      />
-                    </Form.Item>
-                  </Col>
-                )}
+
+              </Row>
+            </ConfigProvider>
+          </>
+        )}
+
+        {/* ══ 2B. CIÊNCIA — Apenas Data de envio ════════════════════ */}
+        {tipoDoc === 'ciencia' && (
+          <>
+            <SectionDivider title="Data de envio" />
+            <ConfigProvider locale={ptBR}>
+              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    style={{ margin: 0 }}
+                    validateStatus={submitted && !dataLancamento ? 'error' : ''}
+                    help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
+                  >
+                    <FieldLabel label="Data de envio" required
+                      tooltip="Define o dia em que o documento será disparado automaticamente aos destinatários."
+                    />
+                    <DatePicker
+                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                      format="DD/MM/YYYY"
+                      placeholder="Selecione"
+                      value={dataLancamento}
+                      onChange={(d) => setDataLancamento(d)}
+                      disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+                    />
+                  </Form.Item>
+                </Col>
               </Row>
             </ConfigProvider>
           </>
