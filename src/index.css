@@ -23,6 +23,12 @@ body {
   align-items: flex-start !important;
 }
 
+/* ── Data de envio: placeholder com cor de "valor padrão silencioso" ── */
+.envio-picker .ant-picker-input input::placeholder {
+  color: rgba(0, 0, 0, 0.52) !important;
+  font-style: italic;
+}
+
 /* ── Responsividade Mobile ─────────────────────────────────── */
 @media (max-width: 768px) {
   /* Sidebar hidden on mobile — handled by AntD collapsed */

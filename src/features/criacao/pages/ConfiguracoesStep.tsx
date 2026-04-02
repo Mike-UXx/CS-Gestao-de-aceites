@@ -153,9 +153,6 @@ export function ConfiguracoesStep() {
   /* ── Exige aceite formal ── */
   const [exigeAceite, setExigeAceite] = useState<boolean>(data.exigeAceite ?? true)
 
-  /* ── Momento de envio ── */
-  const [envioImediato, setEnvioImediato] = useState<boolean>(data.envioImediato ?? true)
-
   /* ── Vigência — RangePicker (só Adesão) ── */
   const [vigRange, setVigRange] = useState<[Dayjs | null, Dayjs | null]>([null, null])
 
@@ -330,14 +327,12 @@ export function ConfiguracoesStep() {
   /* ── Validação e avanço ── */
   function handleNext() {
     setSubmitted(true)
-
-    // Data de envio só obrigatória se "Agendar envio" estiver selecionado
-    if (!envioImediato && !dataLancamento) {
-      message.error('Informe a data e hora de envio.'); return
-    }
     if (tipoDoc === 'adesao' && (!vigRange[0] || !vigRange[1])) {
       message.error('Informe o período de vigência do documento.'); return
     }
+
+    // envioImediato é derivado: null = imediato, data preenchida = agendado
+    const envioImediato = !dataLancamento
 
     const deptConfig = Object.fromEntries(
       deptRows.map((r) => [r.key, { scrollObrigatorio: r.scrollObrigatorio, tempoLeitura: r.tempoLeitura }])
@@ -350,8 +345,7 @@ export function ConfiguracoesStep() {
         envioImediato,
         vigenciaInicio:          vigRange[0]?.toISOString()    ?? '',
         vigenciaFim:             vigRange[1]?.toISOString()    ?? '',
-        // envioImediato → limpa a data para não poluir o estado
-        dataLancamento:          envioImediato ? '' : (dataLancamento?.toISOString() ?? ''),
+        dataLancamento:          dataLancamento?.toISOString() ?? '',
         validadeAceite:          exigeAceite ? validadeAceite : 'sem_validade',
         prazoAceite:             0,
         tempoLeituraGlobal:      exigeAceite ? effectiveTempo : 0,
@@ -428,45 +422,32 @@ export function ConfiguracoesStep() {
           )}
         </div>
 
-        {/* ══ 1C. MOMENTO DE ENVIO ═════════════════════════════════ */}
+        {/* ══ 1C. DATA DE ENVIO (default inteligente: imediato) ══════ */}
         <div style={{ marginBottom: 24 }}>
           <FieldLabel
-            label="Quando este documento deve ser enviado?"
-            tooltip="Escolha se o documento é disparado imediatamente após publicação ou em uma data e hora específicas."
+            label="Data de envio"
+            tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
           />
-          <div style={{ marginTop: 8 }}>
-            <Radio.Group
-              value={envioImediato ? 'agora' : 'agendar'}
-              onChange={(e) => {
-                const isAgora = e.target.value === 'agora'
-                setEnvioImediato(isAgora)
-                if (isAgora) setDataLancamento(null)
-              }}
-              optionType="button"
-              buttonStyle="solid"
-            >
-              <Radio.Button value="agora">Enviar agora</Radio.Button>
-              <Radio.Button value="agendar">Agendar envio</Radio.Button>
-            </Radio.Group>
-          </div>
-          {envioImediato && (
-            <Text style={{
-              display: 'block', fontSize: 12, color: colorTokens.textSecondary,
-              fontFamily: FONT, marginTop: 8,
-            }}>
-              O documento será disponibilizado imediatamente após a publicação.
-            </Text>
-          )}
+          <ConfigProvider locale={ptBR}>
+            <DatePicker
+              className="envio-picker"
+              style={{ width: '100%', maxWidth: 280, marginTop: 6, fontFamily: FONT }}
+              format="DD/MM/YYYY HH:mm"
+              showTime={{ format: 'HH:mm' }}
+              showToday
+              allowClear
+              placeholder="🕒  Imediato (ao publicar)"
+              value={dataLancamento}
+              onChange={(d) => setDataLancamento(d ?? null)}
+              disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+            />
+          </ConfigProvider>
         </div>
 
-        {/* ══ 2A. ADESÃO — Vigência | Recorrência | Data de envio ═══ */}
+        {/* ══ 2A. ADESÃO — Vigência | Recorrência ══════════════════ */}
         {tipoDoc === 'adesao' && (
           <>
-            <SectionDivider title={
-              envioImediato
-                ? (exigeAceite ? 'Vigência e prazo de aceite' : 'Vigência do documento')
-                : 'Vigência, prazo de aceite e data de envio'
-            } />
+            <SectionDivider title={exigeAceite ? 'Vigência e prazo de aceite' : 'Vigência do documento'} />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
 
@@ -509,63 +490,6 @@ export function ConfiguracoesStep() {
                   </Col>
                 )}
 
-                {/* Col 3 — Data de envio (só quando "Agendar envio") */}
-                {!envioImediato && (
-                  <Col xs={24} sm={8}>
-                    <Form.Item
-                      style={{ margin: 0 }}
-                      validateStatus={submitted && !envioImediato && !dataLancamento ? 'error' : ''}
-                      help={submitted && !envioImediato && !dataLancamento ? 'Campo obrigatório.' : undefined}
-                    >
-                      <FieldLabel label="Data de envio" required
-                        tooltip="Define a data e hora exata em que o documento será disparado e ficará disponível para aceite dos destinatários."
-                      />
-                      <DatePicker
-                        style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                        format="DD/MM/YYYY HH:mm"
-                        showTime={{ format: 'HH:mm' }}
-                        showToday
-                        placeholder="Selecione a data e hora"
-                        value={dataLancamento}
-                        onChange={(d) => setDataLancamento(d)}
-                        disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
-                      />
-                    </Form.Item>
-                  </Col>
-                )}
-
-              </Row>
-            </ConfigProvider>
-          </>
-        )}
-
-        {/* ══ 2B. CIÊNCIA — Data de envio (só se agendar) ══════════ */}
-        {tipoDoc === 'ciencia' && !envioImediato && (
-          <>
-            <SectionDivider title="Data de envio" />
-            <ConfigProvider locale={ptBR}>
-              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={8}>
-                  <Form.Item
-                    style={{ margin: 0 }}
-                    validateStatus={submitted && !dataLancamento ? 'error' : ''}
-                    help={submitted && !dataLancamento ? 'Campo obrigatório.' : undefined}
-                  >
-                    <FieldLabel label="Data de envio" required
-                      tooltip="Define a data e hora exata em que o documento será disparado e ficará disponível para aceite dos destinatários."
-                    />
-                    <DatePicker
-                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
-                      format="DD/MM/YYYY HH:mm"
-                      showTime={{ format: 'HH:mm' }}
-                      showToday
-                      placeholder="Selecione a data e hora"
-                      value={dataLancamento}
-                      onChange={(d) => setDataLancamento(d)}
-                      disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
-                    />
-                  </Form.Item>
-                </Col>
               </Row>
             </ConfigProvider>
           </>
