@@ -422,32 +422,10 @@ export function ConfiguracoesStep() {
           )}
         </div>
 
-        {/* ══ 1C. DATA DE ENVIO (default inteligente: imediato) ══════ */}
-        <div style={{ marginBottom: 24 }}>
-          <FieldLabel
-            label="Data de envio"
-            tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
-          />
-          <ConfigProvider locale={ptBR}>
-            <DatePicker
-              className="envio-picker"
-              style={{ width: '100%', maxWidth: 280, marginTop: 6, fontFamily: FONT }}
-              format="DD/MM/YYYY HH:mm"
-              showTime={{ format: 'HH:mm' }}
-              showToday
-              allowClear
-              placeholder="🕒  Imediato (ao publicar)"
-              value={dataLancamento}
-              onChange={(d) => setDataLancamento(d ?? null)}
-              disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
-            />
-          </ConfigProvider>
-        </div>
-
-        {/* ══ 2A. ADESÃO — Vigência | Recorrência ══════════════════ */}
+        {/* ══ 2A. ADESÃO — Vigência | Recorrência | Data de envio ═══ */}
         {tipoDoc === 'adesao' && (
           <>
-            <SectionDivider title={exigeAceite ? 'Vigência e prazo de aceite' : 'Vigência do documento'} />
+            <SectionDivider title={exigeAceite ? 'Vigência, prazo de aceite e data de envio' : 'Vigência e data de envio'} />
             <ConfigProvider locale={ptBR}>
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
 
@@ -490,6 +468,59 @@ export function ConfiguracoesStep() {
                   </Col>
                 )}
 
+                {/* Col 3 — Data de envio (default inteligente: imediato) */}
+                <Col xs={24} sm={8}>
+                  <Form.Item style={{ margin: 0 }}>
+                    <FieldLabel
+                      label="Data de envio"
+                      tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
+                    />
+                    <DatePicker
+                      className="envio-picker"
+                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      allowClear
+                      placeholder="🕒  Imediato (ao publicar)"
+                      value={dataLancamento}
+                      onChange={(d) => setDataLancamento(d ?? null)}
+                      disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+                    />
+                  </Form.Item>
+                </Col>
+
+              </Row>
+            </ConfigProvider>
+          </>
+        )}
+
+        {/* ══ 2B. CIÊNCIA — Data de envio ═══════════════════════════ */}
+        {tipoDoc === 'ciencia' && (
+          <>
+            <SectionDivider title="Data de envio" />
+            <ConfigProvider locale={ptBR}>
+              <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                <Col xs={24} sm={8}>
+                  <Form.Item style={{ margin: 0 }}>
+                    <FieldLabel
+                      label="Data de envio"
+                      tooltip="Deixe em branco para envio imediato ao publicar, ou selecione uma data e hora para agendar o disparo."
+                    />
+                    <DatePicker
+                      className="envio-picker"
+                      style={{ width: '100%', marginTop: 6, fontFamily: FONT }}
+                      format="DD/MM/YYYY HH:mm"
+                      showTime={{ format: 'HH:mm' }}
+                      showToday
+                      allowClear
+                      placeholder="🕒  Imediato (ao publicar)"
+                      value={dataLancamento}
+                      onChange={(d) => setDataLancamento(d ?? null)}
+                      disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+                    />
+                  </Form.Item>
+                </Col>
               </Row>
             </ConfigProvider>
           </>

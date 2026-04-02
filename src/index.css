@@ -23,10 +23,9 @@ body {
   align-items: flex-start !important;
 }
 
-/* ── Data de envio: placeholder com cor de "valor padrão silencioso" ── */
+/* ── Data de envio: placeholder com cor secundária padrão do AntD ── */
 .envio-picker .ant-picker-input input::placeholder {
-  color: rgba(0, 0, 0, 0.52) !important;
-  font-style: italic;
+  color: rgba(0, 0, 0, 0.45) !important;
 }
 
 /* ── Responsividade Mobile ─────────────────────────────────── */
