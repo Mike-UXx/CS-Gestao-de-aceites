@@ -9,6 +9,7 @@ export interface DeptConfig {
 export interface Step3Config {
   tipoDocumento: 'adesao' | 'ciencia'
   exigeAceite: boolean
+  envioImediato: boolean            // true = enviar agora; false = agendar data
   vigenciaInicio: string
   vigenciaFim: string
   dataLancamento: string
@@ -35,6 +36,7 @@ export interface DocumentFormData {
   // Step 3 — Configurações
   tipoDocumento: 'adesao' | 'ciencia'
   exigeAceite: boolean
+  envioImediato: boolean
   vigenciaInicio: string
   vigenciaFim: string
   dataLancamento: string
@@ -58,6 +60,7 @@ const INITIAL_STATE: DocumentFormData = {
   colaboradores: [],
   tipoDocumento: 'adesao',
   exigeAceite: true,
+  envioImediato: true,
   vigenciaInicio: '',
   vigenciaFim: '',
   dataLancamento: '',
