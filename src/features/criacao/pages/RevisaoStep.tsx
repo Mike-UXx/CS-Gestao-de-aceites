@@ -92,11 +92,15 @@ export function RevisaoStep() {
   const [showCancel,  setShowCancel]  = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  /* ── Ação: enviar hoje ou agendar ── */
-  const hoje       = dayjs().startOf('day')
-  const lancamento = data.dataLancamento ? dayjs(data.dataLancamento) : null
-  const isToday    = lancamento ? lancamento.startOf('day').isSame(hoje) : false
-  const actionLabel = isToday ? 'Enviar documento' : 'Agendar envio'
+  /* ── Momento de envio ── */
+  const envioImediato = data.envioImediato !== false   // default seguro: true
+  const hoje          = dayjs().startOf('day')
+  const lancamento    = data.dataLancamento ? dayjs(data.dataLancamento) : null
+  const isToday       = lancamento ? lancamento.startOf('day').isSame(hoje) : false
+  // label do botão principal
+  const actionLabel = envioImediato
+    ? 'Publicar documento'
+    : (isToday ? 'Enviar documento' : 'Agendar envio')
 
   /* ── Contagem de destinatários ── */
   const totalDest =
@@ -130,9 +134,11 @@ export function RevisaoStep() {
     clearDraft()           // remove o rascunho do localStorage após publicação
     dispatch({ type: 'RESET' })
     message.success(
-      isToday
-        ? 'Documento enviado com sucesso!'
-        : `Envio agendado para ${lancamento?.format('DD/MM/YYYY')} às 08:00h.`,
+      envioImediato
+        ? 'Documento publicado e enviado com sucesso!'
+        : isToday
+          ? 'Documento enviado com sucesso!'
+          : `Envio agendado para ${lancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
       4,
     )
     navigate('/documentos/listagem')
@@ -149,8 +155,8 @@ export function RevisaoStep() {
       nextLabel={actionLabel}
     >
 
-      {/* Banner de agendamento */}
-      {!isToday && lancamento && (
+      {/* Banner de agendamento — só para envios não-imediatos e não-hoje */}
+      {!envioImediato && !isToday && lancamento && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           background: '#EEF2FF', border: `1px solid ${colorTokens.primary}`,
@@ -159,7 +165,7 @@ export function RevisaoStep() {
           <CalendarOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
           <Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary }}>
             Este documento será disparado automaticamente em{' '}
-            <strong>{lancamento.format('DD/MM/YYYY')}</strong> às 08:00h.
+            <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
           </Text>
         </div>
       )}
@@ -201,7 +207,7 @@ export function RevisaoStep() {
         />
 
         <ReviewRow
-          label="Classificação"
+          label="Classificações"
           value={
             classificacoesLabels.length > 0
               ? (
@@ -259,7 +265,7 @@ export function RevisaoStep() {
           />
         ) : (
           <ReviewRow
-            label="Pessoas"
+            label="Destinatário(s)"
             value={
               colabTags.length > 0
                 ? (
@@ -300,40 +306,10 @@ export function RevisaoStep() {
           }
         />
 
-        {/* Campos exclusivos de Adesão */}
-        {data.tipoDocumento === 'adesao' && data.vigenciaInicio && (
-          <ReviewRow
-            label="Início da vigência"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaInicio).format('DD/MM/YYYY')}</Text>}
-          />
-        )}
-        {data.tipoDocumento === 'adesao' && data.vigenciaFim && (
-          <ReviewRow
-            label="Fim da vigência"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaFim).format('DD/MM/YYYY')}</Text>}
-          />
-        )}
-        {data.tipoDocumento === 'adesao' && (
-          <ReviewRow
-            label="Reciclagem"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{validadeLabel}</Text>}
-          />
-        )}
-
         <ReviewRow
-          label="Trava de leitura"
+          label="Aceite formal"
           value={
-            <Space size={6}>
-              <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
-              <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
-            </Space>
-          }
-        />
-
-        <ReviewRow
-          label="Scroll obrigatório"
-          value={
-            data.scrollObrigatorioGlobal ? (
+            data.exigeAceite !== false ? (
               <Space size={6}>
                 <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
                 <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
@@ -341,11 +317,82 @@ export function RevisaoStep() {
             ) : (
               <Space size={6}>
                 <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
-                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não exigido</Text>
               </Space>
             )
           }
         />
+
+        {/* Campos exclusivos de Adesão */}
+        {data.tipoDocumento === 'adesao' && data.vigenciaInicio && (
+          <ReviewRow
+            label="Vigência (início)"
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaInicio).format('DD/MM/YYYY')}</Text>}
+          />
+        )}
+        {data.tipoDocumento === 'adesao' && data.vigenciaFim && (
+          <ReviewRow
+            label="Vigência (fim)"
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaFim).format('DD/MM/YYYY')}</Text>}
+          />
+        )}
+        {data.exigeAceite !== false && data.tipoDocumento === 'adesao' && (
+          <ReviewRow
+            label="Recorrência do aceite"
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{validadeLabel}</Text>}
+          />
+        )}
+
+        {/* Lançamento — imediato ou agendado */}
+        {envioImediato ? (
+          <ReviewRow
+            label="Lançamento"
+            value={
+              <Space size={6}>
+                <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                  Imediato (após publicação)
+                </Text>
+              </Space>
+            }
+          />
+        ) : lancamento ? (
+          <ReviewRow
+            label="Data de envio"
+            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{lancamento.format('DD/MM/YYYY HH:mm')}</Text>}
+          />
+        ) : null}
+
+        {data.exigeAceite !== false && (
+          <ReviewRow
+            label="Trava de leitura"
+            value={
+              <Space size={6}>
+                <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
+              </Space>
+            }
+          />
+        )}
+
+        {data.exigeAceite !== false && (
+          <ReviewRow
+            label="Scroll obrigatório"
+            value={
+              data.scrollObrigatorioGlobal ? (
+                <Space size={6}>
+                  <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
+                </Space>
+              ) : (
+                <Space size={6}>
+                  <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
+                </Space>
+              )
+            }
+          />
+        )}
 
         {data.personalizarPorDept && (
           <ReviewRow
@@ -372,7 +419,9 @@ export function RevisaoStep() {
         centered
         title={
           <Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-            {isToday ? 'Confirmar envio do documento' : 'Confirmar agendamento de envio'}
+            {envioImediato
+              ? 'Confirmar publicação do documento'
+              : isToday ? 'Confirmar envio do documento' : 'Confirmar agendamento de envio'}
           </Text>
         }
         okText={actionLabel}
@@ -389,13 +438,20 @@ export function RevisaoStep() {
       >
         <div style={{ fontFamily: FONT }}>
           <p style={{ marginBottom: 8 }}>
-            Você está prestes a <strong>{isToday ? 'enviar' : 'agendar'}</strong> este documento
-            para <strong>{destLabel}</strong>.
+            Você está prestes a{' '}
+            <strong>{envioImediato ? 'publicar e enviar' : isToday ? 'enviar' : 'agendar'}</strong>{' '}
+            este documento para <strong>{destLabel}</strong>.
           </p>
-          {!isToday && lancamento && (
+          {envioImediato && (
+            <p style={{ marginBottom: 8, color: '#52c41a' }}>
+              <CheckCircleFilled style={{ marginRight: 6 }} />
+              O documento será disponibilizado imediatamente após a confirmação.
+            </p>
+          )}
+          {!envioImediato && !isToday && lancamento && (
             <p style={{ marginBottom: 8, color: colorTokens.primary }}>
               <CalendarOutlined style={{ marginRight: 6 }} />
-              Disparo automático em <strong>{lancamento.format('DD/MM/YYYY')}</strong> às 08:00h.
+              Disparo automático em <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
             </p>
           )}
           <p style={{ color: colorTokens.textSecondary, fontSize: 12, marginBottom: 0 }}>
