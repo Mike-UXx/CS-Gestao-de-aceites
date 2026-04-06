@@ -464,7 +464,7 @@ export function ListagemPage() {
      Render
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '28px 40px 48px', fontFamily: FONT }}>
+    <div style={{ padding: '20px 32px 40px', fontFamily: FONT }}>
 
       {/* ← Voltar */}
       <button
@@ -473,11 +473,19 @@ export function ListagemPage() {
           background: 'none', border: 'none', cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center', gap: 5,
           color: colorTokens.primary, fontSize: 13, fontWeight: 500,
-          fontFamily: FONT, padding: 0, marginBottom: 8,
+          fontFamily: FONT, padding: 0, marginBottom: 12,
         }}
       >
         <ArrowLeftOutlined style={{ fontSize: 11 }} /> Voltar
       </button>
+
+      {/* ── Card principal ─────────────────────────────────────── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 12,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+        padding: 24,
+      }}>
 
       {/* Cabeçalho */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -504,7 +512,7 @@ export function ListagemPage() {
          Seção de Rascunhos — Carrossel horizontal
       ════════════════════════════════════════════════════════ */}
       {rascunhos.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 24 }}>
           {/* Header da seção */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>
@@ -574,12 +582,12 @@ export function ListagemPage() {
                   {/* Ações */}
                   <Space size={6} style={{ flexShrink: 0 }}>
                     <Button
-                      type="link"
                       size="small"
                       onClick={() => navigate(STEP_ROUTES[draft._stepAtual ?? 0])}
                       style={{
                         fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        color: colorTokens.primary, padding: '0 4px', height: 'auto',
+                        color: colorTokens.primary, borderColor: colorTokens.primary,
+                        background: '#fff', borderRadius: 6, height: 28, padding: '0 10px',
                       }}
                     >
                       Editar
@@ -673,6 +681,8 @@ export function ListagemPage() {
           style={{ background: '#fff' }}
         />
       </div>
+
+      </div>{/* /card principal */}
 
       {/* ════════════════════════════════════════════════════════
          Modal — Excluir rascunho
