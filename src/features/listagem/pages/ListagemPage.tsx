@@ -1,25 +1,26 @@
 /* ─────────────────────────────────────────────────────────────
    src/features/listagem/pages/ListagemPage.tsx
-   Listagem de documentos — padrão High-End Enterprise
+   Listagem de documentos — Sprint 2.3 Ações contextuais
 ───────────────────────────────────────────────────────────── */
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Table, Button, Tag, Input, Select, Space, Typography,
   Tooltip, Popconfirm, message, Progress, Empty,
-  Dropdown, Tabs,
+  Dropdown, Tabs, Modal,
 } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { MenuProps } from 'antd'
 import {
   PlusOutlined, SearchOutlined, ArrowLeftOutlined,
-  EditOutlined, DeleteOutlined, EyeOutlined, MoreOutlined,
+  EditOutlined, DeleteOutlined, MoreOutlined,
+  StopOutlined, FileAddOutlined, BarChartOutlined,
+  SendOutlined, CloseCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import {
   Documento, DocumentoStatus, STATUS_LABEL,
-  DOCUMENTO_STATUS_LIST,
 } from '../types/documento'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import { CLASSIFICATIONS } from '@/data/mockClassifications'
@@ -38,61 +39,52 @@ const STEP_ROUTES: Record<number, string> = {
   3: '/documentos/criar/revisao',
 }
 
-/** Labels de classificação resolvidas a partir do valor */
-const CLASSIF_MAP = Object.fromEntries(CLASSIFICATIONS.map((c) => [c.value, c.label]))
-
-/** Opções para o Select de filtro por classificação */
-const CLASSIF_OPTIONS = CLASSIFICATIONS.map((c) => ({ label: c.label, value: c.value }))
+const CLASSIF_MAP  = Object.fromEntries(CLASSIFICATIONS.map((c) => [c.value, c.label]))
+const CLASSIF_OPTS = CLASSIFICATIONS.map((c) => ({ label: c.label, value: c.value }))
 
 /* ── Tipos locais ───────────────────────────────────────────── */
 type DocumentoComMeta = Documento & { _stepAtual?: number }
 
 /* ── Helpers ────────────────────────────────────────────────── */
-/**
- * Cores semânticas da barra de progresso:
- * verde = concluído (100 %), azul = em andamento, cinza = expirado/vazio
- */
-function barColor(percent: number, status: DocumentoStatus): string {
-  if (status === 'Expirado') return '#BFBFBF'
-  if (percent === 100)       return '#52c41a'
-  if (percent === 0)         return '#D9D9D9'
-  return colorTokens.primary   // azul para andamento
+function barColor(pct: number, status: DocumentoStatus): string {
+  if (status === 'Concluído') return '#BFBFBF'
+  if (pct === 100)            return '#52c41a'
+  if (pct === 0)              return '#D9D9D9'
+  return colorTokens.primary
 }
 
-/** Lê o localStorage e monta um Documento com status Rascunho */
 function readDraftFromStorage(): DocumentoComMeta | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    if (!parsed.fileName && !parsed.fileHash) return null
-    const depts   = (parsed.departamentos as string[]) ?? []
-    const colab   = (parsed.colaboradores as string[]) ?? []
+    const p = JSON.parse(raw) as Record<string, unknown>
+    if (!p.fileName && !p.fileHash) return null
+    const depts   = (p.departamentos as string[]) ?? []
+    const colab   = (p.colaboradores as string[]) ?? []
     const preview = depts.length ? depts.slice(0, 2) : colab.slice(0, 2)
     return {
-      id:                   (parsed._draftId as string) ?? 'draft-local',
-      titulo:               (parsed.fileName as string) || 'Rascunho sem título',
+      id:                   (p._draftId as string) ?? 'draft-local',
+      titulo:               (p.fileName as string) || 'Rascunho sem título',
       status:               'Rascunho',
-      tipo:                 (parsed.tipoDocumento as Documento['tipo']) ?? 'adesao',
-      modalidadeEnvio:      (parsed.modalidadeEnvio as Documento['modalidadeEnvio']) ?? 'departamento',
-      classificacoes:       (parsed.classificacoes as string[]) ?? [],
-      gestaoResponsavel:    (parsed.gestaoResponsavel as string) ?? '',
-      criadoEm:             (parsed._savedAt as string) ?? new Date().toISOString(),
-      dataLancamento:       (parsed.dataLancamento as string) || null,
+      tipo:                 (p.tipoDocumento as Documento['tipo']) ?? 'adesao',
+      modalidadeEnvio:      (p.modalidadeEnvio as Documento['modalidadeEnvio']) ?? 'departamento',
+      classificacoes:       (p.classificacoes as string[]) ?? [],
+      gestaoResponsavel:    (p.gestaoResponsavel as string) ?? '',
+      criadoEm:             (p._savedAt as string) ?? new Date().toISOString(),
+      dataLancamento:       (p.dataLancamento as string) || null,
       dataExpiracao:        null,
       totalDestinatarios:   depts.length + colab.length,
       totalAceites:         0,
-      fileHash:             (parsed.fileHash as string) ?? null,
-      fileName:             (parsed.fileName as string) ?? null,
+      fileHash:             (p.fileHash as string) ?? null,
+      fileName:             (p.fileName as string) ?? null,
       destinatariosPreview: preview,
-      _stepAtual:           (parsed._stepAtual as number) ?? 0,
+      _stepAtual:           (p._stepAtual as number) ?? 0,
     }
   } catch { return null }
 }
 
-/* ── CSS injetado (overrides de AntD) ──────────────────────── */
-const TABLE_STYLE = `
-  /* Cabeçalho */
+/* ── CSS (override AntD) ──────────────────────────────────── */
+const TABLE_CSS = `
   .listagem-table .ant-table-thead > tr > th {
     background: #fff !important;
     font-family: ${FONT} !important;
@@ -104,7 +96,6 @@ const TABLE_STYLE = `
     border-bottom: 1.5px solid #EBEBEB !important;
     padding: 10px 16px !important;
   }
-  /* Células */
   .listagem-table .ant-table-tbody > tr > td {
     font-family: ${FONT} !important;
     font-size: 13px !important;
@@ -112,20 +103,16 @@ const TABLE_STYLE = `
     border-bottom: 1px solid #F5F5F5 !important;
     vertical-align: middle !important;
   }
-  /* Hover suave */
   .listagem-table .ant-table-tbody > tr:hover > td {
     background: #F7F8FF !important;
     transition: background 0.15s ease !important;
   }
-  /* Última linha sem divisor */
   .listagem-table .ant-table-tbody > tr:last-child > td {
     border-bottom: none !important;
   }
-  /* Remove borda externa do wrapper */
   .listagem-table .ant-table-container {
     border-radius: 0 !important;
   }
-  /* Tabs */
   .listagem-tabs .ant-tabs-tab {
     font-family: ${FONT} !important;
     font-size: 13px !important;
@@ -143,7 +130,6 @@ const TABLE_STYLE = `
   .listagem-tabs .ant-tabs-nav::before {
     border-bottom: 1.5px solid #EBEBEB !important;
   }
-  /* Select de filtro */
   .classif-select .ant-select-selector {
     border-radius: 8px !important;
     font-family: ${FONT} !important;
@@ -151,29 +137,55 @@ const TABLE_STYLE = `
     min-height: 36px !important;
     align-items: center !important;
   }
+  /* Modal de encerrar vigência */
+  .encerrar-modal .ant-modal-content {
+    border-radius: 12px !important;
+    font-family: ${FONT} !important;
+  }
+  .encerrar-modal .ant-modal-header {
+    border-bottom: none !important;
+    padding: 24px 24px 8px !important;
+  }
+  .encerrar-modal .ant-modal-title {
+    font-family: ${FONT} !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    color: ${colorTokens.textPrimary} !important;
+  }
+  .encerrar-modal .ant-modal-body {
+    padding: 0 24px !important;
+    font-family: ${FONT} !important;
+  }
+  .encerrar-modal .ant-modal-footer {
+    border-top: none !important;
+    padding: 16px 24px 24px !important;
+  }
 `
 
-/* ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   Componente principal
+═══════════════════════════════════════════════════════════════ */
 export function ListagemPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [search,         setSearch]         = useState('')
-  const [filterClassif,  setFilterClassif]  = useState<string[]>([])
-  const [activeTab,      setActiveTab]      = useState<DocumentoStatus | 'Todos'>('Todos')
-  const [draft,          setDraft]          = useState<DocumentoComMeta | null>(readDraftFromStorage)
-  const [pagination,     setPagination]     = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
+  const [search,          setSearch]          = useState('')
+  const [filterClassif,   setFilterClassif]   = useState<string[]>([])
+  const [activeTab,       setActiveTab]       = useState<DocumentoStatus | 'Todos'>('Todos')
+  const [draft,           setDraft]           = useState<DocumentoComMeta | null>(readDraftFromStorage)
+  const [pagination,      setPagination]      = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
+  const [encerrarTarget,  setEncerrarTarget]  = useState<DocumentoComMeta | null>(null)
 
-  /* ── Injeta CSS ── */
+  /* ── CSS ── */
   useEffect(() => {
     const el = document.createElement('style')
     el.id = 'listagem-styles'
-    el.textContent = TABLE_STYLE
+    el.textContent = TABLE_CSS
     document.head.appendChild(el)
     return () => { document.getElementById('listagem-styles')?.remove() }
   }, [])
 
-  /* ── Toast ao chegar via "Salvar rascunho" ── */
+  /* ── Toast "Rascunho salvo" ── */
   useEffect(() => {
     if ((location.state as { draftSaved?: boolean })?.draftSaved) {
       message.success('Rascunho salvo com sucesso!', 3)
@@ -188,241 +200,182 @@ export function ListagemPage() {
     message.success('Rascunho excluído.')
   }, [])
 
-  /* ── Dados: rascunho + mocks ── */
+  /* ── Encerrar vigência (confirma) ── */
+  const handleConfirmEncerrar = useCallback(() => {
+    if (!encerrarTarget) return
+    message.success(`Vigência de "${encerrarTarget.titulo}" encerrada. Documento movido para Concluídos.`, 4)
+    setEncerrarTarget(null)
+  }, [encerrarTarget])
+
+  /* ── Dados ── */
   const allDocumentos = useMemo<DocumentoComMeta[]>(() => {
     const list: DocumentoComMeta[] = [...MOCK_DOCUMENTOS]
     if (draft) list.unshift(draft)
     return list
   }, [draft])
 
-  /* ── Filtragem combinada (tab + busca + classificação) ── */
-  const filtered = useMemo(() => {
-    return allDocumentos.filter((doc) => {
-      const matchTab      = activeTab === 'Todos' || doc.status === activeTab
-      const matchSearch   = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
-      const matchClassif  = filterClassif.length === 0
-        || filterClassif.some((c) => doc.classificacoes.includes(c))
-      return matchTab && matchSearch && matchClassif
-    })
-  }, [allDocumentos, activeTab, search, filterClassif])
+  /* ── Filtragem ── */
+  const filtered = useMemo(() => allDocumentos.filter((doc) => {
+    const tab    = activeTab === 'Todos' || doc.status === activeTab
+    const txt    = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
+    const cls    = filterClassif.length === 0 || filterClassif.some((c) => doc.classificacoes.includes(c))
+    return tab && txt && cls
+  }), [allDocumentos, activeTab, search, filterClassif])
 
-  /* ── Contadores por status (sem filtros de busca/classif) ── */
+  /* ── Contadores ── */
   const counts = useMemo(() => {
-    const c: Record<DocumentoStatus | 'Todos', number> = {
-      Todos: allDocumentos.length,
-      Rascunho: 0, Publicado: 0, Agendado: 0, Expirado: 0,
-    }
+    const c: Record<DocumentoStatus | 'Todos', number> = { Todos: allDocumentos.length, Rascunho: 0, Ativo: 0, Agendado: 0, Concluído: 0 }
     allDocumentos.forEach((d) => c[d.status]++)
     return c
   }, [allDocumentos])
 
   /* ── Tabs ── */
   const tabItems = useMemo(() => [
-    {
-      key: 'Todos',
-      label: (
-        <span style={{ fontFamily: FONT }}>
-          Todos
-          <span style={{
-            marginLeft: 7,
-            padding: '1px 7px',
-            borderRadius: 10,
-            fontSize: 11,
-            fontWeight: 600,
-            background: activeTab === 'Todos' ? colorTokens.primary : '#F0F0F0',
-            color:      activeTab === 'Todos' ? '#fff' : colorTokens.textSecondary,
-          }}>
-            {counts.Todos}
-          </span>
+    { key: 'Todos',    label: 'Todos',    count: counts.Todos },
+    { key: 'Ativo',    label: 'Ativos',   count: counts.Ativo },
+    { key: 'Agendado', label: 'Agendados',count: counts.Agendado },
+    { key: 'Concluído',label: 'Concluídos',count: counts.Concluído },
+    { key: 'Rascunho', label: 'Rascunhos',count: counts.Rascunho },
+  ].map((t) => ({
+    key: t.key,
+    label: (
+      <span style={{ fontFamily: FONT }}>
+        {t.label}
+        <span style={{
+          marginLeft: 7, padding: '1px 7px', borderRadius: 10,
+          fontSize: 11, fontWeight: 600,
+          background: activeTab === t.key ? colorTokens.primary : '#F0F0F0',
+          color:      activeTab === t.key ? '#fff' : colorTokens.textSecondary,
+        }}>
+          {t.count}
         </span>
-      ),
-    },
-    ...DOCUMENTO_STATUS_LIST.map((s) => ({
-      key: s,
-      label: (
-        <span style={{ fontFamily: FONT }}>
-          {STATUS_LABEL[s]}
-          <span style={{
-            marginLeft: 7,
-            padding: '1px 7px',
-            borderRadius: 10,
-            fontSize: 11,
-            fontWeight: 600,
-            background: activeTab === s ? colorTokens.primary : '#F0F0F0',
-            color:      activeTab === s ? '#fff' : colorTokens.textSecondary,
-          }}>
-            {counts[s]}
-          </span>
-        </span>
-      ),
-    })),
-  ], [counts, activeTab])
+      </span>
+    ),
+  })), [counts, activeTab])
 
-  /* ── Menu contextual de ações ── */
+  /* ══════════════════════════════════════════════════════════════
+     Menus de ações por status (conforme Sprint 2.3 PRD)
+  ══════════════════════════════════════════════════════════════ */
   function actionsMenu(record: DocumentoComMeta): MenuProps['items'] {
-    if (record.status === 'Rascunho') return [
-      {
-        key: 'edit', icon: <EditOutlined />,
-        label: 'Continuar editando',
-        onClick: () => navigate(STEP_ROUTES[record._stepAtual ?? 0]),
-      },
-      { type: 'divider' },
-      {
-        key: 'delete', icon: <DeleteOutlined />,
-        label: (
-          <Popconfirm
-            title="Excluir rascunho?"
-            description="Esta ação não pode ser desfeita."
-            onConfirm={handleDeleteDraft}
-            okText="Excluir"
-            cancelText="Cancelar"
-            okButtonProps={{ danger: true }}
-          >
-            <span style={{ color: '#ff4d4f' }}>Excluir rascunho</span>
-          </Popconfirm>
-        ),
-      },
-    ]
-    if (record.status === 'Agendado') return [
-      { key: 'view',   icon: <EyeOutlined />,   label: 'Visualizar' },
-      { key: 'cancel', icon: <DeleteOutlined />, label: 'Cancelar agendamento', danger: true },
-    ]
-    if (record.status === 'Expirado') return [
-      { key: 'view',  icon: <EyeOutlined />,  label: 'Visualizar' },
-      { key: 'renew', icon: <EditOutlined />, label: 'Renovar documento' },
-    ]
-    return [
-      { key: 'view',     icon: <EyeOutlined />,   label: 'Visualizar' },
-      { key: 'inactive', icon: <DeleteOutlined />, label: 'Inativar', danger: true },
-    ]
+    switch (record.status) {
+
+      /* ── Rascunho: Continuar editando | Excluir ── */
+      case 'Rascunho':
+        return [
+          {
+            key: 'edit', icon: <EditOutlined />,
+            label: 'Continuar editando',
+            onClick: () => navigate(STEP_ROUTES[record._stepAtual ?? 0]),
+          },
+          { type: 'divider' },
+          {
+            key: 'delete', icon: <DeleteOutlined />,
+            label: (
+              <Popconfirm
+                title="Excluir rascunho?"
+                description="Esta ação não pode ser desfeita."
+                onConfirm={handleDeleteDraft}
+                okText="Excluir" cancelText="Cancelar"
+                okButtonProps={{ danger: true }}
+              >
+                <span style={{ color: '#ff4d4f' }}>Excluir rascunho</span>
+              </Popconfirm>
+            ),
+          },
+        ]
+
+      /* ── Ativo: Ver pendências | Encerrar vigência | Nova versão ── */
+      case 'Ativo':
+        return [
+          {
+            key: 'pendencias', icon: <SearchOutlined />,
+            label: 'Ver pendências',
+          },
+          { type: 'divider' },
+          {
+            key: 'encerrar', icon: <StopOutlined />,
+            label: 'Encerrar vigência',
+            onClick: () => setEncerrarTarget(record),
+          },
+          { type: 'divider' },
+          {
+            key: 'nova-versao', icon: <FileAddOutlined />,
+            label: 'Nova versão',
+          },
+        ]
+
+      /* ── Concluído: Ver relatórios ── */
+      case 'Concluído':
+        return [
+          {
+            key: 'relatorios', icon: <BarChartOutlined />,
+            label: 'Ver relatórios',
+          },
+        ]
+
+      /* ── Agendado: Editar agendamento | Enviar agora | Cancelar ── */
+      case 'Agendado':
+        return [
+          {
+            key: 'editar', icon: <EditOutlined />,
+            label: 'Editar agendamento',
+          },
+          { type: 'divider' },
+          {
+            key: 'enviar', icon: <SendOutlined />,
+            label: 'Enviar agora',
+          },
+          { type: 'divider' },
+          {
+            key: 'cancelar', icon: <CloseCircleOutlined />,
+            label: 'Cancelar agendamento',
+            danger: true,
+          },
+        ]
+
+      default:
+        return []
+    }
   }
 
-  /* ── Colunas ── */
+  /* ══════════════════════════════════════════════════════════════
+     Colunas
+  ══════════════════════════════════════════════════════════════ */
   const columns: ColumnsType<DocumentoComMeta> = [
 
-    /* 1 ── Título (sem nome de arquivo) */
+    /* 1 — Título */
     {
-      title:    'Título',
-      dataIndex:'titulo',
-      key:      'titulo',
-      render: (titulo: string) => (
-        <Typography.Text
-          strong
-          style={{
-            fontFamily: FONT,
-            fontSize: 13,
-            color: colorTokens.textPrimary,
-            lineHeight: '20px',
-            display: 'block',
-          }}
-        >
-          {titulo}
+      title: 'Título', dataIndex: 'titulo', key: 'titulo',
+      render: (t: string) => (
+        <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px' }}>
+          {t}
         </Typography.Text>
       ),
     },
 
-    /* 2 ── Classificações */
+    /* 2 — Classificações */
     {
-      title: 'Classificações',
-      key:   'classificacoes',
-      width: 240,
-      render: (_: unknown, record) => {
-        const vals   = record.classificacoes ?? []
-        const labels = vals.map((v) => CLASSIF_MAP[v] ?? v)
-
-        if (labels.length === 0) {
-          return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
-        }
-
+      title: 'Classificações', key: 'classificacoes', width: 240,
+      render: (_: unknown, r) => {
+        const labels = (r.classificacoes ?? []).map((v) => CLASSIF_MAP[v] ?? v)
+        if (!labels.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
         const shown = labels.slice(0, 2)
         const extra = labels.length - 2
-
         return (
           <Space size={[4, 4]} wrap>
-            {shown.map((lbl) => (
-              <Tag
-                key={lbl}
-                style={{
-                  fontFamily: FONT,
-                  fontSize: 11,
-                  fontWeight: 500,
-                  borderRadius: 4,
-                  margin: 0,
-                  padding: '1px 8px',
-                  background: '#EEF2FF',
-                  border: `1px solid ${colorTokens.primary}22`,
-                  color: colorTokens.primary,
-                }}
-              >
-                {lbl}
+            {shown.map((l) => (
+              <Tag key={l} style={{
+                fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px',
+                background: '#EEF2FF', border: `1px solid ${colorTokens.primary}22`, color: colorTokens.primary,
+              }}>
+                {l}
               </Tag>
             ))}
             {extra > 0 && (
-              <Tooltip
-                title={labels.slice(2).join(', ')}
-                overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}
-              >
-                <Tag
-                  style={{
-                    fontFamily: FONT,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 4,
-                    margin: 0,
-                    padding: '1px 8px',
-                    background: '#fff',
-                    border: `1px solid ${colorTokens.border}`,
-                    color: colorTokens.textSecondary,
-                    cursor: 'default',
-                  }}
-                >
-                  +{extra}
-                </Tag>
-              </Tooltip>
-            )}
-          </Space>
-        )
-      },
-    },
-
-    /* 3 ── Público */
-    {
-      title: 'Público',
-      key:   'publico',
-      width: 160,
-      render: (_: unknown, record) => {
-        const tags  = record.destinatariosPreview ?? []
-        const shown = tags.slice(0, 1)
-        const extra = tags.length - 1
-
-        if (tags.length === 0) {
-          return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
-        }
-        return (
-          <Space size={4} wrap>
-            {shown.map((t) => (
-              <Tag
-                key={t}
-                style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 500,
-                  borderRadius: 4, margin: 0, padding: '1px 8px',
-                  background: '#FAFAFA', border: '1px solid #E8E8E8',
-                  color: colorTokens.textPrimary,
-                }}
-              >
-                {t}
-              </Tag>
-            ))}
-            {extra > 0 && (
-              <Tooltip
-                title={tags.slice(1).join(', ')}
-                overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}
-              >
+              <Tooltip title={labels.slice(2).join(', ')} overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}>
                 <Tag style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 700,
-                  borderRadius: 4, margin: 0, padding: '1px 8px',
-                  background: '#fff', border: `1px solid ${colorTokens.border}`,
-                  color: colorTokens.textSecondary, cursor: 'default',
+                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '1px 8px',
+                  background: '#fff', border: `1px solid ${colorTokens.border}`, color: colorTokens.textSecondary, cursor: 'default',
                 }}>
                   +{extra}
                 </Tag>
@@ -433,41 +386,86 @@ export function ListagemPage() {
       },
     },
 
-    /* 4 ── Vigência */
+    /* 3 — Público */
     {
-      title: 'Vigência',
-      key:   'vigencia',
-      width: 185,
-      render: (_: unknown, record) => {
-        if (record.status === 'Rascunho') {
-          return (
-            <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>
-              Salvo {dayjs(record.criadoEm).format('DD/MM/YY [às] HH:mm')}
-            </Typography.Text>
-          )
+      title: 'Público', key: 'publico', width: 160,
+      render: (_: unknown, r) => {
+        const tags = r.destinatariosPreview ?? []
+        if (!tags.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        const shown = tags.slice(0, 1)
+        const extra = tags.length - 1
+        return (
+          <Space size={4} wrap>
+            {shown.map((t) => (
+              <Tag key={t} style={{
+                fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px',
+                background: '#FAFAFA', border: '1px solid #E8E8E8', color: colorTokens.textPrimary,
+              }}>
+                {t}
+              </Tag>
+            ))}
+            {extra > 0 && (
+              <Tooltip title={tags.slice(1).join(', ')} overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}>
+                <Tag style={{
+                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '1px 8px',
+                  background: '#fff', border: `1px solid ${colorTokens.border}`, color: colorTokens.textSecondary, cursor: 'default',
+                }}>
+                  +{extra}
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
+    },
+
+    /* 4 — Vigência */
+    {
+      title: 'Vigência', key: 'vigencia', width: 185,
+      render: (_: unknown, r) => {
+        if (r.status === 'Rascunho') {
+          return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>Salvo {dayjs(r.criadoEm).format('DD/MM/YY [às] HH:mm')}</Typography.Text>
         }
-        const start = record.dataLancamento ? dayjs(record.dataLancamento).format('DD/MM/YY') : null
-        const end   = record.dataExpiracao  ? dayjs(record.dataExpiracao).format('DD/MM/YY')  : null
-        if (!start) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        const s = r.dataLancamento ? dayjs(r.dataLancamento).format('DD/MM/YY') : null
+        const e = r.dataExpiracao  ? dayjs(r.dataExpiracao).format('DD/MM/YY')  : null
+        if (!s) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
         return (
           <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>
-            {start}{end ? <span style={{ color: colorTokens.textSecondary }}> até {end}</span> : ''}
+            {s}{e ? <span style={{ color: colorTokens.textSecondary }}> até {e}</span> : ''}
           </Typography.Text>
         )
       },
     },
 
-    /* 5 ── Taxa de aceites */
+    /* 5 — Adesão (progress bar) */
     {
-      title: 'Taxa de aceites',
-      key:   'aceites',
-      width: 210,
-      render: (_: unknown, record) => {
-        if (record.status === 'Rascunho' || record.totalDestinatarios === 0) {
+      title: 'Adesão', key: 'adesao', width: 210,
+      render: (_: unknown, r) => {
+        /* Rascunho → dash */
+        if (r.status === 'Rascunho') {
           return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
         }
-        const pct   = Math.round((record.totalAceites / record.totalDestinatarios) * 100)
-        const color = barColor(pct, record.status)
+        /* Agendado → barra cinza vazia + dash (sem %) */
+        if (r.status === 'Agendado') {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Progress
+                percent={0}
+                showInfo={false}
+                trailColor="#F0F0F0"
+                strokeColor="#F0F0F0"
+                strokeWidth={6}
+                style={{ flex: 1, margin: 0, minWidth: 90 }}
+              />
+              <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12, minWidth: 46, textAlign: 'right' }}>
+                —
+              </Typography.Text>
+            </div>
+          )
+        }
+        /* Ativo / Concluído → barra colorida + X/Y */
+        const pct   = r.totalDestinatarios > 0 ? Math.round((r.totalAceites / r.totalDestinatarios) * 100) : 0
+        const color = barColor(pct, r.status)
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Progress
@@ -478,49 +476,35 @@ export function ListagemPage() {
               strokeWidth={6}
               style={{ flex: 1, margin: 0, minWidth: 90 }}
             />
-            <Typography.Text
-              style={{
-                fontFamily: FONT, fontSize: 12,
-                color, fontWeight: 700,
-                whiteSpace: 'nowrap', minWidth: 46,
-                textAlign: 'right',
-              }}
-            >
-              {record.totalAceites}/{record.totalDestinatarios}
+            <Typography.Text style={{
+              fontFamily: FONT, fontSize: 12, color, fontWeight: 700,
+              whiteSpace: 'nowrap', minWidth: 46, textAlign: 'right',
+            }}>
+              {r.totalAceites}/{r.totalDestinatarios}
             </Typography.Text>
           </div>
         )
       },
     },
 
-    /* 6 ── Status (outline) */
+    /* 6 — Status (outline) */
     {
-      title:     'Status',
-      dataIndex: 'status',
-      key:       'status',
-      width:     130,
+      title: 'Status', dataIndex: 'status', key: 'status', width: 120,
       render: (status: DocumentoStatus) => {
         const palette: Record<DocumentoStatus, { border: string; color: string; bg: string }> = {
-          Publicado: { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
+          Ativo:     { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
           Agendado:  { border: colorTokens.primary, color: colorTokens.primary, bg: '#EEF2FF' },
           Rascunho:  { border: '#D9D9D9', color: '#8C8C8C', bg: '#FAFAFA' },
-          Expirado:  { border: '#D9D9D9', color: '#8C8C8C', bg: 'transparent' },
+          Concluído: { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
         }
         const p = palette[status]
         return (
           <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '3px 10px',
-            borderRadius: 5,
-            border: `1px solid ${p.border}`,
-            background: p.bg,
-            fontFamily: FONT,
-            fontSize: 11,
-            fontWeight: 600,
-            color: p.color,
-            whiteSpace: 'nowrap',
-            letterSpacing: '0.01em',
+            display: 'inline-flex', alignItems: 'center',
+            padding: '3px 10px', borderRadius: 5,
+            border: `1px solid ${p.border}`, background: p.bg,
+            fontFamily: FONT, fontSize: 11, fontWeight: 600,
+            color: p.color, whiteSpace: 'nowrap', letterSpacing: '0.01em',
           }}>
             {STATUS_LABEL[status]}
           </span>
@@ -528,18 +512,11 @@ export function ListagemPage() {
       },
     },
 
-    /* 7 ── Ações ⋮ (alinhado à direita) */
+    /* 7 — Ações ⋮ */
     {
-      title:  '',
-      key:    'acoes',
-      width:  56,
-      align:  'right' as const,
+      title: '', key: 'acoes', width: 56, align: 'right' as const,
       render: (_: unknown, record) => (
-        <Dropdown
-          menu={{ items: actionsMenu(record) }}
-          trigger={['click']}
-          placement="bottomRight"
-        >
+        <Dropdown menu={{ items: actionsMenu(record) }} trigger={['click']} placement="bottomRight">
           <Button
             type="text"
             icon={<MoreOutlined style={{ fontSize: 15 }} />}
@@ -554,7 +531,9 @@ export function ListagemPage() {
     },
   ]
 
-  /* ── Render ─────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     Render
+  ══════════════════════════════════════════════════════════════ */
   return (
     <div style={{ padding: '28px 40px 48px', fontFamily: FONT }}>
 
@@ -573,18 +552,12 @@ export function ListagemPage() {
       </button>
 
       {/* Cabeçalho */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'flex-start', marginBottom: 28,
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <Typography.Title
-            level={2}
-            style={{
-              fontFamily: FONT, color: colorTokens.primary,
-              margin: 0, fontSize: 26, fontWeight: 700, lineHeight: '34px',
-            }}
-          >
+          <Typography.Title level={2} style={{
+            fontFamily: FONT, color: colorTokens.primary,
+            margin: 0, fontSize: 26, fontWeight: 700, lineHeight: '34px',
+          }}>
             Documentos
           </Typography.Title>
           <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
@@ -593,8 +566,7 @@ export function ListagemPage() {
         </div>
 
         <Button
-          type="primary"
-          icon={<PlusOutlined />}
+          type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/documentos/criar')}
           style={{
             height: 40, fontWeight: 600, fontSize: 13,
@@ -606,50 +578,36 @@ export function ListagemPage() {
         </Button>
       </div>
 
-      {/* Tabs de status */}
+      {/* Tabs */}
       <Tabs
         className="listagem-tabs"
         activeKey={activeTab}
-        onChange={(key) => {
-          setActiveTab(key as DocumentoStatus | 'Todos')
-          setPagination((p) => ({ ...p, current: 1 }))
-        }}
+        onChange={(k) => { setActiveTab(k as DocumentoStatus | 'Todos'); setPagination((p) => ({ ...p, current: 1 })) }}
         items={tabItems}
         style={{ marginBottom: 0 }}
       />
 
       {/* Card branco */}
       <div style={{
-        background: '#fff',
-        borderRadius: '0 0 10px 10px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        overflow: 'hidden',
+        background: '#fff', borderRadius: '0 0 10px 10px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden',
       }}>
 
-        {/* ── Toolbar: busca + filtro de classificação ── */}
+        {/* Toolbar */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 10,
-          padding: '16px 20px 12px',
-          borderBottom: '1px solid #F5F5F5',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          gap: 10, padding: '16px 20px 12px', borderBottom: '1px solid #F5F5F5',
         }}>
           <Select
             className="classif-select"
-            mode="multiple"
-            allowClear
-            maxTagCount={2}
+            mode="multiple" allowClear maxTagCount={2}
             placeholder="Classificação"
-            options={CLASSIF_OPTIONS}
+            options={CLASSIF_OPTS}
             value={filterClassif}
-            onChange={(vals) => { setFilterClassif(vals); setPagination((p) => ({ ...p, current: 1 })) }}
+            onChange={(v) => { setFilterClassif(v); setPagination((p) => ({ ...p, current: 1 })) }}
             style={{ width: 260, fontFamily: FONT }}
-            styles={{
-              popup: { root: { fontFamily: FONT, fontSize: 13 } },
-            }}
+            styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
           />
-
           <Input
             allowClear
             placeholder="Buscar por título"
@@ -670,31 +628,22 @@ export function ListagemPage() {
           bordered={false}
           showSorterTooltip={false}
           pagination={{
-            ...pagination,
-            total: filtered.length,
-            showSizeChanger: true,
-            pageSizeOptions: ['5', '10', '20'],
-            showTotal: (total) => (
-              <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>
-                Total {total} {total === 1 ? 'item' : 'itens'}
-              </Typography.Text>
-            ),
-            onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
+            ...pagination, total: filtered.length,
+            showSizeChanger: true, pageSizeOptions: ['5', '10', '20'],
+            showTotal: (n) => <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>Total {n} {n === 1 ? 'item' : 'itens'}</Typography.Text>,
+            onChange: (page, size) => setPagination({ current: page, pageSize: size }),
             style: { padding: '12px 20px', fontFamily: FONT },
             locale: { items_per_page: '/ Por página' },
           }}
           locale={{
             emptyText: (
               <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                style={{ padding: '32px 0' }}
+                image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }}
                 description={
                   <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
-                    {search || filterClassif.length > 0
-                      ? 'Nenhum documento encontrado para os filtros aplicados.'
-                      : activeTab !== 'Todos'
-                        ? `Nenhum documento com status "${STATUS_LABEL[activeTab as DocumentoStatus]}".`
-                        : 'Nenhum documento criado ainda.'}
+                    {search || filterClassif.length ? 'Nenhum documento encontrado para os filtros aplicados.'
+                      : activeTab !== 'Todos' ? `Nenhum documento com status "${STATUS_LABEL[activeTab as DocumentoStatus]}".`
+                      : 'Nenhum documento criado ainda.'}
                   </Typography.Text>
                 }
               />
@@ -703,6 +652,40 @@ export function ListagemPage() {
           style={{ background: '#fff' }}
         />
       </div>
+
+      {/* ════════════════════════════════════════════════════════
+         Modal — Encerrar vigência (PRD Sprint 2.3)
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        className="encerrar-modal"
+        open={!!encerrarTarget}
+        onCancel={() => setEncerrarTarget(null)}
+        width={440}
+        centered
+        footer={
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              onClick={() => setEncerrarTarget(null)}
+              style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              danger
+              type="primary"
+              onClick={handleConfirmEncerrar}
+              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13 }}
+            >
+              Encerrar
+            </Button>
+          </Space>
+        }
+        title="Encerrar vigência"
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '20px' }}>
+          Esta ação interrompe o aceite imediatamente. O histórico de assinaturas será preservado.
+        </Typography.Text>
+      </Modal>
     </div>
   )
 }

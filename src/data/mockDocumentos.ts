@@ -5,7 +5,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
   {
     id: 'doc-001',
     titulo: 'Código de Conduta e Ética Empresarial',
-    status: 'Publicado',
+    status: 'Ativo',
     tipo: 'adesao',
     modalidadeEnvio: 'departamento',
     classificacoes: ['politicas'],
@@ -39,7 +39,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
   {
     id: 'doc-003',
     titulo: 'Termo de Confidencialidade',
-    status: 'Publicado',
+    status: 'Ativo',
     tipo: 'adesao',
     modalidadeEnvio: 'departamento',
     classificacoes: ['procedimentos'],
@@ -56,7 +56,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
   {
     id: 'doc-004',
     titulo: 'Política de Home Office',
-    status: 'Publicado',
+    status: 'Ativo',
     tipo: 'ciencia',
     modalidadeEnvio: 'pessoa',
     classificacoes: ['politicas'],
@@ -73,7 +73,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
   {
     id: 'doc-005',
     titulo: 'Termo de Entrega de Notebook',
-    status: 'Expirado',
+    status: 'Concluído',
     tipo: 'ciencia',
     modalidadeEnvio: 'departamento',
     classificacoes: ['procedimentos'],
@@ -124,7 +124,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
   {
     id: 'doc-008',
     titulo: 'Comunicado — Atualização de Plano de Saúde',
-    status: 'Publicado',
+    status: 'Ativo',
     tipo: 'ciencia',
     modalidadeEnvio: 'departamento',
     classificacoes: ['comunicacao-interna'],

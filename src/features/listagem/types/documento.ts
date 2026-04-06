@@ -4,7 +4,7 @@
 ───────────────────────────────────────────────────────────── */
 
 /** Status possíveis de um documento na plataforma */
-export type DocumentoStatus = 'Rascunho' | 'Publicado' | 'Agendado' | 'Expirado'
+export type DocumentoStatus = 'Rascunho' | 'Ativo' | 'Agendado' | 'Concluído'
 
 /** Modalidade de envio do documento */
 export type ModalidadeEnvio = 'departamento' | 'pessoa'
@@ -85,23 +85,23 @@ export interface OrdenacaoListagem {
 /** Mapa de cores AntD para cada status */
 export const STATUS_COLOR: Record<DocumentoStatus, string> = {
   Rascunho:  'default',
-  Publicado: 'success',
+  Ativo:     'success',
   Agendado:  'processing',
-  Expirado:  'error',
+  Concluído: 'default',
 }
 
 /** Label exibida na UI para cada status */
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {
   Rascunho:  'Rascunho',
-  Publicado: 'Publicado',
+  Ativo:     'Ativo',
   Agendado:  'Agendado',
-  Expirado:  'Expirado',
+  Concluído: 'Concluído',
 }
 
 /** Todos os valores de status (útil para filtros e selects) */
 export const DOCUMENTO_STATUS_LIST: DocumentoStatus[] = [
   'Rascunho',
-  'Publicado',
+  'Ativo',
   'Agendado',
-  'Expirado',
+  'Concluído',
 ]
