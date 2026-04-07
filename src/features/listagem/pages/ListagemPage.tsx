@@ -7,15 +7,16 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Table, Button, Tag, Input, Select, Space, Typography,
   Tooltip, message, Progress, Empty,
-  Dropdown, Tabs, Modal,
+  Dropdown, Tabs, Modal, DatePicker,
 } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { MenuProps } from 'antd'
+import type { Dayjs } from 'dayjs'
 import {
   PlusOutlined, SearchOutlined, ArrowLeftOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
   StopOutlined, BarChartOutlined, SendOutlined,
-  LeftOutlined, RightOutlined,
+  LeftOutlined, RightOutlined, CloseOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -24,7 +25,7 @@ import {
   Documento, DocumentoStatus, STATUS_LABEL,
 } from '../types/documento'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
-import { CLASSIFICATIONS } from '@/data/mockClassifications'
+import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 
 dayjs.locale('pt-br')
@@ -43,6 +44,33 @@ const STEP_ROUTES: Record<number, string> = {
 
 const CLASSIF_MAP  = Object.fromEntries(CLASSIFICATIONS.map((c) => [c.value, c.label]))
 const CLASSIF_OPTS = CLASSIFICATIONS.map((c) => ({ label: c.label, value: c.value }))
+
+const GESTAO_MAP  = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value, g.label]))
+const GESTAO_OPTS = GESTOES_RESPONSAVEIS.map((g) => ({ label: g.label, value: g.value }))
+
+/* Públicos únicos derivados dos mocks */
+const PUBLICO_OPTS: { label: string; value: string }[] = (() => {
+  const seen = new Set<string>()
+  const opts: { label: string; value: string }[] = []
+  MOCK_DOCUMENTOS.forEach((d) => {
+    ;(d.destinatariosPreview ?? []).forEach((t) => {
+      if (!seen.has(t)) { seen.add(t); opts.push({ label: t, value: t }) }
+    })
+  })
+  return opts
+})()
+
+const ACEITE_OPTS = [
+  { label: 'Com aceite', value: 'com' },
+  { label: 'Sem aceite', value: 'sem' },
+]
+
+const PERIODO_PRESETS: { label: string; value: [Dayjs, Dayjs] }[] = [
+  { label: 'Hoje',          value: [dayjs().startOf('day'), dayjs().endOf('day')] },
+  { label: 'Últimos 7 dias', value: [dayjs().subtract(6, 'day').startOf('day'), dayjs().endOf('day')] },
+  { label: 'Últimos 30 dias', value: [dayjs().subtract(29, 'day').startOf('day'), dayjs().endOf('day')] },
+  { label: 'Últimos 60 dias', value: [dayjs().subtract(59, 'day').startOf('day'), dayjs().endOf('day')] },
+]
 
 /* ── Tipos ──────────────────────────────────────────────────── */
 type DocumentoComMeta = Documento & { _stepAtual?: number }
@@ -129,12 +157,27 @@ const PAGE_CSS = `
   .listagem-tabs .ant-tabs-nav::before {
     border-bottom: 1.5px solid #EBEBEB !important;
   }
-  .classif-select .ant-select-selector {
+  .classif-select .ant-select-selector,
+  .filter-select .ant-select-selector {
     border-radius: 8px !important;
     font-family: ${FONT} !important;
     font-size: 13px !important;
     min-height: 36px !important;
     align-items: center !important;
+    border-color: #D9D9D9 !important;
+  }
+  .filter-select .ant-select-selection-placeholder,
+  .filter-select .ant-select-selection-item {
+    font-family: ${FONT} !important;
+    font-size: 13px !important;
+  }
+  .filter-rangepicker {
+    border-radius: 8px !important;
+    border-color: #D9D9D9 !important;
+  }
+  .filter-rangepicker input {
+    font-family: ${FONT} !important;
+    font-size: 13px !important;
   }
   .modal-draft .ant-modal-content,
   .encerrar-modal .ant-modal-content {
@@ -178,12 +221,16 @@ export function ListagemPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [search,          setSearch]          = useState('')
-  const [filterClassif,   setFilterClassif]   = useState<string[]>([])
-  const [activeTab,       setActiveTab]       = useState<DocumentoStatus | 'Todos'>('Todos')
-  const [pagination,      setPagination]      = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
-  const [encerrarTarget,  setEncerrarTarget]  = useState<DocumentoComMeta | null>(null)
-  const [deleteTarget,    setDeleteTarget]    = useState<DocumentoComMeta | null>(null)
+  const [search,           setSearch]           = useState('')
+  const [filterClassif,    setFilterClassif]    = useState<string[]>([])
+  const [filterPublico,    setFilterPublico]    = useState<string>('')
+  const [filterResponsavel,setFilterResponsavel]= useState<string>('')
+  const [filterPeriodo,    setFilterPeriodo]    = useState<[Dayjs, Dayjs] | null>(null)
+  const [filterAceite,     setFilterAceite]     = useState<'com' | 'sem' | ''>('')
+  const [activeTab,        setActiveTab]        = useState<DocumentoStatus | 'Todos'>('Todos')
+  const [pagination,       setPagination]       = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
+  const [encerrarTarget,   setEncerrarTarget]   = useState<DocumentoComMeta | null>(null)
+  const [deleteTarget,     setDeleteTarget]     = useState<DocumentoComMeta | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -248,8 +295,26 @@ export function ListagemPage() {
     const tab  = activeTab === 'Todos' || doc.status === activeTab
     const txt  = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
     const cls  = filterClassif.length === 0 || filterClassif.some((c) => doc.classificacoes.includes(c))
-    return tab && txt && cls
-  }), [tableDocumentos, activeTab, search, filterClassif])
+    const pub  = !filterPublico || (doc.destinatariosPreview ?? []).includes(filterPublico)
+    const resp = !filterResponsavel || doc.gestaoResponsavel === filterResponsavel
+    const per  = !filterPeriodo || (() => {
+      if (!doc.dataLancamento) return false
+      const d = dayjs(doc.dataLancamento)
+      return d.isAfter(filterPeriodo[0].subtract(1, 'ms')) && d.isBefore(filterPeriodo[1].add(1, 'ms'))
+    })()
+    const ace  = !filterAceite
+      || (filterAceite === 'com' && doc.totalAceites > 0)
+      || (filterAceite === 'sem' && doc.totalAceites === 0)
+    return tab && txt && cls && pub && resp && per && ace
+  }), [tableDocumentos, activeTab, search, filterClassif, filterPublico, filterResponsavel, filterPeriodo, filterAceite])
+
+  const hasFilters = search || filterClassif.length || filterPublico || filterResponsavel || filterPeriodo || filterAceite
+
+  function clearFilters() {
+    setSearch(''); setFilterClassif([]); setFilterPublico(''); setFilterResponsavel('')
+    setFilterPeriodo(null); setFilterAceite('')
+    setPagination((p) => ({ ...p, current: 1 }))
+  }
 
   /* ── Contadores (só documentos da tabela) ── */
   const counts = useMemo(() => {
@@ -366,7 +431,7 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Destinatário(s)', key: 'publico', width: 160,
+      title: 'Público', key: 'publico', width: 160,
       render: (_: unknown, r) => {
         const tags = r.destinatariosPreview ?? []
         if (!tags.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
@@ -389,6 +454,18 @@ export function ListagemPage() {
               </Tooltip>
             )}
           </Space>
+        )
+      },
+    },
+    {
+      title: 'Responsável', key: 'responsavel', width: 160,
+      render: (_: unknown, r) => {
+        const label = GESTAO_MAP[r.gestaoResponsavel] ?? r.gestaoResponsavel
+        if (!label) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        return (
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>
+            {label}
+          </Typography.Text>
         )
       },
     },
@@ -636,21 +713,80 @@ export function ListagemPage() {
         items={tabItems} style={{ marginBottom: 0 }}
       />
 
-      <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '16px 20px 12px', borderBottom: '1px solid #F5F5F5' }}>
-          <Select className="classif-select" mode="multiple" allowClear maxTagCount={2}
-            placeholder="Classificação" options={CLASSIF_OPTS} value={filterClassif}
-            onChange={(v) => { setFilterClassif(v); setPagination((p) => ({ ...p, current: 1 })) }}
-            style={{ width: 260, fontFamily: FONT }}
-            styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
-          />
-          <Input allowClear placeholder="Buscar por título"
-            prefix={<SearchOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />}
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPagination((p) => ({ ...p, current: 1 })) }}
-            style={{ width: 240, height: 36, fontFamily: FONT, fontSize: 13, borderRadius: 8 }}
-          />
+      <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+        {/* ── Barra de filtros ── */}
+        <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F0F0F0' }}>
+          {/* Linha 1: selects + busca */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+
+            {/* Classificações */}
+            <Select
+              className="filter-select" mode="multiple" allowClear maxTagCount={1}
+              placeholder="Classificações" options={CLASSIF_OPTS} value={filterClassif}
+              maxTagPlaceholder={(omitted) => <span style={{ color: colorTokens.primary }}>+{omitted.length}</span>}
+              onChange={(v) => { setFilterClassif(v); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ width: 168, fontFamily: FONT }}
+              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
+            />
+
+            {/* Público */}
+            <Select
+              className="filter-select" allowClear
+              placeholder="Público" options={PUBLICO_OPTS} value={filterPublico || undefined}
+              onChange={(v) => { setFilterPublico(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ width: 136, fontFamily: FONT }}
+              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
+            />
+
+            {/* Responsável */}
+            <Select
+              className="filter-select" allowClear
+              placeholder="Responsável" options={GESTAO_OPTS} value={filterResponsavel || undefined}
+              onChange={(v) => { setFilterResponsavel(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ width: 148, fontFamily: FONT }}
+              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
+            />
+
+            {/* Período */}
+            <DatePicker.RangePicker
+              className="filter-rangepicker"
+              placeholder={['Data início', 'Data fim']}
+              format="DD/MM/YY"
+              presets={PERIODO_PRESETS}
+              value={filterPeriodo}
+              onChange={(v) => { setFilterPeriodo(v as [Dayjs, Dayjs] | null); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ fontFamily: FONT, height: 36, width: 220 }}
+            />
+
+            {/* Aceite */}
+            <Select
+              className="filter-select" allowClear
+              placeholder="Aceite" options={ACEITE_OPTS} value={filterAceite || undefined}
+              onChange={(v) => { setFilterAceite(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ width: 136, fontFamily: FONT }}
+              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
+            />
+
+            {/* Busca */}
+            <Input
+              allowClear placeholder="Buscar por título"
+              prefix={<SearchOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />}
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPagination((p) => ({ ...p, current: 1 })) }}
+              style={{ flex: 1, height: 36, fontFamily: FONT, fontSize: 13, borderRadius: 8 }}
+            />
+
+            {/* Limpar filtros */}
+            {hasFilters && (
+              <Button
+                type="text" size="small" icon={<CloseOutlined style={{ fontSize: 11 }} />}
+                onClick={clearFilters}
+                style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, height: 36, paddingInline: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tabela */}
@@ -670,7 +806,7 @@ export function ListagemPage() {
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }}
                 description={
                   <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
-                    {search || filterClassif.length ? 'Nenhum documento encontrado para os filtros aplicados.'
+                    {hasFilters ? 'Nenhum documento encontrado para os filtros selecionados.'
                       : activeTab !== 'Todos' ? `Nenhum documento com status "${STATUS_LABEL[activeTab as DocumentoStatus]}".`
                       : 'Nenhum documento criado ainda.'}
                   </Typography.Text>
