@@ -48,17 +48,6 @@ const CLASSIF_OPTS = CLASSIFICATIONS.map((c) => ({ label: c.label, value: c.valu
 const GESTAO_MAP  = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value, g.label]))
 const GESTAO_OPTS = GESTOES_RESPONSAVEIS.map((g) => ({ label: g.label, value: g.value }))
 
-/* Públicos únicos derivados dos mocks */
-const PUBLICO_OPTS: { label: string; value: string }[] = (() => {
-  const seen = new Set<string>()
-  const opts: { label: string; value: string }[] = []
-  MOCK_DOCUMENTOS.forEach((d) => {
-    ;(d.destinatariosPreview ?? []).forEach((t) => {
-      if (!seen.has(t)) { seen.add(t); opts.push({ label: t, value: t }) }
-    })
-  })
-  return opts
-})()
 
 const ACEITE_OPTS = [
   { label: 'Com aceite', value: 'com' },
@@ -76,11 +65,12 @@ const PERIODO_PRESETS: { label: string; value: [Dayjs, Dayjs] }[] = [
 type DocumentoComMeta = Documento & { _stepAtual?: number }
 
 /* ── Helpers ────────────────────────────────────────────────── */
-function barColor(pct: number, status: DocumentoStatus): string {
+const SEA_GREEN = '#20B2AA'
+
+function barColor(tipo: Documento['tipo'], status: DocumentoStatus, pct: number): string {
   if (status === 'Concluído') return '#BFBFBF'
-  if (pct === 100) return '#52c41a'
-  if (pct === 0)   return '#D9D9D9'
-  return colorTokens.primary
+  if (pct === 0) return '#D9D9D9'
+  return tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
 }
 
 function readDraftFromStorage(): DocumentoComMeta | null {
@@ -483,23 +473,23 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Adesão', key: 'adesao', width: 210,
+      title: 'Adesão', key: 'adesao', width: 200,
       render: (_: unknown, r) => {
         if (r.status === 'Agendado') {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Progress percent={0} showInfo={false} trailColor="#F0F0F0" strokeColor="#F0F0F0" strokeWidth={6} style={{ flex: 1, margin: 0, minWidth: 90 }} />
-              <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12, minWidth: 46, textAlign: 'right' }}>—</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12, minWidth: 36, textAlign: 'right' }}>—</Typography.Text>
             </div>
           )
         }
         const pct   = r.totalDestinatarios > 0 ? Math.round((r.totalAceites / r.totalDestinatarios) * 100) : 0
-        const color = barColor(pct, r.status)
+        const color = barColor(r.tipo, r.status, pct)
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Progress percent={pct} showInfo={false} strokeColor={color} trailColor="#EFEFEF" strokeWidth={6} style={{ flex: 1, margin: 0, minWidth: 90 }} />
-            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color, fontWeight: 700, whiteSpace: 'nowrap', minWidth: 46, textAlign: 'right' }}>
-              {r.totalAceites}/{r.totalDestinatarios}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color, fontWeight: 700, whiteSpace: 'nowrap', minWidth: 36, textAlign: 'right' }}>
+              {pct}%
             </Typography.Text>
           </div>
         )
@@ -715,8 +705,9 @@ export function ListagemPage() {
 
       <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
         {/* ── Barra de filtros ── */}
-        <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F0F0F0' }}>
-          {/* Linha 1: selects + busca */}
+        <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+
+          {/* Grupo esquerdo: filtros contextuais */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
 
             {/* Classificações */}
@@ -726,15 +717,6 @@ export function ListagemPage() {
               maxTagPlaceholder={(omitted) => <span style={{ color: colorTokens.primary }}>+{omitted.length}</span>}
               onChange={(v) => { setFilterClassif(v); setPagination((p) => ({ ...p, current: 1 })) }}
               style={{ width: 168, fontFamily: FONT }}
-              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
-            />
-
-            {/* Público */}
-            <Select
-              className="filter-select" allowClear
-              placeholder="Público" options={PUBLICO_OPTS} value={filterPublico || undefined}
-              onChange={(v) => { setFilterPublico(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ width: 136, fontFamily: FONT }}
               styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
             />
 
@@ -767,26 +749,26 @@ export function ListagemPage() {
               styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
             />
 
-            {/* Busca */}
-            <Input
-              allowClear placeholder="Buscar por título"
-              prefix={<SearchOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ flex: 1, height: 36, fontFamily: FONT, fontSize: 13, borderRadius: 8 }}
-            />
-
             {/* Limpar filtros */}
             {hasFilters && (
               <Button
                 type="text" size="small" icon={<CloseOutlined style={{ fontSize: 11 }} />}
                 onClick={clearFilters}
-                style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, height: 36, paddingInline: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+                style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, height: 36, paddingInline: 8, whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 Limpar
               </Button>
             )}
           </div>
+
+          {/* Busca — extremidade direita */}
+          <Input
+            allowClear placeholder="Buscar por título"
+            prefix={<SearchOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPagination((p) => ({ ...p, current: 1 })) }}
+            style={{ width: 220, height: 36, fontFamily: FONT, fontSize: 13, borderRadius: 8, flexShrink: 0 }}
+          />
         </div>
 
         {/* Tabela */}
