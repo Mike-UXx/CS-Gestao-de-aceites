@@ -27,14 +27,15 @@ function AppShell() {
           <Content style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
             <div style={{ flex: 1 }}>
               <Routes>
-                <Route path="/" element={<Navigate to="/documentos/criar" replace />} />
+                <Route path="/" element={<Navigate to="/documentos" replace />} />
+                <Route path="/documentos" element={<ListagemPage />} />
+                <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
                 <Route path="/documentos/criar" element={<SelectTemplate />} />
                 <Route path="/documentos/criar/informacoes" element={<InformacoesStep />} />
                 <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
                 <Route path="/documentos/criar/configuracoes" element={<ConfiguracoesStep />} />
                 <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
-                <Route path="/documentos/listagem" element={<ListagemPage />} />
-                <Route path="*" element={<Navigate to="/documentos/criar" replace />} />
+                <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
             </div>
             <AppFooter />

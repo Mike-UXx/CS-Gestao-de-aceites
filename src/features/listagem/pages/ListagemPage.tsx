@@ -13,7 +13,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { MenuProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import {
-  PlusOutlined, SearchOutlined, ArrowLeftOutlined,
+  PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
   StopOutlined, BarChartOutlined, SendOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
@@ -500,9 +500,9 @@ export function ListagemPage() {
       render: (status: DocumentoStatus) => {
         const palette: Record<DocumentoStatus, { border: string; color: string; bg: string }> = {
           Ativo:     { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
-          Agendado:  { border: colorTokens.primary, color: colorTokens.primary, bg: '#EEF2FF' },
+          Agendado:  { border: '#FA8C16', color: '#D46B08', bg: '#FFF7E6' },
           Rascunho:  { border: '#D9D9D9', color: '#8C8C8C', bg: '#FAFAFA' },
-          Concluído: { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
+          Concluído: { border: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA' },
         }
         const p = palette[status]
         return (
@@ -531,20 +531,7 @@ export function ListagemPage() {
      Render
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '20px 32px 40px', fontFamily: FONT }}>
-
-      {/* ← Voltar */}
-      <button
-        onClick={() => navigate(-1)}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          color: colorTokens.primary, fontSize: 13, fontWeight: 500,
-          fontFamily: FONT, padding: 0, marginBottom: 12,
-        }}
-      >
-        <ArrowLeftOutlined style={{ fontSize: 11 }} /> Voltar
-      </button>
+    <div style={{ padding: '28px 32px 40px', fontFamily: FONT }}>
 
       {/* ── Card principal ─────────────────────────────────────── */}
       <div style={{

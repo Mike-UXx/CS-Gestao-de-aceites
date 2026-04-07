@@ -126,7 +126,7 @@ export function InformacoesStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => setShowCancel(true)}
       onNext={handleNext}
-      onSaveDraft={() => { saveDraft(0); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
+      onSaveDraft={() => { saveDraft(0); navigate('/documentos', { state: { draftSaved: true } }) }}
       hasFormError={hasFormError}
       backLabel="Cancelar"
     >

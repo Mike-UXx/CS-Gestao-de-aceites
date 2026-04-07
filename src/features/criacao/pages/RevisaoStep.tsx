@@ -141,7 +141,7 @@ export function RevisaoStep() {
           : `Envio agendado para ${lancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
       4,
     )
-    navigate('/documentos/listagem')
+    navigate('/documentos')
   }
 
   /* ─── JSX ─────────────────────────────────────────────────────── */
@@ -151,7 +151,7 @@ export function RevisaoStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => navigate('/documentos/criar/configuracoes')}
       onNext={() => setShowConfirm(true)}
-      onSaveDraft={() => { saveDraft(3); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
+      onSaveDraft={() => { saveDraft(3); navigate('/documentos', { state: { draftSaved: true } }) }}
       nextLabel={actionLabel}
     >
 

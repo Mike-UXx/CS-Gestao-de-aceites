@@ -12,7 +12,7 @@ const { Sider } = Layout
 
 const navItems = [
   { key: '/home', icon: <HomeOutlined />, label: 'Home' },
-  { key: '/documentos/listagem', icon: <FileTextOutlined />, label: 'Documentos' },
+  { key: '/documentos', icon: <FileTextOutlined />, label: 'Documentos' },
   { key: '/estatisticas', icon: <BarChartOutlined />, label: 'Estatísticas' },
   {
     key: '/configuracoes',
@@ -32,10 +32,8 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
 
   // Mapeia /documentos/* para o item de menu correto
   const activeKey = navItems.find((item) =>
-    location.pathname.startsWith(
-      item.key === '/documentos/listagem' ? '/documentos' : item.key
-    )
-  )?.key ?? '/documentos/listagem'
+    location.pathname.startsWith(item.key)
+  )?.key ?? '/documentos'
 
   return (
     <Sider

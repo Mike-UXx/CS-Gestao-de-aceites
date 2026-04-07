@@ -154,7 +154,7 @@ export function DestinatariosStep() {
       onHeaderBack={() => setShowCancel(true)}
       onBack={() => navigate('/documentos/criar/informacoes')}
       onNext={handleNext}
-      onSaveDraft={() => { saveDraft(1); navigate('/documentos/listagem', { state: { draftSaved: true } }) }}
+      onSaveDraft={() => { saveDraft(1); navigate('/documentos', { state: { draftSaved: true } }) }}
     >
       {/* ── Card branco de conteúdo ───────────────────────────── */}
       <div
