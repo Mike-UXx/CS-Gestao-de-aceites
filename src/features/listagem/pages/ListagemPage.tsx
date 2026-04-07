@@ -387,8 +387,17 @@ export function ListagemPage() {
   const columns: ColumnsType<DocumentoComMeta> = [
     {
       title: 'Título', dataIndex: 'titulo', key: 'titulo',
-      render: (t: string) => (
-        <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px' }}>
+      render: (t: string, record) => (
+        <Typography.Text
+          strong
+          onClick={() => navigate(`/documentos/${record.id}`)}
+          style={{
+            fontFamily: FONT, fontSize: 13, color: colorTokens.primary,
+            lineHeight: '20px', cursor: 'pointer',
+            textDecoration: 'underline', textDecorationColor: `${colorTokens.primary}44`,
+            textUnderlineOffset: 3,
+          }}
+        >
           {t}
         </Typography.Text>
       ),

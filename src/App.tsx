@@ -11,6 +11,7 @@ import { ConfiguracoesStep } from '@/features/criacao/pages/ConfiguracoesStep'
 import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
+import { DetalhesPage } from '@/features/detalhes'
 import { colorTokens } from '@/theme/tokens'
 
 const { Content } = Layout
@@ -29,6 +30,7 @@ function AppShell() {
               <Routes>
                 <Route path="/" element={<Navigate to="/documentos" replace />} />
                 <Route path="/documentos" element={<ListagemPage />} />
+                <Route path="/documentos/:id" element={<DetalhesPage />} />
                 <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
                 <Route path="/documentos/criar" element={<SelectTemplate />} />
                 <Route path="/documentos/criar/informacoes" element={<InformacoesStep />} />
