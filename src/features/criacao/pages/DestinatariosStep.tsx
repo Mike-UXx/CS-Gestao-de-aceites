@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
 import {
   Form, Typography, Select, Input,
-  Space, Checkbox, Divider, Tag, Tooltip,
+  Space, Checkbox, Divider, Tag, Tooltip, Alert,
 } from 'antd'
 import { InfoCircleOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { RadioCard } from '@/features/criacao/components/RadioCard'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
@@ -35,7 +35,9 @@ function FieldLabel({
 
 /* ─── Componente principal ────────────────────────────────────── */
 export function DestinatariosStep() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const editMode  = (location.state as { editMode?: boolean } | null)?.editMode ?? false
   const [form] = Form.useForm()
   const { data, dispatch, saveDraft } = useDocumentForm()
 
@@ -106,9 +108,9 @@ export function DestinatariosStep() {
   /* ── avançar ── */
   function handleNext() {
     setSubmitted(true)
-    if (currentSelection.length === 0) return
+    if (!editMode && currentSelection.length === 0) return
     dispatch({ type: 'SET_FIELD', field: 'modalidadeEnvio', value: modalidade })
-    navigate('/documentos/criar/configuracoes')
+    navigate('/documentos/criar/configuracoes', editMode ? { state: { editMode: true } } : undefined)
   }
 
   /* ── dropdown "Select all" genérico ── */
@@ -151,11 +153,35 @@ export function DestinatariosStep() {
   return (
     <StepPageLayout
       currentStep={1}
-      onHeaderBack={() => setShowCancel(true)}
-      onBack={() => navigate('/documentos/criar/informacoes')}
+      onHeaderBack={() => navigate('/documentos')}
+      onBack={() => navigate('/documentos/criar/informacoes', editMode ? { state: { editMode: true } } : undefined)}
       onNext={handleNext}
       onSaveDraft={() => { saveDraft(1); navigate('/documentos', { state: { draftSaved: true } }) }}
     >
+      {/* ── Alert: modo de edição ────────────────────────────── */}
+      {editMode && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{
+            marginBottom: 16,
+            fontFamily: "'Montserrat', sans-serif",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+          message={
+            <span style={{ fontWeight: 600, fontFamily: "'Montserrat', sans-serif" }}>
+              Modo de Edição
+            </span>
+          }
+          description={
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+              Os <strong>destinatários existentes</strong> serão mantidos. Utilize este passo para <strong>adicionar novos destinatários</strong>.
+            </span>
+          }
+        />
+      )}
+
       {/* ── Card branco de conteúdo ───────────────────────────── */}
       <div
         style={{

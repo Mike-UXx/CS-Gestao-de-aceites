@@ -73,7 +73,7 @@ export function SelectTemplate() {
     >
       {/* Back link */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate('/documentos')}
         style={{
           background: 'none',
           border: 'none',
