@@ -42,8 +42,9 @@ function FieldLabel({
 /* ─── Componente principal ────────────────────────────────────── */
 export function InformacoesStep() {
   const navigate  = useNavigate()
-  const location  = useLocation()
+  const location     = useLocation()
   const fromTemplate = (location.state as { fromTemplate?: boolean } | null)?.fromTemplate ?? false
+  const editMode     = (location.state as { editMode?: boolean } | null)?.editMode ?? false
   const [form] = Form.useForm()
   const { data, dispatch, saveDraft } = useDocumentForm()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -97,13 +98,13 @@ export function InformacoesStep() {
   async function handleNext() {
     try {
       await form.validateFields()
-      if (uploadStatus !== 'success') {
+      if (!editMode && uploadStatus !== 'success') {
         setFileError('Campo de seleção obrigatória'); setHasFormError(true); return
       }
       setHasFormError(false)
-      navigate('/documentos/criar/destinatarios')
+      navigate('/documentos/criar/destinatarios', editMode ? { state: { editMode: true } } : undefined)
     } catch {
-      if (uploadStatus !== 'success') setFileError('Campo de seleção obrigatória')
+      if (!editMode && uploadStatus !== 'success') setFileError('Campo de seleção obrigatória')
       setHasFormError(true)
     }
   }
@@ -123,13 +124,38 @@ export function InformacoesStep() {
   return (
     <StepPageLayout
       currentStep={0}
-      onHeaderBack={() => setShowCancel(true)}
+      onHeaderBack={() => navigate('/documentos')}
       onBack={() => setShowCancel(true)}
       onNext={handleNext}
       onSaveDraft={() => { saveDraft(0); navigate('/documentos', { state: { draftSaved: true } }) }}
       hasFormError={hasFormError}
       backLabel="Cancelar"
     >
+      {/* ── Alert: modo de edição ────────────────────────────── */}
+      {editMode && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{
+            marginBottom: 16,
+            fontFamily: "'Montserrat', sans-serif",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+          message={
+            <span style={{ fontWeight: 600, fontFamily: "'Montserrat', sans-serif" }}>
+              Modo de Edição
+            </span>
+          }
+          description={
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+              Somente <strong>Título</strong> e <strong>Classificações</strong> podem ser alterados em documentos ativos.
+              Os demais campos estão bloqueados.
+            </span>
+          }
+        />
+      )}
+
       {/* ── Alert: modelo baixado ────────────────────────────── */}
       {fromTemplate && (
         <Alert
@@ -188,9 +214,9 @@ export function InformacoesStep() {
             </div>
 
             <div
-              onClick={() => uploadStatus !== 'loading' && fileInputRef.current?.click()}
-              onDrop={handleDrop}
-              onDragOver={(e) => { e.preventDefault(); if (uploadStatus !== 'loading') setUploadStatus('dragging') }}
+              onClick={() => !editMode && uploadStatus !== 'loading' && fileInputRef.current?.click()}
+              onDrop={editMode ? undefined : handleDrop}
+              onDragOver={(e) => { e.preventDefault(); if (!editMode && uploadStatus !== 'loading') setUploadStatus('dragging') }}
               onDragLeave={() => { if (uploadStatus === 'dragging') setUploadStatus('idle') }}
               style={{
                 border: `1.5px dashed ${zoneBorder}`,
@@ -198,8 +224,10 @@ export function InformacoesStep() {
                 background: zoneBg,
                 padding: '32px 24px',
                 textAlign: 'center',
-                cursor: uploadStatus === 'loading' ? 'wait' : 'pointer',
+                cursor: editMode ? 'not-allowed' : uploadStatus === 'loading' ? 'wait' : 'pointer',
                 transition: 'border-color .2s, background .2s',
+                opacity: editMode ? 0.5 : 1,
+                pointerEvents: editMode ? 'none' : undefined,
               }}
             >
               <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={handleFileInput} />
@@ -324,6 +352,7 @@ export function InformacoesStep() {
                 showCount={{ formatter: ({ count, maxLength }) => `${count} / ${maxLength}` }}
                 onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'description', value: e.target.value })}
                 style={{ resize: 'none' }}
+                disabled={editMode}
               />
             </Form.Item>
 
@@ -371,6 +400,7 @@ export function InformacoesStep() {
                 placeholder="Selecione"
                 options={GESTOES_RESPONSAVEIS}
                 onChange={(v) => dispatch({ type: 'SET_FIELD', field: 'gestaoResponsavel', value: v })}
+                disabled={editMode}
               />
             </Form.Item>
           </Form>

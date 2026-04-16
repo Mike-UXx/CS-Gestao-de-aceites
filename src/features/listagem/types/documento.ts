@@ -4,7 +4,7 @@
 ───────────────────────────────────────────────────────────── */
 
 /** Status possíveis de um documento na plataforma */
-export type DocumentoStatus = 'Rascunho' | 'Ativo' | 'Agendado' | 'Concluído'
+export type DocumentoStatus = 'Rascunho' | 'Ativo' | 'Agendado' | 'Concluído' | 'Expirado' | 'Inativo'
 
 /** Modalidade de envio do documento */
 export type ModalidadeEnvio = 'departamento' | 'pessoa'
@@ -52,6 +52,15 @@ export interface Documento {
    * Ex.: ['RH', 'Jurídico'] — excedentes são indicados com "+N".
    */
   destinatariosPreview?: string[]
+
+  /** Descrição/objetivo do documento */
+  descricao?: string
+
+  /**
+   * Recorrência do aceite (validade antes de exigir novo aceite).
+   * Valores: 'sem_validade' | '3_meses' | '6_meses' | '12_meses' | '24_meses'
+   */
+  recorrenciaAceite?: string
 }
 
 /** Filtros aplicados na listagem */
@@ -88,6 +97,8 @@ export const STATUS_COLOR: Record<DocumentoStatus, string> = {
   Ativo:     'success',
   Agendado:  'processing',
   Concluído: 'default',
+  Expirado:  'warning',
+  Inativo:   'default',
 }
 
 /** Label exibida na UI para cada status */
@@ -96,6 +107,8 @@ export const STATUS_LABEL: Record<DocumentoStatus, string> = {
   Ativo:     'Ativo',
   Agendado:  'Agendado',
   Concluído: 'Concluído',
+  Expirado:  'Expirado',
+  Inativo:   'Inativo',
 }
 
 /** Todos os valores de status (útil para filtros e selects) */
@@ -104,4 +117,6 @@ export const DOCUMENTO_STATUS_LIST: DocumentoStatus[] = [
   'Ativo',
   'Agendado',
   'Concluído',
+  'Expirado',
+  'Inativo',
 ]

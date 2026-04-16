@@ -148,7 +148,7 @@ export function RevisaoStep() {
   return (
     <StepPageLayout
       currentStep={3}
-      onHeaderBack={() => setShowCancel(true)}
+      onHeaderBack={() => navigate('/documentos')}
       onBack={() => navigate('/documentos/criar/configuracoes')}
       onNext={() => setShowConfirm(true)}
       onSaveDraft={() => { saveDraft(3); navigate('/documentos', { state: { draftSaved: true } }) }}

@@ -5,18 +5,19 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  Table, Button, Tag, Input, Select, Space, Typography,
+  Table, Button, Tag, Input, Space, Typography,
   Tooltip, message, Progress, Empty,
-  Dropdown, Tabs, Modal, DatePicker,
+  Dropdown, Tabs, Modal, Drawer, Checkbox, Radio,
 } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { MenuProps } from 'antd'
-import type { Dayjs } from 'dayjs'
 import {
   PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
   StopOutlined, BarChartOutlined, SendOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
+  ExclamationCircleOutlined, HistoryOutlined, AppstoreAddOutlined,
+  HolderOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -42,27 +43,42 @@ const STEP_ROUTES: Record<number, string> = {
   3: '/documentos/criar/revisao',
 }
 
-const CLASSIF_MAP  = Object.fromEntries(CLASSIFICATIONS.map((c) => [c.value, c.label]))
-const CLASSIF_OPTS = CLASSIFICATIONS.map((c) => ({ label: c.label, value: c.value }))
+const CLASSIF_MAP = Object.fromEntries(CLASSIFICATIONS.map((c) => [c.value, c.label]))
 
-const GESTAO_MAP  = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value, g.label]))
-const GESTAO_OPTS = GESTOES_RESPONSAVEIS.map((g) => ({ label: g.label, value: g.value }))
+const GESTAO_MAP = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value, g.label]))
 
-
-const ACEITE_OPTS = [
-  { label: 'Com aceite', value: 'com' },
-  { label: 'Sem aceite', value: 'sem' },
-]
-
-const PERIODO_PRESETS: { label: string; value: [Dayjs, Dayjs] }[] = [
-  { label: 'Hoje',          value: [dayjs().startOf('day'), dayjs().endOf('day')] },
-  { label: 'Últimos 7 dias', value: [dayjs().subtract(6, 'day').startOf('day'), dayjs().endOf('day')] },
-  { label: 'Últimos 30 dias', value: [dayjs().subtract(29, 'day').startOf('day'), dayjs().endOf('day')] },
-  { label: 'Últimos 60 dias', value: [dayjs().subtract(59, 'day').startOf('day'), dayjs().endOf('day')] },
-]
+/* ── Cor por tipo de classificação ──────────────────────────── */
+const CLASSIF_COLORS: Record<string, { bg: string; border: string; color: string }> = {
+  'politicas':         { bg: '#FFF7E6', border: '#FFD591', color: '#D46B08' },
+  'procedimentos':     { bg: '#E6FFFB', border: '#87E8DE', color: '#08979C' },
+  'cartilhas':         { bg: '#F9F0FF', border: '#D3ADF7', color: '#722ED1' },
+  'manuais':           { bg: '#FCFFE6', border: '#EAFF8F', color: '#7CB305' },
+  'comunicacao-interna':{ bg: '#FFF0F6', border: '#FFB8D8', color: '#C41D7F' },
+}
+const CLASSIF_COLOR_DEFAULT = { bg: '#EEF2FF', border: '#C3CAF5', color: '#263072' }
 
 /* ── Tipos ──────────────────────────────────────────────────── */
 type DocumentoComMeta = Documento & { _stepAtual?: number }
+
+/* ── Colunas disponíveis para customização ──────────────────── */
+const AVAILABLE_COLUMNS = [
+  { key: 'classificacoes', label: 'Classificações' },
+  { key: 'responsavel',    label: 'Responsável' },
+  { key: 'publico',        label: 'Público-alvo' },
+  { key: 'data_envio',     label: 'Data de envio' },
+  { key: 'vigencia',       label: 'Vigência' },
+  { key: 'progresso',      label: 'Barra de progresso' },
+  { key: 'status',         label: 'Status' },
+  { key: 'recorrencia',    label: 'Recorrência' },
+]
+
+/* ── Abas padrão ────────────────────────────────────────────── */
+type SmartFilters = {
+  tipo: string       // 'todos' | 'aceites' | 'leitura'
+  prazo: string      // 'todos' | 'pendentes' | 'vigencia_proxima' | 'requer_atualizacao' | 'expirados'
+  publico: string    // 'todos' | 'departamentos' | 'destinatarios'
+}
+type CustomTab = { key: string; title: string; columns: string[]; smartFilters: SmartFilters }
 
 /* ── Helpers ────────────────────────────────────────────────── */
 const SEA_GREEN = '#20B2AA'
@@ -130,22 +146,115 @@ const PAGE_CSS = `
     border-bottom: none !important;
   }
   .listagem-table .ant-table-container { border-radius: 0 !important; }
+  /* ── Tabs — card style ── */
+  .listagem-tabs .ant-tabs-nav {
+    margin-bottom: 0 !important;
+  }
+  .listagem-tabs .ant-tabs-nav::before {
+    border-bottom: none !important;
+  }
+  .listagem-tabs .ant-tabs-nav-wrap {
+    padding-bottom: 16px !important;
+  }
   .listagem-tabs .ant-tabs-tab {
+    margin: 0 6px 0 0 !important;
+    padding: 6px 14px !important;
     font-family: ${FONT} !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 10px 2px !important;
+    color: ${colorTokens.textSecondary} !important;
+    background: #fff !important;
+    border: 1.5px solid #E8E8E8 !important;
+    border-radius: 8px !important;
+    transition: border-color 0.15s, background 0.15s, color 0.15s !important;
+  }
+  .listagem-tabs .ant-tabs-tab:hover {
+    border-color: ${colorTokens.primary}88 !important;
+    color: ${colorTokens.primary} !important;
+  }
+  .listagem-tabs .ant-tabs-tab-active {
+    background: ${colorTokens.primary} !important;
+    border-color: ${colorTokens.primary} !important;
+    color: #fff !important;
   }
   .listagem-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-    color: ${colorTokens.primary} !important;
-    font-weight: 700 !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+  }
+  .listagem-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+    color: inherit !important;
   }
   .listagem-tabs .ant-tabs-ink-bar {
-    background: ${colorTokens.primary} !important;
-    height: 2.5px !important;
+    display: none !important;
   }
-  .listagem-tabs .ant-tabs-nav::before {
-    border-bottom: 1.5px solid #EBEBEB !important;
+  /* ── Badge pill — forçar tab a crescer com o conteúdo ── */
+  .listagem-tabs .ant-tabs-tab,
+  .listagem-tabs .ant-tabs-tab-active {
+    width: auto !important;
+    overflow: visible !important;
+  }
+  .listagem-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+    width: max-content !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+  /* Pill badge — inativa */
+  .tab-pill {
+    display: inline-block !important;
+    padding: 1px 7px !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    font-family: ${FONT} !important;
+    background: #F0F2F5 !important;
+    color: #595959 !important;
+    line-height: 18px !important;
+    margin-left: 6px !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+  }
+  /* Pill badge — ativa (tab azul) */
+  .listagem-tabs .ant-tabs-tab-active .tab-pill {
+    background: rgba(255,255,255,0.20) !important;
+    color: #fff !important;
+  }
+  /* Botão "+" via tabBarExtraContent */
+  .tab-add-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    color: ${colorTokens.textSecondary} !important;
+    font-size: 15px !important;
+    transition: background 0.15s, color 0.15s !important;
+    margin-bottom: 6px !important;
+  }
+  .tab-add-btn:hover {
+    background: #EEF2FF !important;
+    color: ${colorTokens.primary} !important;
+  }
+  /* × fechar aba customizada */
+  .tab-close-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 14px !important;
+    height: 14px !important;
+    border-radius: 50% !important;
+    margin-left: 6px !important;
+    color: #BFBFBF !important;
+    font-size: 10px !important;
+    cursor: pointer !important;
+    transition: color 0.15s !important;
+    vertical-align: middle !important;
+  }
+  .tab-close-btn:hover {
+    color: #FF4D4F !important;
   }
   .classif-select .ant-select-selector,
   .filter-select .ant-select-selector {
@@ -212,15 +321,22 @@ export function ListagemPage() {
   const location = useLocation()
 
   const [search,           setSearch]           = useState('')
-  const [filterClassif,    setFilterClassif]    = useState<string[]>([])
-  const [filterPublico,    setFilterPublico]    = useState<string>('')
-  const [filterResponsavel,setFilterResponsavel]= useState<string>('')
-  const [filterPeriodo,    setFilterPeriodo]    = useState<[Dayjs, Dayjs] | null>(null)
-  const [filterAceite,     setFilterAceite]     = useState<'com' | 'sem' | ''>('')
-  const [activeTab,        setActiveTab]        = useState<DocumentoStatus | 'Todos'>('Todos')
+  const [activeTab,        setActiveTab]        = useState('todos')
   const [pagination,       setPagination]       = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
-  const [encerrarTarget,   setEncerrarTarget]   = useState<DocumentoComMeta | null>(null)
-  const [deleteTarget,     setDeleteTarget]     = useState<DocumentoComMeta | null>(null)
+  const [encerrarTarget,        setEncerrarTarget]        = useState<DocumentoComMeta | null>(null)
+  const [deleteTarget,          setDeleteTarget]          = useState<DocumentoComMeta | null>(null)
+  const [inativarTarget,        setInativarTarget]        = useState<DocumentoComMeta | null>(null)
+  const [inativarJustificativa, setInativarJustificativa] = useState('')
+  const [deletarAgendadoTarget, setDeletarAgendadoTarget] = useState<DocumentoComMeta | null>(null)
+  const [novaVersaoTarget,      setNovaVersaoTarget]      = useState<DocumentoComMeta | null>(null)
+  const [novaVersaoMotivo,      setNovaVersaoMotivo]      = useState('')
+  const [customTabs,            setCustomTabs]            = useState<CustomTab[]>([])
+  const [tabDrawerOpen,         setTabDrawerOpen]         = useState(false)
+  const [newTabTitle,           setNewTabTitle]           = useState('')
+  const [newTabColumns,         setNewTabColumns]         = useState<string[]>(['classificacoes', 'publico', 'status'])
+  const [newTabSmartFilters,     setNewTabSmartFilters]     = useState<SmartFilters>({ tipo: 'todos', prazo: 'todos', publico: 'todos' })
+  const [newTabColumnOrder,     setNewTabColumnOrder]     = useState<string[]>(AVAILABLE_COLUMNS.map((c) => c.key))
+  const [draggingColIdx,        setDraggingColIdx]        = useState<number | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -282,59 +398,80 @@ export function ListagemPage() {
 
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
-    const tab  = activeTab === 'Todos' || doc.status === activeTab
-    const txt  = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
-    const cls  = filterClassif.length === 0 || filterClassif.some((c) => doc.classificacoes.includes(c))
-    const pub  = !filterPublico || (doc.destinatariosPreview ?? []).includes(filterPublico)
-    const resp = !filterResponsavel || doc.gestaoResponsavel === filterResponsavel
-    const per  = !filterPeriodo || (() => {
-      if (!doc.dataLancamento) return false
-      const d = dayjs(doc.dataLancamento)
-      return d.isAfter(filterPeriodo[0].subtract(1, 'ms')) && d.isBefore(filterPeriodo[1].add(1, 'ms'))
+    const tab = (() => {
+      if (activeTab === 'todos')          return true
+      if (activeTab === 'exigem_aceite')  return doc.tipo === 'adesao'
+      if (activeTab === 'apenas_leitura') return doc.tipo === 'ciencia'
+      if (activeTab === 'agendados')      return doc.status === 'Agendado'
+      const custom = customTabs.find((t) => t.key === activeTab)
+      if (!custom) return true
+      const sf = custom.smartFilters
+      // Tipo de documento
+      if (sf.tipo === 'aceites' && doc.tipo !== 'adesao') return false
+      if (sf.tipo === 'leitura' && doc.tipo !== 'ciencia') return false
+      // Prazo e cronograma
+      if (sf.prazo === 'pendentes' && doc.totalAceites >= doc.totalDestinatarios) return false
+      if (sf.prazo === 'vigencia_proxima') {
+        if (!doc.dataExpiracao) return false
+        if (dayjs(doc.dataExpiracao).diff(dayjs(), 'day') > 30) return false
+      }
+      if (sf.prazo === 'requer_atualizacao' && doc.status !== 'Expirado') return false
+      if (sf.prazo === 'expirados' && doc.status !== 'Expirado') return false
+      // Público-alvo
+      if (sf.publico === 'departamentos' && doc.modalidadeEnvio !== 'departamento') return false
+      if (sf.publico === 'destinatarios' && doc.modalidadeEnvio !== 'pessoa') return false
+      return true
     })()
-    const ace  = !filterAceite
-      || (filterAceite === 'com' && doc.totalAceites > 0)
-      || (filterAceite === 'sem' && doc.totalAceites === 0)
-    return tab && txt && cls && pub && resp && per && ace
-  }), [tableDocumentos, activeTab, search, filterClassif, filterPublico, filterResponsavel, filterPeriodo, filterAceite])
+    const txt = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
+    return tab && txt
+  }), [tableDocumentos, activeTab, search, customTabs])
 
-  const hasFilters = search || filterClassif.length || filterPublico || filterResponsavel || filterPeriodo || filterAceite
+  const hasFilters = !!search
 
   function clearFilters() {
-    setSearch(''); setFilterClassif([]); setFilterPublico(''); setFilterResponsavel('')
-    setFilterPeriodo(null); setFilterAceite('')
+    setSearch('')
     setPagination((p) => ({ ...p, current: 1 }))
   }
 
-  /* ── Contadores (só documentos da tabela) ── */
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { Todos: tableDocumentos.length, Ativo: 0, Agendado: 0, Concluído: 0 }
-    tableDocumentos.forEach((d) => { if (c[d.status] !== undefined) c[d.status]++ })
-    return c
-  }, [tableDocumentos])
+  /* ── Contadores por natureza ── */
+  const counts = useMemo(() => ({
+    todos:          tableDocumentos.length,
+    exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
+    apenas_leitura: tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
+    agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
+  }), [tableDocumentos])
 
-  /* ── Tabs (sem Rascunhos) ── */
-  const tabItems = useMemo(() => [
-    { key: 'Todos',     label: 'Todos',      count: counts.Todos },
-    { key: 'Ativo',     label: 'Ativos',     count: counts.Ativo },
-    { key: 'Agendado',  label: 'Agendados',  count: counts.Agendado },
-    { key: 'Concluído', label: 'Concluídos', count: counts.Concluído },
-  ].map((t) => ({
-    key: t.key,
-    label: (
-      <span style={{ fontFamily: FONT }}>
-        {t.label}
-        <span style={{
-          marginLeft: 7, padding: '1px 7px', borderRadius: 10,
-          fontSize: 11, fontWeight: 600,
-          background: activeTab === t.key ? colorTokens.primary : '#F0F0F0',
-          color:      activeTab === t.key ? '#fff' : colorTokens.textSecondary,
-        }}>
-          {t.count}
-        </span>
+  /* ── Tabs (natureza + customizáveis) ── */
+  function tabLabel(label: string, count: number) {
+    return (
+      <span style={{ fontFamily: FONT, whiteSpace: 'nowrap' }}>
+        {label}
+        <span className="tab-pill">{count}</span>
       </span>
-    ),
-  })), [counts, activeTab])
+    )
+  }
+
+  const tabItems = useMemo(() => [
+    { key: 'todos',          label: tabLabel('Todos',          counts.todos) },
+    { key: 'exigem_aceite',  label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
+    { key: 'apenas_leitura', label: tabLabel('Apenas leitura', counts.apenas_leitura) },
+    { key: 'agendados',      label: tabLabel('Agendados',      counts.agendados) },
+    ...customTabs.map((t) => ({
+      key: t.key,
+      label: (
+        <span style={{ fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+          {t.title}
+          <span
+            className="tab-close-btn"
+            onClick={(e) => { e.stopPropagation(); handleRemoveTab(t.key) }}
+          >
+            <CloseOutlined />
+          </span>
+        </span>
+      ),
+    })),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [counts, customTabs])
 
   /* ── Ações: excluir rascunho ── */
   const handleConfirmDelete = useCallback(() => {
@@ -354,39 +491,78 @@ export function ListagemPage() {
     setEncerrarTarget(null)
   }, [encerrarTarget])
 
+  /* ── Ações: inativar documento ── */
+  const handleConfirmInativar = useCallback(() => {
+    if (!inativarTarget || !inativarJustificativa.trim()) return
+    message.success(`Documento "${inativarTarget.titulo}" inativado com sucesso.`, 4)
+    setInativarTarget(null)
+    setInativarJustificativa('')
+  }, [inativarTarget, inativarJustificativa])
+
+  /* ── Ações: excluir agendado ── */
+  const handleConfirmDeletarAgendado = useCallback(() => {
+    if (!deletarAgendadoTarget) return
+    message.success(`Documento "${deletarAgendadoTarget.titulo}" excluído permanentemente.`, 4)
+    setDeletarAgendadoTarget(null)
+  }, [deletarAgendadoTarget])
+
+  /* ── Ações: nova versão ── */
+  const handleConfirmNovaVersao = useCallback(() => {
+    if (!novaVersaoTarget || !novaVersaoMotivo.trim()) return
+    message.success(`Nova versão de "${novaVersaoTarget.titulo}" criada com sucesso. O documento foi enviado para revisão.`, 5)
+    setNovaVersaoTarget(null)
+    setNovaVersaoMotivo('')
+  }, [novaVersaoTarget, novaVersaoMotivo])
+
   /* ── Carrossel: scroll ── */
   const scrollCarousel = useCallback((dir: number) => {
     scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
   }, [])
 
-  /* ── Menu de ações por status ── */
+  /* ── Menu de ações por status (conforme PDF handoff) ── */
   function actionsMenu(record: DocumentoComMeta): MenuProps['items'] {
     switch (record.status) {
       case 'Ativo':
         return [
-          { key: 'quem-falta', icon: <SearchOutlined />, label: 'Quem falta' },
-          { type: 'divider' },
-          { key: 'encerrar', icon: <StopOutlined />, label: 'Encerrar vigência', onClick: () => setEncerrarTarget(record) },
+          { key: 'editar-doc',  icon: <EditOutlined />,               label: 'Editar detalhes',   onClick: () => navigate(`/documentos/${record.id}/editar`) },
+          { type: 'divider' as const },
+          { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { type: 'divider' as const },
+          { key: 'historico',   icon: <BarChartOutlined />,            label: 'Histórico de ações' },
+          { type: 'divider' as const },
+          { key: 'inativar',    icon: <ExclamationCircleOutlined />,   label: 'Inativar',          danger: true, onClick: () => setInativarTarget(record) },
         ]
       case 'Agendado':
         return [
-          { key: 'editar', icon: <EditOutlined />, label: 'Editar agendamento' },
-          { type: 'divider' },
-          { key: 'enviar', icon: <SendOutlined />, label: 'Enviar agora' },
+          { key: 'editar',  icon: <EditOutlined />,   label: 'Editar detalhes',        onClick: () => navigate(`/documentos/${record.id}/editar-agendado`) },
+          { type: 'divider' as const },
+          { key: 'excluir', icon: <DeleteOutlined />,  label: 'Excluir',               danger: true, onClick: () => setDeletarAgendadoTarget(record) },
+        ]
+      case 'Expirado':
+        return [
+          { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
         ]
       case 'Concluído':
         return [
           { key: 'relatorios', icon: <BarChartOutlined />, label: 'Ver relatórios' },
         ]
+      case 'Inativo':
+        return []
       default:
         return []
     }
   }
 
   /* ── Colunas da tabela ── */
+  // Dynamic progress column title based on active tab
+  const progressTitle = activeTab === 'exigem_aceite' ? 'Progresso de aceite'
+    : activeTab === 'apenas_leitura' ? 'Progresso de leitura'
+    : 'Barra de progresso'
+
   const columns: ColumnsType<DocumentoComMeta> = [
     {
       title: 'Título', dataIndex: 'titulo', key: 'titulo',
+      sorter: (a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'),
       render: (t: string, record) => (
         <Typography.Text
           strong
@@ -403,24 +579,28 @@ export function ListagemPage() {
       ),
     },
     {
-      title: 'Classificações', key: 'classificacoes', width: 240,
+      title: 'Classificações', key: 'classificacoes', width: 200,
       render: (_: unknown, r) => {
-        const labels = (r.classificacoes ?? []).map((v) => CLASSIF_MAP[v] ?? v)
-        if (!labels.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
-        const shown = labels.slice(0, 2)
-        const extra = labels.length - 2
+        const values = r.classificacoes ?? []
+        if (!values.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        const shown = values.slice(0, 2)
+        const extra = values.length - shown.length
+        const extraLabels = values.slice(shown.length).map((v) => CLASSIF_MAP[v] ?? v)
         return (
           <Space size={[4, 4]} wrap>
-            {shown.map((l) => (
-              <Tag key={l} style={{
-                fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px',
-                background: '#EEF2FF', border: `1px solid ${colorTokens.primary}22`, color: colorTokens.primary,
-              }}>{l}</Tag>
-            ))}
+            {shown.map((v) => {
+              const c = CLASSIF_COLORS[v] ?? CLASSIF_COLOR_DEFAULT
+              return (
+                <Tag key={v} style={{
+                  fontFamily: FONT, fontSize: 11, fontWeight: 600, borderRadius: 4, margin: 0, padding: '2px 8px',
+                  background: c.bg, border: `1px solid ${c.border}`, color: c.color,
+                }}>{CLASSIF_MAP[v] ?? v}</Tag>
+              )
+            })}
             {extra > 0 && (
-              <Tooltip title={labels.slice(2).join(', ')} overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}>
+              <Tooltip title={extraLabels.join(', ')} styles={{ body: { fontFamily: FONT, fontSize: 12 } }}>
                 <Tag style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '1px 8px',
+                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '2px 8px',
                   background: '#fff', border: `1px solid ${colorTokens.border}`, color: colorTokens.textSecondary, cursor: 'default',
                 }}>+{extra}</Tag>
               </Tooltip>
@@ -430,34 +610,7 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Público', key: 'publico', width: 160,
-      render: (_: unknown, r) => {
-        const tags = r.destinatariosPreview ?? []
-        if (!tags.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
-        const shown = tags.slice(0, 1)
-        const extra = tags.length - 1
-        return (
-          <Space size={4} wrap>
-            {shown.map((t) => (
-              <Tag key={t} style={{
-                fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px',
-                background: '#FAFAFA', border: '1px solid #E8E8E8', color: colorTokens.textPrimary,
-              }}>{t}</Tag>
-            ))}
-            {extra > 0 && (
-              <Tooltip title={tags.slice(1).join(', ')} overlayInnerStyle={{ fontFamily: FONT, fontSize: 12 }}>
-                <Tag style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '1px 8px',
-                  background: '#fff', border: `1px solid ${colorTokens.border}`, color: colorTokens.textSecondary, cursor: 'default',
-                }}>+{extra}</Tag>
-              </Tooltip>
-            )}
-          </Space>
-        )
-      },
-    },
-    {
-      title: 'Responsável', key: 'responsavel', width: 160,
+      title: 'Responsável', key: 'responsavel', width: 170,
       render: (_: unknown, r) => {
         const label = GESTAO_MAP[r.gestaoResponsavel] ?? r.gestaoResponsavel
         if (!label) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
@@ -469,20 +622,66 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Vigência', key: 'vigencia', width: 185,
+      title: 'Público-alvo', key: 'publico', width: 180,
+      sorter: (a, b) => a.totalDestinatarios - b.totalDestinatarios,
       render: (_: unknown, r) => {
-        const s = r.dataLancamento ? dayjs(r.dataLancamento).format('DD/MM/YY') : null
-        const e = r.dataExpiracao  ? dayjs(r.dataExpiracao).format('DD/MM/YY')  : null
-        if (!s) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        const tags = r.destinatariosPreview ?? []
+        if (!tags.length) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        const shown = tags.slice(0, 2)
+        const extra = tags.length - shown.length
+        return (
+          <Space size={4} wrap>
+            {shown.map((t) => (
+              <Tag key={t} style={{
+                fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px',
+                background: '#FAFAFA', border: '1px solid #E8E8E8', color: colorTokens.textPrimary,
+              }}>{t}</Tag>
+            ))}
+            {extra > 0 && (
+              <Tooltip title={tags.slice(shown.length).join(', ')} styles={{ body: { fontFamily: FONT, fontSize: 12 } }}>
+                <Tag style={{
+                  fontFamily: FONT, fontSize: 11, fontWeight: 700, borderRadius: 4, margin: 0, padding: '1px 8px',
+                  background: '#fff', border: `1px solid ${colorTokens.border}`, color: colorTokens.textSecondary, cursor: 'default',
+                }}>+{extra}</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
+    },
+    {
+      title: 'Data de envio', key: 'data_envio', width: 120,
+      sorter: (a, b) => dayjs(a.dataLancamento ?? '').valueOf() - dayjs(b.dataLancamento ?? '').valueOf(),
+      render: (_: unknown, r) => {
+        if (!r.dataLancamento) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
         return (
           <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>
-            {s}{e ? <span style={{ color: colorTokens.textSecondary }}> até {e}</span> : ''}
+            {dayjs(r.dataLancamento).format('DD/MM/YYYY')}
           </Typography.Text>
         )
       },
     },
     {
-      title: 'Adesão', key: 'adesao', width: 200,
+      title: 'Data de vigência', key: 'vigencia', width: 190,
+      sorter: (a, b) => dayjs(a.dataExpiracao ?? '').valueOf() - dayjs(b.dataExpiracao ?? '').valueOf(),
+      render: (_: unknown, r) => {
+        const s = r.dataLancamento ? dayjs(r.dataLancamento).format('DD/MM/YY') : null
+        const e = r.dataExpiracao  ? dayjs(r.dataExpiracao).format('DD/MM/YY')  : null
+        if (!s && !e) return <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>Sem vigência</Typography.Text>
+        return (
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>
+            {s ?? '?'}<span style={{ color: colorTokens.textSecondary }}> até </span>{e ?? 'Indeterminado'}
+          </Typography.Text>
+        )
+      },
+    },
+    {
+      title: progressTitle, key: 'progresso', width: 180,
+      sorter: (a, b) => {
+        const pA = a.totalDestinatarios > 0 ? a.totalAceites / a.totalDestinatarios : 0
+        const pB = b.totalDestinatarios > 0 ? b.totalAceites / b.totalDestinatarios : 0
+        return pA - pB
+      },
       render: (_: unknown, r) => {
         if (r.status === 'Agendado') {
           return (
@@ -494,6 +693,7 @@ export function ListagemPage() {
         }
         const pct   = r.totalDestinatarios > 0 ? Math.round((r.totalAceites / r.totalDestinatarios) * 100) : 0
         const color = barColor(r.tipo, r.status, pct)
+        const label = r.tipo === 'adesao' ? 'Aceites' : 'Leitura'
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Progress percent={pct} showInfo={false} strokeColor={color} trailColor="#EFEFEF" strokeWidth={6} style={{ flex: 1, margin: 0, minWidth: 90 }} />
@@ -505,13 +705,28 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 120,
+      title: 'Recorrência', key: 'recorrencia', width: 120,
+      render: (_: unknown, r) => {
+        const map: Record<string, string> = {
+          'sem_validade': 'Sem validade', '3_meses': '3 meses', '6_meses': '6 meses',
+          '12_meses': '12 meses', '24_meses': '24 meses',
+        }
+        const val = r.recorrenciaAceite ? (map[r.recorrenciaAceite] ?? r.recorrenciaAceite) : null
+        if (!val) return <Typography.Text type="secondary" style={{ fontFamily: FONT, fontSize: 12 }}>—</Typography.Text>
+        return <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>{val}</Typography.Text>
+      },
+    },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status', width: 110,
+      sorter: (a, b) => a.status.localeCompare(b.status, 'pt-BR'),
       render: (status: DocumentoStatus) => {
         const palette: Record<DocumentoStatus, { border: string; color: string; bg: string }> = {
           Ativo:     { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
           Agendado:  { border: '#FA8C16', color: '#D46B08', bg: '#FFF7E6' },
           Rascunho:  { border: '#D9D9D9', color: '#8C8C8C', bg: '#FAFAFA' },
           Concluído: { border: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA' },
+          Expirado:  { border: '#FF7A45', color: '#D4380D', bg: '#FFF2E8' },
+          Inativo:   { border: '#D9D9D9', color: '#8C8C8C', bg: '#F5F5F5' },
         }
         const p = palette[status]
         return (
@@ -535,6 +750,90 @@ export function ListagemPage() {
       ),
     },
   ]
+
+  /* ── Colunas ativas (varia por aba) — conforme PDF handoff ── */
+  const activeColumns = (() => {
+    // PDF: Todos → Título, Classificações, Responsável, Público-alvo, Data de envio, Data de vigência, Status, Ações
+    if (activeTab === 'todos') {
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'vigencia', 'status', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // PDF: Exigem aceite → Título, Classificações, Público-alvo, Data de vigência, Progresso de aceite, Status, Ações
+    if (activeTab === 'exigem_aceite') {
+      const keys = ['titulo', 'classificacoes', 'publico', 'vigencia', 'progresso', 'status', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // PDF: Apenas leitura → Título, Classificações, Público-alvo, Data de envio, Progresso de leitura, Status, Ações
+    if (activeTab === 'apenas_leitura') {
+      const keys = ['titulo', 'classificacoes', 'publico', 'data_envio', 'progresso', 'status', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // PDF: Agendados → Título, Classificações, Responsável, Público-alvo, Data de envio, Ações
+    if (activeTab === 'agendados') {
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // Custom tabs: preserve drag-and-drop column order
+    const custom = customTabs.find((t) => t.key === activeTab)
+    if (custom) {
+      const orderedKeys = ['titulo', ...custom.columns, 'acoes']
+      return orderedKeys
+        .map((k) => columns.find((c) => c.key === k))
+        .filter(Boolean) as typeof columns
+    }
+    return columns
+  })()
+
+  /* ── Handlers de customização de abas ── */
+  function resetDrawerState() {
+    setNewTabTitle('')
+    setNewTabColumns(['classificacoes', 'publico', 'status'])
+    setNewTabSmartFilters({ tipo: 'todos', prazo: 'todos', publico: 'todos' })
+    setNewTabColumnOrder(AVAILABLE_COLUMNS.map((c) => c.key))
+    setDraggingColIdx(null)
+  }
+
+  function handleCreateTab() {
+    if (!newTabTitle.trim() || customTabs.length >= 3) return
+    const key = `custom_${Date.now()}`
+    // Ordered columns = columns that are checked, in drag-and-drop order
+    const orderedSelected = newTabColumnOrder.filter((k) => newTabColumns.includes(k))
+    setCustomTabs((prev) => [...prev, {
+      key,
+      title: newTabTitle.trim(),
+      columns: orderedSelected,
+      smartFilters: newTabSmartFilters,
+    }])
+    setActiveTab(key)
+    setTabDrawerOpen(false)
+    resetDrawerState()
+  }
+
+  function handleRemoveTab(targetKey: string) {
+    setCustomTabs((prev) => prev.filter((t) => t.key !== targetKey))
+    if (activeTab === targetKey) setActiveTab('todos')
+  }
+
+  /* ── Drag-and-drop de colunas no Drawer ── */
+  function handleColDragStart(idx: number) {
+    setDraggingColIdx(idx)
+  }
+
+  function handleColDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    if (draggingColIdx === null || draggingColIdx === idx) return
+    setNewTabColumnOrder((prev) => {
+      const next = [...prev]
+      const [moved] = next.splice(draggingColIdx, 1)
+      next.splice(idx, 0, moved)
+      return next
+    })
+    setDraggingColIdx(idx)
+  }
+
+  function handleColDragEnd() {
+    setDraggingColIdx(null)
+  }
 
   /* ══════════════════════════════════════════════════════════════
      Render
@@ -694,58 +993,35 @@ export function ListagemPage() {
          Tabs + Tabela
       ════════════════════════════════════════════════════════ */}
       <Tabs
-        className="listagem-tabs" activeKey={activeTab}
-        onChange={(k) => { setActiveTab(k as DocumentoStatus | 'Todos'); setPagination((p) => ({ ...p, current: 1 })) }}
-        items={tabItems} style={{ marginBottom: 0 }}
+        className="listagem-tabs"
+        type="card"
+        activeKey={activeTab}
+        onChange={(k) => { setActiveTab(k); setPagination((p) => ({ ...p, current: 1 })) }}
+        items={tabItems}
+        tabBarExtraContent={
+          customTabs.length < 3
+            ? {
+                right: (
+                  <button
+                    className="tab-add-btn"
+                    onClick={() => setTabDrawerOpen(true)}
+                    title="Personalizar abas"
+                  >
+                    <PlusOutlined />
+                  </button>
+                ),
+              }
+            : undefined
+        }
+        style={{ marginBottom: 0 }}
       />
 
       <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
         {/* ── Barra de filtros ── */}
         <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
 
-          {/* Grupo esquerdo: filtros contextuais */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
-
-            {/* Classificações */}
-            <Select
-              className="filter-select" mode="multiple" allowClear maxTagCount={1}
-              placeholder="Classificações" options={CLASSIF_OPTS} value={filterClassif}
-              maxTagPlaceholder={(omitted) => <span style={{ color: colorTokens.primary }}>+{omitted.length}</span>}
-              onChange={(v) => { setFilterClassif(v); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ width: 168, fontFamily: FONT }}
-              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
-            />
-
-            {/* Responsável */}
-            <Select
-              className="filter-select" allowClear
-              placeholder="Responsável" options={GESTAO_OPTS} value={filterResponsavel || undefined}
-              onChange={(v) => { setFilterResponsavel(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ width: 148, fontFamily: FONT }}
-              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
-            />
-
-            {/* Período */}
-            <DatePicker.RangePicker
-              className="filter-rangepicker"
-              placeholder={['Data início', 'Data fim']}
-              format="DD/MM/YY"
-              presets={PERIODO_PRESETS}
-              value={filterPeriodo}
-              onChange={(v) => { setFilterPeriodo(v as [Dayjs, Dayjs] | null); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ fontFamily: FONT, height: 36, width: 220 }}
-            />
-
-            {/* Aceite */}
-            <Select
-              className="filter-select" allowClear
-              placeholder="Aceite" options={ACEITE_OPTS} value={filterAceite || undefined}
-              onChange={(v) => { setFilterAceite(v ?? ''); setPagination((p) => ({ ...p, current: 1 })) }}
-              style={{ width: 136, fontFamily: FONT }}
-              styles={{ popup: { root: { fontFamily: FONT, fontSize: 13 } } }}
-            />
-
-            {/* Limpar filtros */}
+          {/* Limpar busca */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {hasFilters && (
               <Button
                 type="text" size="small" icon={<CloseOutlined style={{ fontSize: 11 }} />}
@@ -757,7 +1033,7 @@ export function ListagemPage() {
             )}
           </div>
 
-          {/* Busca — extremidade direita */}
+          {/* Busca */}
           <Input
             allowClear placeholder="Buscar por título"
             prefix={<SearchOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />}
@@ -767,9 +1043,36 @@ export function ListagemPage() {
           />
         </div>
 
+        {/* Condition tags for custom tabs */}
+        {(() => {
+          const custom = customTabs.find((t) => t.key === activeTab)
+          if (!custom) return null
+          const sf = custom.smartFilters
+          const tags: string[] = []
+          if (sf.tipo === 'aceites') tags.push('Apenas aceites')
+          if (sf.tipo === 'leitura') tags.push('Apenas leitura')
+          if (sf.prazo === 'pendentes') tags.push('Documentos pendentes')
+          if (sf.prazo === 'vigencia_proxima') tags.push('Vigência próxima (30d)')
+          if (sf.prazo === 'requer_atualizacao') tags.push('Requer atualização')
+          if (sf.prazo === 'expirados') tags.push('Documentos expirados')
+          if (sf.publico === 'departamentos') tags.push('Por departamento')
+          if (sf.publico === 'destinatarios') tags.push('Por destinatários')
+          if (!tags.length) return null
+          return (
+            <div style={{ padding: '8px 16px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid #F0F0F0' }}>
+              {tags.map((label) => (
+                <Tag key={label} style={{
+                  fontFamily: FONT, fontSize: 11, fontWeight: 500, borderRadius: 4, margin: 0, padding: '2px 10px',
+                  background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, color: colorTokens.primary,
+                }}>{label}</Tag>
+              ))}
+            </div>
+          )
+        })()}
+
         {/* Tabela */}
         <Table<DocumentoComMeta>
-          className="listagem-table" dataSource={filtered} columns={columns}
+          className="listagem-table" dataSource={filtered} columns={activeColumns}
           rowKey="id" size="middle" bordered={false} showSorterTooltip={false}
           pagination={{
             ...pagination, total: filtered.length,
@@ -783,11 +1086,17 @@ export function ListagemPage() {
             emptyText: (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }}
                 description={
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
-                    {hasFilters ? 'Nenhum documento encontrado para os filtros selecionados.'
-                      : activeTab !== 'Todos' ? `Nenhum documento com status "${STATUS_LABEL[activeTab as DocumentoStatus]}".`
-                      : 'Nenhum documento criado ainda.'}
-                  </Typography.Text>
+                  <div style={{ textAlign: 'center' }}>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, display: 'block' }}>
+                      {hasFilters ? 'Nenhum documento encontrado para os filtros selecionados.'
+                        : 'Não há dados a serem exibidos'}
+                    </Typography.Text>
+                    {!hasFilters && (
+                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 4 }}>
+                        Clique em "+ Documento" para começar
+                      </Typography.Text>
+                    )}
+                  </div>
                 }
               />
             ),
@@ -823,6 +1132,58 @@ export function ListagemPage() {
       </Modal>
 
       {/* ════════════════════════════════════════════════════════
+         Modal — Inativar documento
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        className="encerrar-modal"
+        open={!!inativarTarget} onCancel={() => { setInativarTarget(null); setInativarJustificativa('') }}
+        width={460} centered
+        title={
+          <Space>
+            <ExclamationCircleOutlined style={{ color: '#FF4D4F' }} />
+            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16 }}>Inativar documento</span>
+          </Space>
+        }
+        footer={
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setInativarTarget(null); setInativarJustificativa('') }} style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}>
+              Cancelar
+            </Button>
+            <Button
+              danger type="primary"
+              disabled={!inativarJustificativa.trim()}
+              onClick={handleConfirmInativar}
+              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13 }}
+            >
+              Inativar documento
+            </Button>
+          </Space>
+        }
+      >
+        <div style={{ padding: '4px 0 8px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
+            borderRadius: 8, background: '#FFF1F0', border: '1px solid #FFA39E', marginBottom: 16,
+          }}>
+            <ExclamationCircleOutlined style={{ color: '#FF4D4F', fontSize: 14, marginTop: 2, flexShrink: 0 }} />
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: '#CF1322', lineHeight: '20px' }}>
+              <strong>Esta ação não pode ser revertida.</strong> O documento será inativado imediatamente e os destinatários perderão o acesso.
+            </Typography.Text>
+          </div>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, display: 'block', marginBottom: 8 }}>
+            Justificativa <span style={{ color: '#FF4D4F' }}>*</span>
+          </Typography.Text>
+          <Input.TextArea
+            rows={4} maxLength={500} showCount
+            value={inativarJustificativa}
+            onChange={(e) => setInativarJustificativa(e.target.value)}
+            placeholder="Descreva o motivo da inativação..."
+            style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none' }}
+          />
+        </div>
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════
          Modal — Encerrar vigência
       ════════════════════════════════════════════════════════ */}
       <Modal
@@ -845,6 +1206,306 @@ export function ListagemPage() {
           Esta ação interrompe o aceite imediatamente. O histórico de assinaturas será preservado.
         </Typography.Text>
       </Modal>
+
+      {/* ════════════════════════════════════════════════════════
+         Modal — Excluir documento Agendado
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        className="encerrar-modal"
+        open={!!deletarAgendadoTarget}
+        onCancel={() => setDeletarAgendadoTarget(null)}
+        width={460} centered
+        title={
+          <Space>
+            <DeleteOutlined style={{ color: '#FF4D4F' }} />
+            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16 }}>Excluir documento agendado</span>
+          </Space>
+        }
+        footer={
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={() => setDeletarAgendadoTarget(null)} style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}>
+              Cancelar
+            </Button>
+            <Button danger type="primary" onClick={handleConfirmDeletarAgendado} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13 }}>
+              Excluir permanentemente
+            </Button>
+          </Space>
+        }
+      >
+        <div style={{ padding: '4px 0 8px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
+            borderRadius: 8, background: '#FFF1F0', border: '1px solid #FFA39E', marginBottom: 16,
+          }}>
+            <ExclamationCircleOutlined style={{ color: '#FF4D4F', fontSize: 14, marginTop: 2, flexShrink: 0 }} />
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: '#CF1322', lineHeight: '20px' }}>
+              <strong>Esta ação não pode ser revertida.</strong> O documento e todo o seu histórico serão removidos permanentemente da plataforma.
+            </Typography.Text>
+          </div>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '20px' }}>
+            Tem certeza que deseja excluir{' '}
+            <strong style={{ color: colorTokens.textPrimary }}>"{deletarAgendadoTarget?.titulo}"</strong>?
+            Como o documento ainda não foi enviado, é possível removê-lo do sistema.
+          </Typography.Text>
+        </div>
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════
+         Modal — Nova Versão (Ativo tipo adesao)
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        className="encerrar-modal"
+        open={!!novaVersaoTarget}
+        onCancel={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }}
+        width={500} centered
+        title={
+          <Space>
+            <HistoryOutlined style={{ color: colorTokens.primary }} />
+            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16 }}>Criar nova versão</span>
+          </Space>
+        }
+        footer={
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }} style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}>
+              Cancelar
+            </Button>
+            <Button
+              type="primary"
+              disabled={!novaVersaoMotivo.trim()}
+              onClick={handleConfirmNovaVersao}
+              icon={<HistoryOutlined />}
+              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13, background: colorTokens.primary }}
+            >
+              Criar nova versão
+            </Button>
+          </Space>
+        }
+      >
+        <div style={{ padding: '4px 0 8px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
+            borderRadius: 8, background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, marginBottom: 20,
+          }}>
+            <HistoryOutlined style={{ color: colorTokens.primary, fontSize: 14, marginTop: 2, flexShrink: 0 }} />
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary, lineHeight: '20px' }}>
+              Uma nova versão do documento será criada. Os destinatários serão notificados e precisarão reasinar o documento atualizado.
+            </Typography.Text>
+          </div>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, display: 'block', marginBottom: 8, fontWeight: 600 }}>
+            Motivo / Mudanças <span style={{ color: '#FF4D4F' }}>*</span>
+          </Typography.Text>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
+            Descreva o que foi alterado nesta nova versão. Este texto ficará registrado no histórico de versões.
+          </Typography.Text>
+          <Input.TextArea
+            rows={4} maxLength={500} showCount
+            value={novaVersaoMotivo}
+            onChange={(e) => setNovaVersaoMotivo(e.target.value)}
+            placeholder="Ex.: Atualização do item 3.2 para adequação à nova resolução LGPD. Revisão das penalidades previstas no item 5."
+            style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none' }}
+          />
+        </div>
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════
+         Drawer — Nova tab customizada
+      ════════════════════════════════════════════════════════ */}
+      <Drawer
+        open={tabDrawerOpen}
+        onClose={() => { setTabDrawerOpen(false); resetDrawerState() }}
+        title={
+          <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 15, color: colorTokens.textPrimary }}>
+            Nova tab customizada
+          </span>
+        }
+        width={380}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button
+              onClick={() => { setTabDrawerOpen(false); resetDrawerState() }}
+              style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="primary"
+              disabled={!newTabTitle.trim() || customTabs.length >= 3}
+              onClick={handleCreateTab}
+              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13, background: colorTokens.primary, borderColor: colorTokens.primary, color: '#fff' }}
+            >
+              Criar
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+          {/* Descrição estratégica */}
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '20px', display: 'block', marginBottom: 24 }}>
+            Selecione as colunas que deseja exibir e organize sua prioridade arrastando os itens para definir a ordem da tabela.
+          </Typography.Text>
+
+          {/* Regra de limite */}
+          {customTabs.length >= 3 && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 8, marginBottom: 20,
+              background: '#FFF7E6', border: '1px solid #FFD591',
+            }}>
+              <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: '#D46B08' }}>
+                Limite de 3 abas personalizadas atingido. Exclua uma aba para criar outra.
+              </Typography.Text>
+            </div>
+          )}
+
+          {/* Título da aba */}
+          <div style={{ marginBottom: 24 }}>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 8 }}>
+              Título da aba
+            </Typography.Text>
+            <Input
+              maxLength={16}
+              value={newTabTitle}
+              onChange={(e) => setNewTabTitle(e.target.value)}
+              placeholder="Ex: vigentes"
+              disabled={customTabs.length >= 3}
+              showCount
+              style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8 }}
+            />
+          </div>
+
+          {/* Colunas visíveis com drag-and-drop */}
+          <div style={{ marginBottom: 24 }}>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 4 }}>
+              Colunas visíveis
+            </Typography.Text>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 12 }}>
+              "Título" e "Ações" são sempre exibidos. Arraste para reordenar.
+            </Typography.Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {newTabColumnOrder.map((colKey, idx) => {
+                const col = AVAILABLE_COLUMNS.find((c) => c.key === colKey)
+                if (!col) return null
+                const isChecked = newTabColumns.includes(col.key)
+                const isDragging = draggingColIdx === idx
+                return (
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={() => handleColDragStart(idx)}
+                    onDragOver={(e) => handleColDragOver(e, idx)}
+                    onDragEnd={handleColDragEnd}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 12px', borderRadius: 8,
+                      border: isDragging ? `1px dashed ${colorTokens.primary}` : '1px solid #EBEBEB',
+                      background: isDragging ? '#F7F8FF' : isChecked ? '#FAFAFA' : '#fff',
+                      cursor: 'grab', opacity: isDragging ? 0.6 : 1,
+                      transition: 'background 0.12s, border-color 0.12s',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <HolderOutlined style={{ color: '#BFBFBF', fontSize: 14, flexShrink: 0, cursor: 'grab' }} />
+                    <Checkbox
+                      checked={isChecked}
+                      disabled={customTabs.length >= 3}
+                      onChange={(e) => {
+                        const key = col.key
+                        if (e.target.checked) {
+                          // Checked: add to selected, move to last among checked in order
+                          setNewTabColumns((prev) => [...prev, key])
+                          setNewTabColumnOrder((prev) => {
+                            const without = prev.filter((k) => k !== key)
+                            const lastCheckedIdx = without.reduce((acc, k, i) => newTabColumns.includes(k) ? i : acc, -1)
+                            const insertAt = lastCheckedIdx + 1
+                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
+                          })
+                        } else {
+                          // Unchecked: remove from selected, move to first among unchecked in order
+                          setNewTabColumns((prev) => prev.filter((k) => k !== key))
+                          setNewTabColumnOrder((prev) => {
+                            const without = prev.filter((k) => k !== key)
+                            const remaining = newTabColumns.filter((k) => k !== key)
+                            const firstUncheckedIdx = without.findIndex((k) => !remaining.includes(k))
+                            const insertAt = firstUncheckedIdx === -1 ? without.length : firstUncheckedIdx
+                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
+                          })
+                        }
+                      }}
+                      style={{ fontFamily: FONT, fontSize: 13, flex: 1 }}
+                    >
+                      <span style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                        {col.label}
+                      </span>
+                    </Checkbox>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div style={{ borderTop: '1px solid #F0F0F0', marginBottom: 24 }} />
+
+          {/* Condição de exibição — 3 grupos conforme PDF */}
+          <div>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 4 }}>
+              Condição de exibição
+            </Typography.Text>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 16 }}>
+              Filtra automaticamente quais documentos aparecem nesta aba.
+            </Typography.Text>
+
+            {/* Tipo de documento */}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Tipo de documento
+            </Typography.Text>
+            <Radio.Group
+              value={newTabSmartFilters.tipo}
+              disabled={customTabs.length >= 3}
+              onChange={(e) => setNewTabSmartFilters((p) => ({ ...p, tipo: e.target.value }))}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}
+            >
+              <Radio value="todos" style={{ fontFamily: FONT, fontSize: 13 }}>Todos</Radio>
+              <Radio value="aceites" style={{ fontFamily: FONT, fontSize: 13 }}>Apenas com aceites</Radio>
+              <Radio value="leitura" style={{ fontFamily: FONT, fontSize: 13 }}>Apenas leitura</Radio>
+            </Radio.Group>
+
+            {/* Prazo e cronograma */}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Prazo e cronograma
+            </Typography.Text>
+            <Radio.Group
+              value={newTabSmartFilters.prazo}
+              disabled={customTabs.length >= 3}
+              onChange={(e) => setNewTabSmartFilters((p) => ({ ...p, prazo: e.target.value }))}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}
+            >
+              <Radio value="todos" style={{ fontFamily: FONT, fontSize: 13 }}>Todos</Radio>
+              <Radio value="pendentes" style={{ fontFamily: FONT, fontSize: 13 }}>Documentos pendentes</Radio>
+              <Radio value="vigencia_proxima" style={{ fontFamily: FONT, fontSize: 13 }}>Documentos com vigência próxima (30 dias)</Radio>
+              <Radio value="requer_atualizacao" style={{ fontFamily: FONT, fontSize: 13 }}>Documentos que requerem atualização</Radio>
+              <Radio value="expirados" style={{ fontFamily: FONT, fontSize: 13 }}>Documentos expirados</Radio>
+            </Radio.Group>
+
+            {/* Público-alvo */}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Público-alvo
+            </Typography.Text>
+            <Radio.Group
+              value={newTabSmartFilters.publico}
+              disabled={customTabs.length >= 3}
+              onChange={(e) => setNewTabSmartFilters((p) => ({ ...p, publico: e.target.value }))}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+            >
+              <Radio value="todos" style={{ fontFamily: FONT, fontSize: 13 }}>Todos</Radio>
+              <Radio value="departamentos" style={{ fontFamily: FONT, fontSize: 13 }}>Apenas por departamentos</Radio>
+              <Radio value="destinatarios" style={{ fontFamily: FONT, fontSize: 13 }}>Apenas por destinatários</Radio>
+            </Radio.Group>
+          </div>
+
+        </div>
+      </Drawer>
+
     </div>
   )
 }

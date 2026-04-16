@@ -4,12 +4,12 @@ import 'dayjs/locale/pt-br'
 import {
   Typography, Switch, Table, Space,
   Tooltip, Modal, message, Divider, DatePicker,
-  ConfigProvider, Form, Select, Row, Col, Radio,
+  ConfigProvider, Form, Select, Row, Col, Radio, Alert,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import ptBR from 'antd/locale/pt_BR'
 import { InfoCircleOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { RadioCard } from '@/features/criacao/components/RadioCard'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
@@ -141,6 +141,8 @@ function ReadingGuardCard({
 /* ═══════════════════════════════════════════════════════════════ */
 export function ConfiguracoesStep() {
   const navigate    = useNavigate()
+  const location    = useLocation()
+  const editMode    = (location.state as { editMode?: boolean } | null)?.editMode ?? false
   const tableRef    = useRef<HTMLDivElement>(null)
   const { data, dispatch, saveDraft } = useDocumentForm()
 
@@ -172,7 +174,7 @@ export function ConfiguracoesStep() {
   const [tempoValue,   setTempoValue]   = useState(savedTempo > 0 ? savedTempo : 120)
 
   /* ── Scroll obrigatório ── */
-  const [scrollObrigatorio, setScrollObrigatorio] = useState<boolean>(data.scrollObrigatorioGlobal ?? true)
+  const [scrollObrigatorio, setScrollObrigatorio] = useState<boolean>(data.scrollObrigatorioGlobal ?? false)
 
   /* ── Personalização por departamento ── */
   const isByDept      = data.modalidadeEnvio === 'departamento'
@@ -196,11 +198,11 @@ export function ConfiguracoesStep() {
       return selectedDepts.map((val) => ({
         key: val,
         nome: DEPARTAMENTOS.find((d) => d.value === val)?.label ?? val,
-        scrollObrigatorio: saved[val]?.scrollObrigatorio ?? true,
+        scrollObrigatorio: saved[val]?.scrollObrigatorio ?? false,
         tempoLeitura: saved[val]?.tempoLeitura ?? 0,
       }))
     }
-    return buildDeptRows(savedTempo, data.scrollObrigatorioGlobal ?? true)
+    return buildDeptRows(savedTempo, data.scrollObrigatorioGlobal ?? false)
   })
 
   const effectiveTempo = tempoEnabled ? tempoValue : 0
@@ -354,19 +356,53 @@ export function ConfiguracoesStep() {
         deptConfig:              exigeAceite ? deptConfig : {},
       },
     })
-    navigate('/documentos/criar/revisao')
+    navigate('/documentos/criar/revisao', editMode ? { state: { editMode: true } } : undefined)
   }
 
   /* ─── JSX ─────────────────────────────────────────────────────── */
   return (
     <StepPageLayout
       currentStep={2}
-      onHeaderBack={() => setShowCancel(true)}
-      onBack={() => navigate('/documentos/criar/destinatarios')}
+      onHeaderBack={() => navigate('/documentos')}
+      onBack={() => navigate('/documentos/criar/destinatarios', editMode ? { state: { editMode: true } } : undefined)}
       onNext={handleNext}
       onSaveDraft={() => { saveDraft(2); navigate('/documentos', { state: { draftSaved: true } }) }}
     >
-      <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '100%' }}>
+      {/* ── Alert: modo de edição ────────────────────────────── */}
+      {editMode && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{
+            marginBottom: 16,
+            fontFamily: "'Montserrat', sans-serif",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+          message={
+            <span style={{ fontWeight: 600, fontFamily: "'Montserrat', sans-serif" }}>
+              Modo de Edição — Configurações bloqueadas
+            </span>
+          }
+          description={
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+              As configurações não podem ser alteradas em documentos ativos. Revise as informações e avance para o próximo passo.
+            </span>
+          }
+        />
+      )}
+
+      <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: '100%', position: 'relative' }}>
+        {/* ── Overlay de bloqueio no modo de edição ── */}
+        {editMode && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(255,255,255,0.6)',
+            borderRadius: 8,
+            zIndex: 10,
+            cursor: 'not-allowed',
+          }} />
+        )}
 
         {/* ══ 1. TIPO DE DOCUMENTO ════════════════════════════════ */}
         <Text strong style={{ display: 'block', fontSize: 14, color: colorTokens.textPrimary, fontFamily: FONT, marginBottom: 4 }}>
@@ -558,51 +594,51 @@ export function ConfiguracoesStep() {
             )}
           </div>
 
-          {/* Cards de configuração global */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 0 }}>
+          {/* Cards de configuração global — ocultos quando personalizar por dept está ativo */}
+          {!personalizarPorDept && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 0 }}>
 
-            {/* Card 1 — Tempo de leitura */}
-            <ReadingGuardCard
-              title="Tempo de leitura"
-              description="O aceite só será possível após atingimento do tempo mínimo de leitura"
-              active={tempoEnabled}
-              disabled={personalizarPorDept}
-              right={
-                <>
-                  <Select
-                    value={tempoEnabled ? tempoValue : 0}
-                    onChange={handleTempoValueChange}
-                    options={TEMPO_OPTIONS}
-                    disabled={!tempoEnabled}
-                    style={{ width: 130, fontFamily: FONT }}
-                    size="small"
-                  />
+              {/* Card 1 — Tempo de leitura */}
+              <ReadingGuardCard
+                title="Tempo de leitura"
+                description="O aceite só será possível após atingimento do tempo mínimo de leitura"
+                active={tempoEnabled}
+                right={
+                  <>
+                    <Select
+                      value={tempoEnabled ? tempoValue : 0}
+                      onChange={handleTempoValueChange}
+                      options={TEMPO_OPTIONS}
+                      disabled={!tempoEnabled}
+                      style={{ width: 130, fontFamily: FONT }}
+                      size="small"
+                    />
+                    <Switch
+                      checked={tempoEnabled}
+                      onChange={handleTempoEnabledChange}
+                      size="small"
+                      style={{ background: tempoEnabled ? colorTokens.primary : undefined }}
+                    />
+                  </>
+                }
+              />
+
+              {/* Card 2 — Scroll obrigatório */}
+              <ReadingGuardCard
+                title={scrollObrigatorio ? 'Scroll obrigatório até o fim (ativado)' : 'Scroll obrigatório até o fim'}
+                description="O botão de aceite só será habilitado após rolagem de todo o documento"
+                active={scrollObrigatorio}
+                right={
                   <Switch
-                    checked={tempoEnabled}
-                    onChange={handleTempoEnabledChange}
+                    checked={scrollObrigatorio}
+                    onChange={handleScrollChange}
                     size="small"
-                    style={{ background: tempoEnabled ? colorTokens.primary : undefined }}
+                    style={{ background: scrollObrigatorio ? colorTokens.primary : undefined }}
                   />
-                </>
-              }
-            />
-
-            {/* Card 2 — Scroll obrigatório */}
-            <ReadingGuardCard
-              title={scrollObrigatorio ? 'Scroll obrigatório até o fim (ativado)' : 'Scroll obrigatório até o fim'}
-              description="O botão de aceite só será habilitado após rolagem de todo o documento"
-              active={scrollObrigatorio}
-              disabled={personalizarPorDept}
-              right={
-                <Switch
-                  checked={scrollObrigatorio}
-                  onChange={handleScrollChange}
-                  size="small"
-                  style={{ background: scrollObrigatorio ? colorTokens.primary : undefined }}
-                />
-              }
-            />
-          </div>
+                }
+              />
+            </div>
+          )}
 
           {/* Tabela por departamento */}
           {isByDept && selectedDepts.length > 0 && personalizarPorDept && (
