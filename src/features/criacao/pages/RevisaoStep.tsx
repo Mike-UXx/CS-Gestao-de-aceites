@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import dayjs from 'dayjs'
+import dayjs, { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
-import { Typography, Button, Space, Modal, Tag, Divider, Tooltip, message } from 'antd'
+import {
+  Typography, Button, Space, Modal, Tag, Divider,
+  Tooltip, message, Checkbox, DatePicker, ConfigProvider,
+} from 'antd'
 import {
   FilePdfOutlined, EditOutlined,
   CalendarOutlined, CheckCircleFilled,
-  ClockCircleOutlined, VerticalAlignBottomOutlined, CloseCircleOutlined,
+  ClockCircleOutlined, VerticalAlignBottomOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons'
+import ptBR from 'antd/locale/pt_BR'
 import { useNavigate } from 'react-router-dom'
 import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
@@ -20,40 +25,35 @@ import { colorTokens } from '@/theme/tokens'
 dayjs.locale('pt-br')
 
 const { Text } = Typography
-const FONT   = "'Montserrat', sans-serif"
-const LABEL_W = 180   // largura fixa da coluna de label (px)
+const FONT    = "'Montserrat', sans-serif"
+const LABEL_W = 180
 
 /* ─── Lookups ────────────────────────────────────────────────── */
 const TEMPO_LABELS: Record<number, string> = {
   0: 'Sem trava', 60: '1 minuto', 120: '2 minutos',
   180: '3 minutos', 300: '5 minutos', 600: '10 minutos',
 }
-const VALIDADE_LABELS: Record<string, string> = {
-  sem_validade: 'Sem validade', '3_meses': '3 meses',
-  '6_meses': '6 meses', '12_meses': '12 meses', '24_meses': '24 meses',
+const RENOVACAO_LABELS: Record<string, string> = {
+  sem_recorrencia: 'Sem recorrência',
+  '6_meses':  'A cada 6 meses',
+  '12_meses': 'A cada 12 meses',
+  '24_meses': 'A cada 24 meses',
+  personalizado: 'Personalizado',
 }
 function labelOf(list: { value: string; label: string }[], val: string) {
   return list.find((i) => i.value === val)?.label ?? val
 }
 
 /* ─── Linha de revisão ───────────────────────────────────────── */
-function ReviewRow({
-  label, value,
-}: { label: string; value: React.ReactNode }) {
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', padding: '7px 0' }}>
-      {/* label */}
       <Text style={{
-        flexShrink: 0,
-        width: LABEL_W,
-        fontSize: 13,
-        fontFamily: FONT,
-        fontWeight: 400,
-        color: colorTokens.textSecondary,
+        flexShrink: 0, width: LABEL_W, fontSize: 13,
+        fontFamily: FONT, fontWeight: 400, color: colorTokens.textSecondary,
       }}>
         {label}
       </Text>
-      {/* valor */}
       <div style={{ flex: 1, fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary }}>
         {value}
       </div>
@@ -66,8 +66,7 @@ function BlockHeader({ title, editRoute }: { title: string; editRoute: string })
   const navigate = useNavigate()
   return (
     <div style={{
-      display: 'flex', justifyContent: 'space-between',
-      alignItems: 'center', marginBottom: 4,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
     }}>
       <Text strong style={{ fontSize: 14, fontFamily: FONT, color: colorTokens.textPrimary }}>
         {title}
@@ -92,15 +91,19 @@ export function RevisaoStep() {
   const [showCancel,  setShowCancel]  = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  /* ── Momento de envio ── */
-  const envioImediato = data.envioImediato !== false   // default seguro: true
-  const hoje          = dayjs().startOf('day')
-  const lancamento    = data.dataLancamento ? dayjs(data.dataLancamento) : null
-  const isToday       = lancamento ? lancamento.startOf('day').isSame(hoje) : false
-  // label do botão principal
-  const actionLabel = envioImediato
-    ? 'Publicar documento'
-    : (isToday ? 'Enviar documento' : 'Agendar envio')
+  /* ── Agendamento — estado local, validado apenas aqui ── */
+  const [agendarEnvio,   setAgendarEnvio]   = useState<boolean>(!(data.envioImediato ?? true))
+  const [dataLancamento, setDataLancamento] = useState<Dayjs | null>(
+    data.dataLancamento ? dayjs(data.dataLancamento) : null
+  )
+  const [dataError, setDataError] = useState('')
+
+  /* ── Derivados do agendamento ── */
+  const hoje    = dayjs().startOf('day')
+  const isToday = dataLancamento ? dataLancamento.startOf('day').isSame(hoje) : false
+
+  /* ── Rótulo do botão principal ── */
+  const actionLabel = agendarEnvio ? 'Confirmar agendamento' : 'Publicar agora'
 
   /* ── Contagem de destinatários ── */
   const totalDest =
@@ -114,9 +117,12 @@ export function RevisaoStep() {
 
   /* ── Labels resolvidos ── */
   const classificacoesLabels = (data.classificacoes ?? []).map((v) => labelOf(CLASSIFICATIONS, v))
-  const gestaoLabel        = labelOf(GESTOES_RESPONSAVEIS, data.gestaoResponsavel)
-  const tempoLabel         = TEMPO_LABELS[data.tempoLeituraGlobal] ?? `${data.tempoLeituraGlobal}s`
-  const validadeLabel      = VALIDADE_LABELS[data.validadeAceite]  ?? data.validadeAceite
+  const gestaoLabel    = labelOf(GESTOES_RESPONSAVEIS, data.gestaoResponsavel)
+  const tempoLabel     = TEMPO_LABELS[data.tempoLeituraGlobal] ?? `${data.tempoLeituraGlobal}s`
+  const renovacaoLabel =
+    data.renovacaoAceite === 'personalizado'
+      ? `A cada ${data.renovacaoMesesPersonalizado} meses`
+      : RENOVACAO_LABELS[data.renovacaoAceite] ?? data.renovacaoAceite
 
   /* ── Tags de destinatários ── */
   const deptTags  = data.departamentos.map((v) => ({ label: labelOf(DEPARTAMENTOS, v), value: v }))
@@ -128,17 +134,32 @@ export function RevisaoStep() {
     window.open(URL.createObjectURL(data.file), '_blank', 'noopener,noreferrer')
   }
 
+  /* ── Avançar: valida, persiste no contexto e abre confirm ── */
+  function handleNext() {
+    if (agendarEnvio && !dataLancamento) {
+      setDataError('Selecione a data e hora do envio para continuar.')
+      return
+    }
+    setDataError('')
+    dispatch({
+      type: 'SET_STEP',
+      config: {
+        envioImediato:  !agendarEnvio,
+        dataLancamento: agendarEnvio && dataLancamento ? dataLancamento.toISOString() : '',
+      },
+    })
+    setShowConfirm(true)
+  }
+
   /* ── Confirmar envio ── */
   function handleConfirmSend() {
     setShowConfirm(false)
-    clearDraft()           // remove o rascunho do localStorage após publicação
+    clearDraft()
     dispatch({ type: 'RESET' })
     message.success(
-      envioImediato
+      !agendarEnvio
         ? 'Documento publicado e enviado com sucesso!'
-        : isToday
-          ? 'Documento enviado com sucesso!'
-          : `Envio agendado para ${lancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
+        : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
       4,
     )
     navigate('/documentos')
@@ -149,14 +170,14 @@ export function RevisaoStep() {
     <StepPageLayout
       currentStep={3}
       onHeaderBack={() => navigate('/documentos')}
-      onBack={() => navigate('/documentos/criar/configuracoes')}
-      onNext={() => setShowConfirm(true)}
+      onBack={() => navigate('/documentos/criar/regras')}
+      onNext={handleNext}
       onSaveDraft={() => { saveDraft(3); navigate('/documentos', { state: { draftSaved: true } }) }}
       nextLabel={actionLabel}
     >
 
-      {/* Banner de agendamento — só para envios não-imediatos e não-hoje */}
-      {!envioImediato && !isToday && lancamento && (
+      {/* Banner de agendamento futuro */}
+      {agendarEnvio && dataLancamento && !isToday && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           background: '#EEF2FF', border: `1px solid ${colorTokens.primary}`,
@@ -165,17 +186,16 @@ export function RevisaoStep() {
           <CalendarOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
           <Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary }}>
             Este documento será disparado automaticamente em{' '}
-            <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
+            <strong>{dataLancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
           </Text>
         </div>
       )}
 
-      {/* Card principal */}
+      {/* ─── Card de resumo ─────────────────────────────────────────── */}
       <div style={{ background: '#fff', borderRadius: 8, padding: '24px 28px', width: '100%' }}>
 
-        {/* ══ BLOCO 1 — Informações ═════════════════════════════ */}
+        {/* ══ BLOCO 1 — Informações ═════════════════════════════════ */}
         <BlockHeader title="Informações" editRoute="/documentos/criar/informacoes" />
-
         <Divider style={{ margin: '8px 0 4px' }} />
 
         <ReviewRow
@@ -206,6 +226,17 @@ export function RevisaoStep() {
           value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{data.fileName || '—'}</Text>}
         />
 
+        {data.description && (
+          <ReviewRow
+            label="Descrição"
+            value={
+              <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 400, color: colorTokens.textPrimary, display: 'block', maxWidth: 560 }}>
+                {data.description}
+              </Text>
+            }
+          />
+        )}
+
         <ReviewRow
           label="Classificações"
           value={
@@ -223,27 +254,38 @@ export function RevisaoStep() {
           }
         />
 
-        {data.description && (
-          <ReviewRow
-            label="Descrição"
-            value={
-              <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 400, color: colorTokens.textPrimary, maxWidth: 560, display: 'block' }}>
-                {data.description}
-              </Text>
-            }
-          />
-        )}
-
         <ReviewRow
           label="Gestão responsável"
           value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{gestaoLabel || '—'}</Text>}
         />
 
+        <ReviewRow
+          label="Vigência"
+          value={
+            data.possuiValidade ? (
+              <Space size={6}>
+                <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                  {data.validadeInicio ? dayjs(data.validadeInicio).format('DD/MM/YYYY') : '—'}
+                  {' '}até{' '}
+                  {data.validadeFim ? dayjs(data.validadeFim).format('DD/MM/YYYY') : '—'}
+                </Text>
+              </Space>
+            ) : (
+              <Space size={6}>
+                <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>
+                  Sem prazo de vigência
+                </Text>
+              </Space>
+            )
+          }
+        />
+
         <Divider style={{ margin: '16px 0 4px' }} />
 
-        {/* ══ BLOCO 2 — Público-alvo ════════════════════════════ */}
-        <BlockHeader title="Público-alvo" editRoute="/documentos/criar/destinatarios" />
-
+        {/* ══ BLOCO 2 — Destinatários ══════════════════════════════ */}
+        <BlockHeader title="Destinatários" editRoute="/documentos/criar/destinatarios" />
         <Divider style={{ margin: '8px 0 4px' }} />
 
         {data.modalidadeEnvio === 'departamento' ? (
@@ -292,24 +334,14 @@ export function RevisaoStep() {
 
         <Divider style={{ margin: '16px 0 4px' }} />
 
-        {/* ══ BLOCO 3 — Configurações ═══════════════════════════ */}
-        <BlockHeader title="Configurações" editRoute="/documentos/criar/configuracoes" />
-
+        {/* ══ BLOCO 3 — Regras e Envio ═════════════════════════════ */}
+        <BlockHeader title="Regras e envio" editRoute="/documentos/criar/regras" />
         <Divider style={{ margin: '8px 0 4px' }} />
-
-        <ReviewRow
-          label="Tipo de documento"
-          value={
-            <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
-              {data.tipoDocumento === 'adesao' ? 'Documentos com versão' : 'Documentos sem versão'}
-            </Text>
-          }
-        />
 
         <ReviewRow
           label="Aceite formal"
           value={
-            data.exigeAceite !== false ? (
+            data.exigeAceite ? (
               <Space size={6}>
                 <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
                 <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
@@ -323,75 +355,43 @@ export function RevisaoStep() {
           }
         />
 
-        {/* Campos exclusivos de Adesão */}
-        {data.tipoDocumento === 'adesao' && data.vigenciaInicio && (
+        {data.exigeAceite && data.renovacaoAtiva && (
           <ReviewRow
-            label="Vigência (início)"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaInicio).format('DD/MM/YYYY')}</Text>}
-          />
-        )}
-        {data.tipoDocumento === 'adesao' && data.vigenciaFim && (
-          <ReviewRow
-            label="Vigência (fim)"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{dayjs(data.vigenciaFim).format('DD/MM/YYYY')}</Text>}
-          />
-        )}
-        {data.exigeAceite !== false && data.tipoDocumento === 'adesao' && (
-          <ReviewRow
-            label="Recorrência do aceite"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{validadeLabel}</Text>}
-          />
-        )}
-
-        {/* Lançamento — imediato ou agendado */}
-        {envioImediato ? (
-          <ReviewRow
-            label="Lançamento"
+            label="Renovação de aceite"
             value={
-              <Space size={6}>
-                <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
-                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
-                  Imediato (após publicação)
-                </Text>
-              </Space>
-            }
-          />
-        ) : lancamento ? (
-          <ReviewRow
-            label="Data de envio"
-            value={<Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{lancamento.format('DD/MM/YYYY HH:mm')}</Text>}
-          />
-        ) : null}
-
-        {data.exigeAceite !== false && (
-          <ReviewRow
-            label="Trava de leitura"
-            value={
-              <Space size={6}>
-                <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
-                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
-              </Space>
+              <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{renovacaoLabel}</Text>
             }
           />
         )}
 
-        {data.exigeAceite !== false && (
-          <ReviewRow
-            label="Scroll obrigatório"
-            value={
-              data.scrollObrigatorioGlobal ? (
+        {data.exigeAceite && (
+          <>
+            <ReviewRow
+              label="Trava de leitura"
+              value={
                 <Space size={6}>
-                  <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
-                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
+                  <ClockCircleOutlined style={{ color: data.tempoLeituraGlobal > 0 ? colorTokens.primary : colorTokens.textSecondary }} />
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{tempoLabel}</Text>
                 </Space>
-              ) : (
-                <Space size={6}>
-                  <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
-                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
-                </Space>
-              )
-            }
-          />
+              }
+            />
+            <ReviewRow
+              label="Scroll obrigatório"
+              value={
+                data.scrollObrigatorioGlobal ? (
+                  <Space size={6}>
+                    <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                    <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>Sim</Text>
+                  </Space>
+                ) : (
+                  <Space size={6}>
+                    <CloseCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13 }} />
+                    <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não</Text>
+                  </Space>
+                )
+              }
+            />
+          </>
         )}
 
         {data.personalizarPorDept && (
@@ -408,7 +408,73 @@ export function RevisaoStep() {
           />
         )}
 
-      </div>{/* /card */}
+      </div>{/* /card resumo */}
+
+      {/* ══ BLOCO FINAL — Agendamento de envio ═══════════════════════ */}
+      <div style={{
+        background: '#fff', borderRadius: 8, padding: '24px 28px',
+        width: '100%', marginTop: 12,
+      }}>
+        <Checkbox
+          checked={agendarEnvio}
+          onChange={(e) => {
+            setAgendarEnvio(e.target.checked)
+            if (!e.target.checked) setDataLancamento(null)
+            setDataError('')
+          }}
+          style={{ fontFamily: FONT, alignItems: 'flex-start' }}
+        >
+          <div>
+            <Text style={{
+              fontSize: 13, fontFamily: FONT, fontWeight: 500,
+              color: colorTokens.textPrimary, display: 'block',
+            }}>
+              Agendar data de envio?
+            </Text>
+            <Text style={{
+              fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary,
+              display: 'block', marginTop: 2,
+            }}>
+              Por padrão, o documento é enviado imediatamente após a publicação.
+            </Text>
+          </div>
+        </Checkbox>
+
+        {/* Campos de data e hora — exibidos apenas quando checkbox marcado */}
+        {agendarEnvio && (
+          <ConfigProvider locale={ptBR}>
+            <div style={{ marginTop: 14, marginLeft: 24 }}>
+              <Text style={{
+                display: 'block', fontSize: 13, fontFamily: FONT,
+                fontWeight: 500, marginBottom: 6, color: colorTokens.textPrimary,
+              }}>
+                Data e hora do envio <span style={{ color: colorTokens.error }}>*</span>
+              </Text>
+              <DatePicker
+                style={{ fontFamily: FONT }}
+                format="DD/MM/YYYY HH:mm"
+                showTime={{ format: 'HH:mm' }}
+                placeholder="Selecione data e hora"
+                value={dataLancamento}
+                onChange={(d) => {
+                  setDataLancamento(d ?? null)
+                  setDataError('')
+                }}
+                disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+                status={dataError ? 'error' : undefined}
+              />
+              {dataError && (
+                <Text style={{
+                  display: 'block', fontSize: 12, color: colorTokens.error,
+                  marginTop: 6, fontFamily: FONT,
+                }}>
+                  {dataError}
+                </Text>
+              )}
+            </div>
+          </ConfigProvider>
+        )}
+      </div>
 
       {/* Modal de confirmação */}
       <Modal
@@ -419,9 +485,7 @@ export function RevisaoStep() {
         centered
         title={
           <Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-            {envioImediato
-              ? 'Confirmar publicação do documento'
-              : isToday ? 'Confirmar envio do documento' : 'Confirmar agendamento de envio'}
+            {!agendarEnvio ? 'Confirmar publicação do documento' : 'Confirmar agendamento de envio'}
           </Text>
         }
         okText={actionLabel}
@@ -439,19 +503,20 @@ export function RevisaoStep() {
         <div style={{ fontFamily: FONT }}>
           <p style={{ marginBottom: 8 }}>
             Você está prestes a{' '}
-            <strong>{envioImediato ? 'publicar e enviar' : isToday ? 'enviar' : 'agendar'}</strong>{' '}
+            <strong>{!agendarEnvio ? 'publicar e enviar' : 'agendar o envio d'}</strong>
+            {!agendarEnvio ? ' ' : 'e '}
             este documento para <strong>{destLabel}</strong>.
           </p>
-          {envioImediato && (
+          {!agendarEnvio && (
             <p style={{ marginBottom: 8, color: '#52c41a' }}>
               <CheckCircleFilled style={{ marginRight: 6 }} />
               O documento será disponibilizado imediatamente após a confirmação.
             </p>
           )}
-          {!envioImediato && !isToday && lancamento && (
+          {agendarEnvio && dataLancamento && (
             <p style={{ marginBottom: 8, color: colorTokens.primary }}>
               <CalendarOutlined style={{ marginRight: 6 }} />
-              Disparo automático em <strong>{lancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
+              Disparo automático em <strong>{dataLancamento.format('DD/MM/YYYY [às] HH:mm[h]')}</strong>.
             </p>
           )}
           <p style={{ color: colorTokens.textSecondary, fontSize: 12, marginBottom: 0 }}>

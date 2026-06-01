@@ -14,9 +14,9 @@ import type { MenuProps } from 'antd'
 import {
   PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
-  StopOutlined, BarChartOutlined, SendOutlined,
+  BarChartOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
-  ExclamationCircleOutlined, HistoryOutlined, AppstoreAddOutlined,
+  ExclamationCircleOutlined, HistoryOutlined,
   HolderOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -39,7 +39,7 @@ const DRAFT_KEY = 'gestao_aceites_draft'
 const STEP_ROUTES: Record<number, string> = {
   0: '/documentos/criar/informacoes',
   1: '/documentos/criar/destinatarios',
-  2: '/documentos/criar/configuracoes',
+  2: '/documentos/criar/regras',
   3: '/documentos/criar/revisao',
 }
 
@@ -218,25 +218,29 @@ const PAGE_CSS = `
     background: rgba(255,255,255,0.20) !important;
     color: #fff !important;
   }
-  /* Botão "+" via tabBarExtraContent */
-  .tab-add-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 30px !important;
-    height: 30px !important;
-    border-radius: 6px !important;
-    border: none !important;
+  /* Aba "+" — integrada ao row de tabs */
+  .listagem-tabs [data-node-key="__add__"] {
+    padding: 6px 11px !important;
+    border-style: dashed !important;
+    border-color: #D9D9D9 !important;
     background: transparent !important;
-    cursor: pointer !important;
     color: ${colorTokens.textSecondary} !important;
-    font-size: 15px !important;
-    transition: background 0.15s, color 0.15s !important;
-    margin-bottom: 6px !important;
   }
-  .tab-add-btn:hover {
+  .listagem-tabs [data-node-key="__add__"]:hover {
+    border-color: ${colorTokens.primary}88 !important;
     background: #EEF2FF !important;
     color: ${colorTokens.primary} !important;
+  }
+  /* Impede que a aba "__add__" receba o estilo "active" azul */
+  .listagem-tabs [data-node-key="__add__"].ant-tabs-tab-active {
+    background: transparent !important;
+    border-color: #D9D9D9 !important;
+    border-style: dashed !important;
+    color: ${colorTokens.textSecondary} !important;
+  }
+  .listagem-tabs [data-node-key="__add__"].ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: ${colorTokens.textSecondary} !important;
+    font-weight: 500 !important;
   }
   /* × fechar aba customizada */
   .tab-close-btn {
@@ -399,10 +403,11 @@ export function ListagemPage() {
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
     const tab = (() => {
-      if (activeTab === 'todos')          return true
-      if (activeTab === 'exigem_aceite')  return doc.tipo === 'adesao'
-      if (activeTab === 'apenas_leitura') return doc.tipo === 'ciencia'
-      if (activeTab === 'agendados')      return doc.status === 'Agendado'
+      if (activeTab === 'todos')     return true
+      if (activeTab === 'ativos')    return doc.status === 'Ativo'
+      if (activeTab === 'agendados') return doc.status === 'Agendado'
+      if (activeTab === 'expirados') return doc.status === 'Expirado'
+      if (activeTab === 'inativos')  return doc.status === 'Inativo' || doc.status === 'Concluído'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
       const sf = custom.smartFilters
@@ -433,12 +438,13 @@ export function ListagemPage() {
     setPagination((p) => ({ ...p, current: 1 }))
   }
 
-  /* ── Contadores por natureza ── */
+  /* ── Contadores por status ── */
   const counts = useMemo(() => ({
-    todos:          tableDocumentos.length,
-    exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
-    apenas_leitura: tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
-    agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
+    todos:     tableDocumentos.length,
+    ativos:    tableDocumentos.filter((d) => d.status === 'Ativo').length,
+    agendados: tableDocumentos.filter((d) => d.status === 'Agendado').length,
+    expirados: tableDocumentos.filter((d) => d.status === 'Expirado').length,
+    inativos:  tableDocumentos.filter((d) => d.status === 'Inativo' || d.status === 'Concluído').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -452,10 +458,11 @@ export function ListagemPage() {
   }
 
   const tabItems = useMemo(() => [
-    { key: 'todos',          label: tabLabel('Todos',          counts.todos) },
-    { key: 'exigem_aceite',  label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
-    { key: 'apenas_leitura', label: tabLabel('Apenas leitura', counts.apenas_leitura) },
-    { key: 'agendados',      label: tabLabel('Agendados',      counts.agendados) },
+    { key: 'todos',     label: tabLabel('Todos',     counts.todos) },
+    { key: 'ativos',    label: tabLabel('Ativos',    counts.ativos) },
+    { key: 'agendados', label: tabLabel('Agendados', counts.agendados) },
+    { key: 'expirados', label: tabLabel('Expirados', counts.expirados) },
+    { key: 'inativos',  label: tabLabel('Inativos',  counts.inativos) },
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
@@ -470,6 +477,15 @@ export function ListagemPage() {
         </span>
       ),
     })),
+    // "+" sempre como última aba — abre o drawer de criação
+    ...(customTabs.length < 3 ? [{
+      key: '__add__',
+      label: (
+        <Tooltip title="Criar aba personalizada" placement="bottom" styles={{ body: { fontFamily: FONT, fontSize: 12 } }}>
+          <PlusOutlined style={{ fontSize: 13 }} />
+        </Tooltip>
+      ),
+    }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [counts, customTabs])
 
@@ -554,10 +570,7 @@ export function ListagemPage() {
   }
 
   /* ── Colunas da tabela ── */
-  // Dynamic progress column title based on active tab
-  const progressTitle = activeTab === 'exigem_aceite' ? 'Progresso de aceite'
-    : activeTab === 'apenas_leitura' ? 'Progresso de leitura'
-    : 'Barra de progresso'
+  const progressTitle = 'Progresso de aceite'
 
   const columns: ColumnsType<DocumentoComMeta> = [
     {
@@ -662,7 +675,7 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Data de vigência', key: 'vigencia', width: 190,
+      title: 'Vigência', key: 'vigencia', width: 190,
       sorter: (a, b) => dayjs(a.dataExpiracao ?? '').valueOf() - dayjs(b.dataExpiracao ?? '').valueOf(),
       render: (_: unknown, r) => {
         const s = r.dataLancamento ? dayjs(r.dataLancamento).format('DD/MM/YY') : null
@@ -693,7 +706,6 @@ export function ListagemPage() {
         }
         const pct   = r.totalDestinatarios > 0 ? Math.round((r.totalAceites / r.totalDestinatarios) * 100) : 0
         const color = barColor(r.tipo, r.status, pct)
-        const label = r.tipo === 'adesao' ? 'Aceites' : 'Leitura'
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Progress percent={pct} showInfo={false} strokeColor={color} trailColor="#EFEFEF" strokeWidth={6} style={{ flex: 1, margin: 0, minWidth: 90 }} />
@@ -717,24 +729,28 @@ export function ListagemPage() {
       },
     },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 110,
+      title: 'Status', dataIndex: 'status', key: 'status', width: 130,
       sorter: (a, b) => a.status.localeCompare(b.status, 'pt-BR'),
       render: (status: DocumentoStatus) => {
-        const palette: Record<DocumentoStatus, { border: string; color: string; bg: string }> = {
-          Ativo:     { border: '#52c41a', color: '#389e0d', bg: '#f6ffed' },
-          Agendado:  { border: '#FA8C16', color: '#D46B08', bg: '#FFF7E6' },
-          Rascunho:  { border: '#D9D9D9', color: '#8C8C8C', bg: '#FAFAFA' },
-          Concluído: { border: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA' },
-          Expirado:  { border: '#FF7A45', color: '#D4380D', bg: '#FFF2E8' },
-          Inativo:   { border: '#D9D9D9', color: '#8C8C8C', bg: '#F5F5F5' },
+        const palette: Record<DocumentoStatus, { dot: string; color: string; bg: string; border: string }> = {
+          Ativo:     { dot: '#52c41a', color: '#389e0d', bg: '#f6ffed',  border: '#b7eb8f' },
+          Agendado:  { dot: '#FA8C16', color: '#D46B08', bg: '#FFF7E6',  border: '#ffd591' },
+          Rascunho:  { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#D9D9D9' },
+          Concluído: { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#BFBFBF' },
+          Expirado:  { dot: '#FF7A45', color: '#D4380D', bg: '#FFF2E8',  border: '#ffbb96' },
+          Inativo:   { dot: '#8C8C8C', color: '#595959', bg: '#F5F5F5',  border: '#D9D9D9' },
         }
         const p = palette[status]
         return (
           <span style={{
-            display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 5,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', borderRadius: 6,
             border: `1px solid ${p.border}`, background: p.bg,
-            fontFamily: FONT, fontSize: 11, fontWeight: 600, color: p.color, whiteSpace: 'nowrap',
-          }}>{STATUS_LABEL[status]}</span>
+            fontFamily: FONT, fontSize: 12, fontWeight: 600, color: p.color, whiteSpace: 'nowrap',
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.dot, display: 'inline-block', flexShrink: 0 }} />
+            {STATUS_LABEL[status]}
+          </span>
         )
       },
     },
@@ -751,29 +767,34 @@ export function ListagemPage() {
     },
   ]
 
-  /* ── Colunas ativas (varia por aba) — conforme PDF handoff ── */
+  /* ── Colunas ativas (varia por aba) ── */
   const activeColumns = (() => {
-    // PDF: Todos → Título, Classificações, Responsável, Público-alvo, Data de envio, Data de vigência, Status, Ações
+    // Todos → visão geral: Título, Classificações, Responsável, Vigência, Status, Ações
     if (activeTab === 'todos') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'vigencia', 'status', 'acoes']
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'vigencia', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
-    // PDF: Exigem aceite → Título, Classificações, Público-alvo, Data de vigência, Progresso de aceite, Status, Ações
-    if (activeTab === 'exigem_aceite') {
-      const keys = ['titulo', 'classificacoes', 'publico', 'vigencia', 'progresso', 'status', 'acoes']
+    // Ativos → foco em progresso: Título, Classificações, Público-alvo, Progresso, Vigência, Status, Ações
+    if (activeTab === 'ativos') {
+      const keys = ['titulo', 'classificacoes', 'publico', 'progresso', 'vigencia', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
-    // PDF: Apenas leitura → Título, Classificações, Público-alvo, Data de envio, Progresso de leitura, Status, Ações
-    if (activeTab === 'apenas_leitura') {
-      const keys = ['titulo', 'classificacoes', 'publico', 'data_envio', 'progresso', 'status', 'acoes']
-      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
-    }
-    // PDF: Agendados → Título, Classificações, Responsável, Público-alvo, Data de envio, Ações
+    // Agendados → foco em data: Título, Classificações, Responsável, Data de envio, Status, Ações
     if (activeTab === 'agendados') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'data_envio', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
-    // Custom tabs: preserve drag-and-drop column order
+    // Expirados → foco em vigência: Título, Classificações, Vigência, Status, Ações
+    if (activeTab === 'expirados') {
+      const keys = ['titulo', 'classificacoes', 'vigencia', 'status', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // Inativos/Concluídos → Título, Classificações, Vigência, Status, Ações
+    if (activeTab === 'inativos') {
+      const keys = ['titulo', 'classificacoes', 'vigencia', 'status', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // Custom tabs: respeita ordem drag-and-drop
     const custom = customTabs.find((t) => t.key === activeTab)
     if (custom) {
       const orderedKeys = ['titulo', ...custom.columns, 'acoes']
@@ -996,23 +1017,12 @@ export function ListagemPage() {
         className="listagem-tabs"
         type="card"
         activeKey={activeTab}
-        onChange={(k) => { setActiveTab(k); setPagination((p) => ({ ...p, current: 1 })) }}
+        onChange={(k) => {
+          if (k === '__add__') { setTabDrawerOpen(true); return }
+          setActiveTab(k)
+          setPagination((p) => ({ ...p, current: 1 }))
+        }}
         items={tabItems}
-        tabBarExtraContent={
-          customTabs.length < 3
-            ? {
-                right: (
-                  <button
-                    className="tab-add-btn"
-                    onClick={() => setTabDrawerOpen(true)}
-                    title="Personalizar abas"
-                  >
-                    <PlusOutlined />
-                  </button>
-                ),
-              }
-            : undefined
-        }
         style={{ marginBottom: 0 }}
       />
 
