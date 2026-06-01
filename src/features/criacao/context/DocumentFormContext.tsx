@@ -6,70 +6,69 @@ export interface DeptConfig {
   tempoLeitura: number
 }
 
-export interface Step3Config {
-  tipoDocumento: 'adesao' | 'ciencia'
-  exigeAceite: boolean
-  envioImediato: boolean            // true = enviar agora; false = agendar data
-  vigenciaInicio: string
-  vigenciaFim: string
-  dataLancamento: string
-  validadeAceite: string          // 'sem_validade' | '3_meses' | '6_meses' | '12_meses' | '24_meses'
-  prazoAceite: number
-  tempoLeituraGlobal: number
-  scrollObrigatorioGlobal: boolean
-  personalizarPorDept: boolean
-  deptConfig: Record<string, DeptConfig>
-}
-
 export interface DocumentFormData {
-  // Step 1 — Informações
+  // Step 1 — Informações Básicas
   file: File | null
   fileHash: string
   fileName: string
   description: string
   classificacoes: string[]
   gestaoResponsavel: string
+
   // Step 2 — Destinatários
   modalidadeEnvio: 'departamento' | 'colaborador'
   departamentos: string[]
   colaboradores: string[]
-  // Step 3 — Configurações
-  tipoDocumento: 'adesao' | 'ciencia'
-  exigeAceite: boolean
-  envioImediato: boolean
-  vigenciaInicio: string
-  vigenciaFim: string
-  dataLancamento: string
-  validadeAceite: string
-  prazoAceite: number
-  tempoLeituraGlobal: number
+
+  // Step 3 — Regras e Envio
+  exigeAceite: boolean                // "Exigir aceite formal do colaborador?"
+  renovacaoAtiva: boolean             // se o checkbox de renovação está habilitado
+  renovacaoAceite: string             // 'sem_recorrencia' | '6_meses' | '12_meses' | '24_meses' | 'personalizado'
+  renovacaoMesesPersonalizado: number // valor em meses quando renovacaoAceite === 'personalizado'
+  tempoLeituraGlobal: number          // 0 = sem trava
   scrollObrigatorioGlobal: boolean
   personalizarPorDept: boolean
   deptConfig: Record<string, DeptConfig>
+  canalEmail: boolean
+  canalWhatsapp: boolean
+
+  // Step 4 — Validade e Envio
+  possuiValidade: boolean             // "Este documento possui prazo de validade?"
+  validadeInicio: string              // ISO 8601
+  validadeFim: string                 // ISO 8601
+  envioImediato: boolean              // true = enviar agora; false = agendar
+  dataLancamento: string              // ISO 8601 — só quando envioImediato === false
 }
 
 const INITIAL_STATE: DocumentFormData = {
+  // Step 1
   file: null,
   fileHash: '',
   fileName: '',
   description: '',
   classificacoes: [],
   gestaoResponsavel: '',
+  // Step 2
   modalidadeEnvio: 'departamento',
   departamentos: [],
   colaboradores: [],
-  tipoDocumento: 'adesao',
-  exigeAceite: true,
-  envioImediato: true,
-  vigenciaInicio: '',
-  vigenciaFim: '',
-  dataLancamento: '',
-  validadeAceite: 'sem_validade',
-  prazoAceite: 30,
-  tempoLeituraGlobal: 60,
-  scrollObrigatorioGlobal: true,
+  // Step 3 — tudo OFF por padrão
+  exigeAceite: false,
+  renovacaoAtiva: false,
+  renovacaoAceite: 'sem_recorrencia',
+  renovacaoMesesPersonalizado: 0,
+  tempoLeituraGlobal: 0,
+  scrollObrigatorioGlobal: false,
   personalizarPorDept: false,
   deptConfig: {},
+  canalEmail: false,
+  canalWhatsapp: false,
+  // Step 4 — tudo OFF por padrão
+  possuiValidade: false,
+  validadeInicio: '',
+  validadeFim: '',
+  envioImediato: true,
+  dataLancamento: '',
 }
 
 const DRAFT_KEY = 'gestao_aceites_draft'
@@ -77,9 +76,9 @@ const DRAFT_KEY = 'gestao_aceites_draft'
 /* ─── Actions ──────────────────────────────────────────────────── */
 type Action =
   | { type: 'SET_FILE'; file: File; hash: string }
-  | { type: 'SET_FIELD'; field: keyof Omit<DocumentFormData, 'file' | 'fileHash' | 'departamentos' | 'colaboradores' | 'classificacoes' | 'deptConfig'>; value: string | number | boolean }
+  | { type: 'SET_FIELD'; field: string; value: unknown }
   | { type: 'SET_MULTI'; field: 'departamentos' | 'colaboradores' | 'classificacoes'; value: string[] }
-  | { type: 'SET_STEP3'; config: Partial<Step3Config> }
+  | { type: 'SET_STEP'; config: Partial<DocumentFormData> }
   | { type: 'LOAD_DRAFT'; draft: Partial<DocumentFormData> }
   | { type: 'RESET' }
 
@@ -91,7 +90,7 @@ function reducer(state: DocumentFormData, action: Action): DocumentFormData {
       return { ...state, [action.field]: action.value }
     case 'SET_MULTI':
       return { ...state, [action.field]: action.value }
-    case 'SET_STEP3':
+    case 'SET_STEP':
       return { ...state, ...action.config }
     case 'LOAD_DRAFT':
       return { ...state, ...action.draft }
@@ -106,9 +105,7 @@ function reducer(state: DocumentFormData, action: Action): DocumentFormData {
 interface DocumentFormContextValue {
   data: DocumentFormData
   dispatch: React.Dispatch<Action>
-  /** Persiste o rascunho no localStorage com metadados de rastreamento */
   saveDraft: (stepAtual?: number) => void
-  /** Remove o rascunho do localStorage (após publicação ou exclusão) */
   clearDraft: () => void
 }
 
@@ -131,9 +128,8 @@ export function DocumentFormProvider({ children }: { children: ReactNode }) {
 
   const saveDraft = (stepAtual = 0) => {
     const { file: _file, ...serializable } = data
-    // Preserva o ID existente para não gerar um novo a cada save
-    const existingRaw  = localStorage.getItem(DRAFT_KEY)
-    const existingId   = existingRaw
+    const existingRaw = localStorage.getItem(DRAFT_KEY)
+    const existingId  = existingRaw
       ? (JSON.parse(existingRaw) as Record<string, unknown>)._draftId
       : null
     const meta = {

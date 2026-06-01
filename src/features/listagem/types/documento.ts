@@ -53,6 +53,12 @@ export interface Documento {
    */
   destinatariosPreview?: string[]
 
+  /**
+   * Lista resumida de colaboradores destinatários — apenas quando modalidadeEnvio === 'pessoa'.
+   * Cada item traz o nome completo e a cor do avatar para exibição.
+   */
+  colaboradoresPreview?: { nome: string; cor: string }[]
+
   /** Descrição/objetivo do documento */
   descricao?: string
 

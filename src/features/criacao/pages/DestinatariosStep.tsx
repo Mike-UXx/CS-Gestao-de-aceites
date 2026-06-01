@@ -110,7 +110,7 @@ export function DestinatariosStep() {
     setSubmitted(true)
     if (!editMode && currentSelection.length === 0) return
     dispatch({ type: 'SET_FIELD', field: 'modalidadeEnvio', value: modalidade })
-    navigate('/documentos/criar/configuracoes', editMode ? { state: { editMode: true } } : undefined)
+    navigate('/documentos/criar/regras', editMode ? { state: { editMode: true } } : undefined)
   }
 
   /* ── dropdown "Select all" genérico ── */
@@ -191,7 +191,7 @@ export function DestinatariosStep() {
       >
           {/* Cabeçalho do card */}
           <Text strong style={{ fontSize: 15, color: colorTokens.textPrimary, display: 'block', marginBottom: 2 }}>
-            Público-alvo
+            Destinatários
           </Text>
           <Text style={{ fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 28 }}>
             Defina quem deve receber este documento.

@@ -7,7 +7,7 @@ import { AppFooter } from '@/components/layout/AppFooter'
 import { SelectTemplate } from '@/features/criacao/pages/SelectTemplate'
 import { InformacoesStep } from '@/features/criacao/pages/InformacoesStep'
 import { DestinatariosStep } from '@/features/criacao/pages/DestinatariosStep'
-import { ConfiguracoesStep } from '@/features/criacao/pages/ConfiguracoesStep'
+import { RegrasStep } from '@/features/criacao/pages/RegrasStep'
 import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
@@ -38,7 +38,7 @@ function AppShell() {
                 <Route path="/documentos/criar" element={<SelectTemplate />} />
                 <Route path="/documentos/criar/informacoes" element={<InformacoesStep />} />
                 <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
-                <Route path="/documentos/criar/configuracoes" element={<ConfiguracoesStep />} />
+                <Route path="/documentos/criar/regras" element={<RegrasStep />} />
                 <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
                 <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
