@@ -9,7 +9,7 @@ import {
   FilePdfOutlined, EditOutlined,
   CalendarOutlined, CheckCircleFilled,
   ClockCircleOutlined, VerticalAlignBottomOutlined,
-  CloseCircleOutlined,
+  CloseCircleOutlined, MailOutlined, WhatsAppOutlined,
 } from '@ant-design/icons'
 import ptBR from 'antd/locale/pt_BR'
 import { useNavigate } from 'react-router-dom'
@@ -352,6 +352,27 @@ export function RevisaoStep() {
                 <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textSecondary }}>Não exigido</Text>
               </Space>
             )
+          }
+        />
+
+        <ReviewRow
+          label="Canais de notificação"
+          value={
+            <Space size={[4, 4]} wrap>
+              {data.canalEmail && (
+                <Tag style={{ fontFamily: FONT, borderRadius: 4, margin: 0 }} icon={<MailOutlined />}>
+                  E-mail
+                </Tag>
+              )}
+              {data.canalWhatsapp && (
+                <Tag style={{ fontFamily: FONT, borderRadius: 4, margin: 0, color: '#25D366', borderColor: '#25D366' }} icon={<WhatsAppOutlined />}>
+                  WhatsApp
+                </Tag>
+              )}
+              {!data.canalEmail && !data.canalWhatsapp && (
+                <Text style={{ fontFamily: FONT, color: colorTokens.textSecondary }}>—</Text>
+              )}
+            </Space>
           }
         />
 

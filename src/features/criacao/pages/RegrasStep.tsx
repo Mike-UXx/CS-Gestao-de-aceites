@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  InfoCircleOutlined, ThunderboltOutlined,
+  InfoCircleOutlined, ThunderboltOutlined, MailOutlined, WhatsAppOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
@@ -135,6 +135,10 @@ export function RegrasStep() {
 
   /* ── Aceite ── */
   const [exigeAceite, setExigeAceite] = useState<boolean>(data.exigeAceite ?? false)
+
+  /* ── Canais de notificação ── */
+  const [canalEmail] = useState<boolean>(data.canalEmail ?? true)
+  const [canalWhatsapp, setCanalWhatsapp] = useState<boolean>(data.canalWhatsapp ?? false)
 
   /* ── Frequência de Renovação ── */
   const [renovacaoAtiva,  setRenovacaoAtiva]  = useState<boolean>(data.renovacaoAtiva ?? false)
@@ -325,6 +329,8 @@ export function RegrasStep() {
         scrollObrigatorioGlobal:     exigeAceite ? scrollObrigatorio : false,
         personalizarPorDept:         exigeAceite ? personalizarPorDept : false,
         deptConfig:                  exigeAceite ? deptConfig : {},
+        canalEmail,
+        canalWhatsapp,
       },
     })
     navigate('/documentos/criar/revisao')
@@ -378,6 +384,55 @@ export function RegrasStep() {
               Este documento ficará disponível apenas para consulta, sem gerar pendência de assinatura.
             </Text>
           )}
+        </div>
+
+        {/* ══ CANAIS DE NOTIFICAÇÃO ══════════════════════════════════ */}
+        <SectionDivider
+          title="Canais de notificação"
+          subtitle="Defina como os destinatários serão avisados sobre este documento."
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+          <Checkbox
+            checked={canalEmail}
+            disabled
+            style={{ fontFamily: FONT, alignItems: 'flex-start' }}
+          >
+            <div>
+              <Space size={4}>
+                <MailOutlined style={{ color: colorTokens.primary }} />
+                <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary }}>
+                  E-mail
+                </Text>
+              </Space>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                Canal oficial de notificação e registro de evidências. Sempre habilitado.
+              </Text>
+            </div>
+          </Checkbox>
+
+          <Checkbox
+            checked={canalWhatsapp}
+            onChange={(e) => setCanalWhatsapp(e.target.checked)}
+            style={{ fontFamily: FONT, alignItems: 'flex-start' }}
+          >
+            <div>
+              <Space size={4}>
+                <WhatsAppOutlined style={{ color: '#25D366' }} />
+                <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary }}>
+                  WhatsApp
+                </Text>
+                <Tooltip
+                  title="Funcionalidade simulada — em produção dependerá do telefone cadastrado do colaborador."
+                  overlayStyle={{ maxWidth: 280 }}
+                >
+                  <InfoCircleOutlined style={{ color: '#BFBFBF', fontSize: 13, cursor: 'pointer' }} />
+                </Tooltip>
+              </Space>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                Envia um lembrete complementar via WhatsApp.
+              </Text>
+            </div>
+          </Checkbox>
         </div>
 
         {/* ══ 2. FREQUÊNCIA DE RENOVAÇÃO — só exibe quando aceite = Sim ══ */}

@@ -61,7 +61,7 @@ const INITIAL_STATE: DocumentFormData = {
   scrollObrigatorioGlobal: false,
   personalizarPorDept: false,
   deptConfig: {},
-  canalEmail: false,
+  canalEmail: true,
   canalWhatsapp: false,
   // Step 4 — tudo OFF por padrão
   possuiValidade: false,
