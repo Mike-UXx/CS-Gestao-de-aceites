@@ -14,7 +14,7 @@ import type { MenuProps } from 'antd'
 import {
   PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
-  BarChartOutlined,
+  BarChartOutlined, CopyOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
   ExclamationCircleOutlined, HistoryOutlined,
   HolderOutlined,
@@ -28,6 +28,7 @@ import {
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
+import { useDocumentForm, type DocumentFormData } from '@/features/criacao/context/DocumentFormContext'
 
 dayjs.locale('pt-br')
 dayjs.extend(relativeTime)
@@ -116,6 +117,41 @@ function readDraftFromStorage(): DocumentoComMeta | null {
       _stepAtual:           (p._stepAtual as number) ?? 0,
     }
   } catch { return null }
+}
+
+/* ── Duplicar documento: mapeia um registro para o estado inicial do wizard ── */
+function buildDuplicateConfig(doc: Documento): Partial<DocumentFormData> {
+  const exigeAceite = doc.tipo === 'adesao'
+
+  let renovacaoAtiva = false
+  let renovacaoAceite = 'sem_recorrencia'
+  let renovacaoMesesPersonalizado = 0
+  if (exigeAceite) {
+    switch (doc.recorrenciaAceite) {
+      case '6_meses':
+      case '12_meses':
+      case '24_meses':
+        renovacaoAtiva = true
+        renovacaoAceite = doc.recorrenciaAceite
+        break
+      case '3_meses':
+        renovacaoAtiva = true
+        renovacaoAceite = 'personalizado'
+        renovacaoMesesPersonalizado = 3
+        break
+    }
+  }
+
+  return {
+    description: doc.descricao ?? '',
+    classificacoes: [...doc.classificacoes],
+    gestaoResponsavel: doc.gestaoResponsavel,
+    modalidadeEnvio: doc.modalidadeEnvio === 'pessoa' ? 'colaborador' : 'departamento',
+    exigeAceite,
+    renovacaoAtiva,
+    renovacaoAceite,
+    renovacaoMesesPersonalizado,
+  }
 }
 
 /* ── CSS ─────────────────────────────────────────────────────── */
@@ -324,6 +360,7 @@ const PAGE_CSS = `
 export function ListagemPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { dispatch } = useDocumentForm()
 
   const [search,           setSearch]           = useState('')
   const [activeTab,        setActiveTab]        = useState('todos')
@@ -487,6 +524,14 @@ export function ListagemPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [counts, customTabs])
 
+  /* ── Ações: duplicar documento ── */
+  const handleDuplicar = useCallback((record: DocumentoComMeta) => {
+    dispatch({ type: 'RESET' })
+    dispatch({ type: 'SET_STEP', config: buildDuplicateConfig(record) })
+    navigate('/documentos/criar/informacoes')
+    message.success(`Novo documento criado a partir de "${record.titulo}". Envie o novo arquivo e revise as informações.`, 4)
+  }, [dispatch, navigate])
+
   /* ── Ações: excluir rascunho ── */
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return
@@ -535,6 +580,7 @@ export function ListagemPage() {
 
   /* ── Menu de ações por status (conforme PDF handoff) ── */
   function actionsMenu(record: DocumentoComMeta): MenuProps['items'] {
+    const duplicar = { key: 'duplicar', icon: <CopyOutlined />, label: 'Duplicar documento', onClick: () => handleDuplicar(record) }
     switch (record.status) {
       case 'Ativo':
         return [
@@ -544,24 +590,32 @@ export function ListagemPage() {
           { type: 'divider' as const },
           { key: 'historico',   icon: <BarChartOutlined />,            label: 'Histórico de ações' },
           { type: 'divider' as const },
+          duplicar,
+          { type: 'divider' as const },
           { key: 'inativar',    icon: <ExclamationCircleOutlined />,   label: 'Inativar',          danger: true, onClick: () => setInativarTarget(record) },
         ]
       case 'Agendado':
         return [
           { key: 'editar',  icon: <EditOutlined />,   label: 'Editar detalhes',        onClick: () => navigate(`/documentos/${record.id}/editar-agendado`) },
           { type: 'divider' as const },
+          duplicar,
+          { type: 'divider' as const },
           { key: 'excluir', icon: <DeleteOutlined />,  label: 'Excluir',               danger: true, onClick: () => setDeletarAgendadoTarget(record) },
         ]
       case 'Expirado':
         return [
           { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { type: 'divider' as const },
+          duplicar,
         ]
       case 'Concluído':
         return [
           { key: 'relatorios', icon: <BarChartOutlined />, label: 'Ver relatórios' },
+          { type: 'divider' as const },
+          duplicar,
         ]
       case 'Inativo':
-        return []
+        return [duplicar]
       default:
         return []
     }
