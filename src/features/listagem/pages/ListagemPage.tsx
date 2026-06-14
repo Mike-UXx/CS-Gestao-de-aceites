@@ -66,9 +66,9 @@ type DocumentoComMeta = Documento & { _stepAtual?: number }
 const AVAILABLE_COLUMNS = [
   { key: 'classificacoes', label: 'Classificações' },
   { key: 'responsavel',    label: 'Responsável' },
-  { key: 'publico',        label: 'Público-alvo' },
+  { key: 'publico',        label: 'Destinatários' },
   { key: 'data_envio',     label: 'Data de envio' },
-  { key: 'vigencia',       label: 'Vigência' },
+  { key: 'vigencia_fim',   label: 'Vigência' },
   { key: 'progresso',      label: 'Barra de progresso' },
   { key: 'status',         label: 'Status' },
   { key: 'recorrencia',    label: 'Recorrência' },
@@ -89,6 +89,25 @@ function barColor(tipo: Documento['tipo'], status: DocumentoStatus, pct: number)
   if (status === 'Concluído') return '#BFBFBF'
   if (pct === 0) return '#D9D9D9'
   return tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
+}
+
+/* ── Verifica se um documento atende aos filtros inteligentes de uma aba customizada ── */
+function matchesSmartFilters(doc: Documento, sf: SmartFilters): boolean {
+  // Tipo de documento
+  if (sf.tipo === 'aceites' && doc.tipo !== 'adesao') return false
+  if (sf.tipo === 'leitura' && doc.tipo !== 'ciencia') return false
+  // Prazo e cronograma
+  if (sf.prazo === 'pendentes' && doc.totalAceites >= doc.totalDestinatarios) return false
+  if (sf.prazo === 'vigencia_proxima') {
+    if (!doc.dataExpiracao) return false
+    if (dayjs(doc.dataExpiracao).diff(dayjs(), 'day') > 30) return false
+  }
+  if (sf.prazo === 'requer_atualizacao' && doc.status !== 'Expirado') return false
+  if (sf.prazo === 'expirados' && doc.status !== 'Expirado') return false
+  // Público-alvo
+  if (sf.publico === 'departamentos' && doc.modalidadeEnvio !== 'departamento') return false
+  if (sf.publico === 'destinatarios' && doc.modalidadeEnvio !== 'pessoa') return false
+  return true
 }
 
 function readDraftFromStorage(): DocumentoComMeta | null {
@@ -449,22 +468,7 @@ export function ListagemPage() {
       if (activeTab === 'agendados')     return doc.status === 'Agendado'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
-      const sf = custom.smartFilters
-      // Tipo de documento
-      if (sf.tipo === 'aceites' && doc.tipo !== 'adesao') return false
-      if (sf.tipo === 'leitura' && doc.tipo !== 'ciencia') return false
-      // Prazo e cronograma
-      if (sf.prazo === 'pendentes' && doc.totalAceites >= doc.totalDestinatarios) return false
-      if (sf.prazo === 'vigencia_proxima') {
-        if (!doc.dataExpiracao) return false
-        if (dayjs(doc.dataExpiracao).diff(dayjs(), 'day') > 30) return false
-      }
-      if (sf.prazo === 'requer_atualizacao' && doc.status !== 'Expirado') return false
-      if (sf.prazo === 'expirados' && doc.status !== 'Expirado') return false
-      // Público-alvo
-      if (sf.publico === 'departamentos' && doc.modalidadeEnvio !== 'departamento') return false
-      if (sf.publico === 'destinatarios' && doc.modalidadeEnvio !== 'pessoa') return false
-      return true
+      return matchesSmartFilters(doc, custom.smartFilters)
     })()
     const txt = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
     return tab && txt
@@ -503,8 +507,9 @@ export function ListagemPage() {
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
-        <span style={{ fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+        <span style={{ fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 0, whiteSpace: 'nowrap' }}>
           {t.title}
+          <span className="tab-pill">{tableDocumentos.filter((d) => matchesSmartFilters(d, t.smartFilters)).length}</span>
           <span
             className="tab-close-btn"
             onClick={(e) => { e.stopPropagation(); handleRemoveTab(t.key) }}
@@ -524,7 +529,7 @@ export function ListagemPage() {
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [counts, customTabs])
+  ], [counts, customTabs, tableDocumentos])
 
   /* ── Ações: duplicar documento ── */
   const handleDuplicar = useCallback((record: DocumentoComMeta) => {
@@ -1531,26 +1536,14 @@ export function ListagemPage() {
                       disabled={customTabs.length >= 3}
                       onChange={(e) => {
                         const key = col.key
-                        if (e.target.checked) {
-                          // Checked: add to selected, move to last among checked in order
-                          setNewTabColumns((prev) => [...prev, key])
-                          setNewTabColumnOrder((prev) => {
-                            const without = prev.filter((k) => k !== key)
-                            const lastCheckedIdx = without.reduce((acc, k, i) => newTabColumns.includes(k) ? i : acc, -1)
-                            const insertAt = lastCheckedIdx + 1
-                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
-                          })
-                        } else {
-                          // Unchecked: remove from selected, move to first among unchecked in order
-                          setNewTabColumns((prev) => prev.filter((k) => k !== key))
-                          setNewTabColumnOrder((prev) => {
-                            const without = prev.filter((k) => k !== key)
-                            const remaining = newTabColumns.filter((k) => k !== key)
-                            const firstUncheckedIdx = without.findIndex((k) => !remaining.includes(k))
-                            const insertAt = firstUncheckedIdx === -1 ? without.length : firstUncheckedIdx
-                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
-                          })
-                        }
+                        const checked = e.target.checked
+                        setNewTabColumns((prev) => checked ? [...prev, key] : prev.filter((k) => k !== key))
+                        setNewTabColumnOrder((prev) => {
+                          // Reagrupa: marcadas no topo (ordem atual) + a coluna alterada na fronteira + desmarcadas abaixo (ordem atual)
+                          const checkedItems   = prev.filter((k) => k !== key && newTabColumns.includes(k))
+                          const uncheckedItems = prev.filter((k) => k !== key && !newTabColumns.includes(k))
+                          return [...checkedItems, key, ...uncheckedItems]
+                        })
                       }}
                       style={{ fontFamily: FONT, fontSize: 13, flex: 1 }}
                     >
