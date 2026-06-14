@@ -14,10 +14,10 @@ import type { MenuProps } from 'antd'
 import {
   PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
-  BarChartOutlined, CopyOutlined,
+  CopyOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
   ExclamationCircleOutlined, HistoryOutlined,
-  HolderOutlined,
+  HolderOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -29,6 +29,7 @@ import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 import { useDocumentForm, type DocumentFormData } from '@/features/criacao/context/DocumentFormContext'
+import { PendenciasDrawer } from '@/features/detalhes/components/PendenciasDrawer'
 
 dayjs.locale('pt-br')
 dayjs.extend(relativeTime)
@@ -372,6 +373,7 @@ export function ListagemPage() {
   const [deletarAgendadoTarget, setDeletarAgendadoTarget] = useState<DocumentoComMeta | null>(null)
   const [novaVersaoTarget,      setNovaVersaoTarget]      = useState<DocumentoComMeta | null>(null)
   const [novaVersaoMotivo,      setNovaVersaoMotivo]      = useState('')
+  const [relatoriosTarget,      setRelatoriosTarget]      = useState<DocumentoComMeta | null>(null)
   const [customTabs,            setCustomTabs]            = useState<CustomTab[]>([])
   const [tabDrawerOpen,         setTabDrawerOpen]         = useState(false)
   const [newTabTitle,           setNewTabTitle]           = useState('')
@@ -588,7 +590,7 @@ export function ListagemPage() {
           { type: 'divider' as const },
           { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
           { type: 'divider' as const },
-          { key: 'historico',   icon: <BarChartOutlined />,            label: 'Histórico de ações' },
+          { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Ver relatórios',     onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
           duplicar,
           { type: 'divider' as const },
@@ -610,7 +612,7 @@ export function ListagemPage() {
         ]
       case 'Concluído':
         return [
-          { key: 'relatorios', icon: <BarChartOutlined />, label: 'Ver relatórios' },
+          { key: 'relatorios', icon: <TeamOutlined />, label: 'Ver relatórios', onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
           duplicar,
         ]
@@ -1624,6 +1626,12 @@ export function ListagemPage() {
 
         </div>
       </Drawer>
+
+      <PendenciasDrawer
+        open={!!relatoriosTarget}
+        onClose={() => setRelatoriosTarget(null)}
+        doc={relatoriosTarget}
+      />
 
     </div>
   )
