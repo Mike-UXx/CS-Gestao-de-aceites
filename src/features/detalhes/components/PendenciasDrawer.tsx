@@ -5,15 +5,17 @@
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect } from 'react'
 import {
-  Typography, Button, Drawer, List, Avatar, Space, Tabs, Spin, message,
+  Typography, Button, Drawer, List, Avatar, Space, Tabs, Spin, message, Dropdown,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   BellOutlined, SendOutlined, CheckCircleOutlined, TeamOutlined, ClockCircleOutlined,
+  DownloadOutlined, FilePdfOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
-import { COLABORADORES } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 import type { Documento } from '@/features/listagem/types/documento'
+import { buildSignatarios } from '../utils/signatarios'
+import { exportarRelatorioCSV, exportarRelatorioPDF } from '../utils/exportRelatorio'
 
 const FONT = "'Montserrat', sans-serif"
 
@@ -44,8 +46,9 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
 
   const pendentes = doc ? doc.totalDestinatarios - doc.totalAceites : 0
 
-  /* ── Pendentes mock ── */
-  const pendentesNomes = doc ? COLABORADORES.slice(0, Math.max(pendentes, 0)).map((c) => c.label) : []
+  /* ── Signatários (fonte única, compartilhada com a exportação) ── */
+  const signatarios = doc ? buildSignatarios(doc) : []
+  const pendentesNomes = signatarios.filter((s) => s.situacao === 'Pendente').map((s) => s.nome)
 
   /* ── Abre direto na aba "Concluídos" se não houver pendentes ── */
   useEffect(() => {
@@ -91,13 +94,25 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
 
   if (!doc) return <Drawer open={open} onClose={onClose} width={480} destroyOnHidden />
 
-  /* ── Concluídos mock (com datas determinísticas) ── */
-  const concluidosMock = COLABORADORES
-    .slice(Math.max(pendentes, 0), doc.totalDestinatarios)
-    .map((c, i) => ({
-      nome: c.label,
-      data: dayjs(doc.dataLancamento ?? doc.criadoEm).add(i * 2 + 1, 'day').format('DD/MM/YYYY'),
-    }))
+  /* ── Concluídos (derivados da fonte única de signatários) ── */
+  const concluidosMock = signatarios
+    .filter((s) => s.situacao === 'Concluído')
+    .map((s) => ({ nome: s.nome, data: s.dataAceite ?? '—' }))
+
+  /* ── Exportação do relatório de auditoria ── */
+  function handleExportCSV() {
+    exportarRelatorioCSV(doc!)
+    message.success('Relatório de auditoria (Excel/CSV) gerado.')
+  }
+  function handleExportPDF() {
+    const ok = exportarRelatorioPDF(doc!)
+    if (ok) message.success('Abrindo o relatório para impressão/PDF.')
+    else message.warning('Permita pop-ups neste site para gerar o PDF.')
+  }
+  const exportItems: MenuProps['items'] = [
+    { key: 'pdf',   icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,  label: 'Exportar como PDF',   onClick: handleExportPDF },
+    { key: 'excel', icon: <FileExcelOutlined style={{ color: '#52c41a' }} />, label: 'Exportar como Excel', onClick: handleExportCSV },
+  ]
 
   /* ── Cooldown do botão "Lembrar todos os pendentes" ── */
   const allRemaining = allCooldownUntil ? Math.max(0, Math.ceil((allCooldownUntil - now) / 1000)) : 0
@@ -113,6 +128,16 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
         <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
           Acompanhamento de Destinatários
         </Typography.Text>
+      }
+      extra={
+        <Dropdown menu={{ items: exportItems }} trigger={['click']} placement="bottomRight">
+          <Button
+            icon={<DownloadOutlined />}
+            style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 8 }}
+          >
+            Exportar
+          </Button>
+        </Dropdown>
       }
       styles={{
         header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' },

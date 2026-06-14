@@ -26,6 +26,7 @@ import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassification
 import { colorTokens } from '@/theme/tokens'
 import { HistoricoDrawer } from '../components/HistoricoDrawer'
 import { PendenciasDrawer } from '../components/PendenciasDrawer'
+import { exportarRelatorioCSV, exportarRelatorioPDF } from '../utils/exportRelatorio'
 
 dayjs.locale('pt-br')
 
@@ -203,19 +204,32 @@ export function DetalhesPage() {
   }
   const sp = statusPalette[doc.status] ?? statusPalette.Rascunho
 
+  /* ── Export de relatório de auditoria ── */
+  function handleExportCSV() {
+    if (!doc) return
+    exportarRelatorioCSV(doc)
+    message.success('Relatório de auditoria (Excel/CSV) gerado.')
+  }
+  function handleExportPDF() {
+    if (!doc) return
+    const ok = exportarRelatorioPDF(doc)
+    if (ok) message.success('Abrindo o relatório para impressão/PDF.')
+    else message.warning('Permita pop-ups neste site para gerar o PDF.')
+  }
+
   /* ── Download items (auditoria) ── */
   const downloadItems: MenuProps['items'] = [
     {
       key: 'audit-pdf',
       icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
       label: 'Exportar como PDF',
-      onClick: () => message.success('Download do relatório de auditoria em PDF iniciado.'),
+      onClick: handleExportPDF,
     },
     {
       key: 'audit-excel',
       icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
       label: 'Exportar como Excel',
-      onClick: () => message.success('Download do relatório de auditoria em Excel iniciado.'),
+      onClick: handleExportCSV,
     },
   ]
 
@@ -244,13 +258,13 @@ export function DetalhesPage() {
       key: 'audit-pdf',
       icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
       label: 'Exportar auditoria (PDF)',
-      onClick: () => message.success('Download do relatório de auditoria em PDF iniciado.'),
+      onClick: handleExportPDF,
     },
     {
       key: 'audit-excel',
       icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
       label: 'Exportar auditoria (Excel)',
-      onClick: () => message.success('Download do relatório de auditoria em Excel iniciado.'),
+      onClick: handleExportCSV,
     },
     ...(doc.status === 'Ativo' ? [
       { type: 'divider' as const },
