@@ -11,6 +11,7 @@ import { RegrasStep } from '@/features/criacao/pages/RegrasStep'
 import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
+import { DashboardPage } from '@/features/dashboard'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
 import { colorTokens } from '@/theme/tokens'
@@ -29,7 +30,8 @@ function AppShell() {
           <Content style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
             <div style={{ flex: 1 }}>
               <Routes>
-                <Route path="/" element={<Navigate to="/documentos" replace />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<DashboardPage />} />
                 <Route path="/documentos" element={<ListagemPage />} />
                 <Route path="/documentos/:id" element={<DetalhesPage />} />
                 <Route path="/documentos/:id/editar" element={<EditarAtivoPage />} />
