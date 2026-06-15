@@ -36,6 +36,8 @@ export interface DashboardMetrics {
   destinatariosTotais: number
   aceitesTotais: number
   pendenciasTotais: number
+  /** Nº de documentos ativos que ainda têm aceites pendentes */
+  documentosComPendencia: number
   /** Ativos cuja vigência já passou (status ainda Ativo) */
   vencidos: number
   /** Ativos que vencem nos próximos 30 dias */
@@ -107,6 +109,7 @@ export function getDashboardMetrics(
     destinatariosTotais: ativos.reduce((acc, d) => acc + d.totalDestinatarios, 0),
     aceitesTotais: ativos.reduce((acc, d) => acc + d.totalAceites, 0),
     pendenciasTotais: ativos.reduce((acc, d) => acc + pendenciasDoc(d), 0),
+    documentosComPendencia: ativos.filter((d) => pendenciasDoc(d) > 0).length,
     vencidos: ativos.filter((d) => d.dataExpiracao && diasAte(d) < 0).length,
     vencendo30: ativos.filter((d) => d.dataExpiracao && diasAte(d) >= 0 && diasAte(d) <= 30).length,
     vencendo7: ativos.filter((d) => d.dataExpiracao && diasAte(d) >= 0 && diasAte(d) <= 7).length,
