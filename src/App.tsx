@@ -12,6 +12,7 @@ import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
 import { DashboardPage } from '@/features/dashboard'
+import { ConfiguracoesPage, ClassificacoesPage } from '@/features/configuracoes'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
 import { colorTokens } from '@/theme/tokens'
@@ -42,6 +43,8 @@ function AppShell() {
                 <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
                 <Route path="/documentos/criar/regras" element={<RegrasStep />} />
                 <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
+                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                <Route path="/configuracoes/classificacoes" element={<ClassificacoesPage />} />
                 <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
             </div>

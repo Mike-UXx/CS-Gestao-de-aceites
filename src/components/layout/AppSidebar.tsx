@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Menu, Layout } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   HomeOutlined,
   FileTextOutlined,
@@ -10,7 +12,7 @@ import { colorTokens } from '@/theme/tokens'
 
 const { Sider } = Layout
 
-const navItems = [
+const navItems: MenuProps['items'] = [
   { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   { key: '/documentos', icon: <FileTextOutlined />, label: 'Documentos' },
   { key: '/estatisticas', icon: <BarChartOutlined />, label: 'Estatísticas' },
@@ -18,8 +20,14 @@ const navItems = [
     key: '/configuracoes',
     icon: <SettingOutlined />,
     label: 'Configurações',
+    children: [
+      { key: '/configuracoes/classificacoes', label: 'Classificações' },
+    ],
   },
 ]
+
+/** Todas as rotas conhecidas (inclui filhas) — para resolver o item ativo. */
+const ALL_KEYS = ['/home', '/documentos', '/estatisticas', '/configuracoes/classificacoes', '/configuracoes']
 
 interface AppSidebarProps {
   collapsed: boolean
@@ -30,10 +38,14 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Mapeia /documentos/* para o item de menu correto
-  const activeKey = navItems.find((item) =>
-    location.pathname.startsWith(item.key)
-  )?.key ?? '/documentos'
+  // Item ativo = rota conhecida mais específica que casa com o pathname
+  const selectedKey = ALL_KEYS
+    .filter((k) => location.pathname.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0] ?? '/home'
+
+  const [openKeys, setOpenKeys] = useState<string[]>(
+    location.pathname.startsWith('/configuracoes') ? ['/configuracoes'] : [],
+  )
 
   return (
     <Sider
@@ -54,23 +66,12 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
     >
       <Menu
         mode="inline"
-        selectedKeys={[activeKey]}
+        selectedKeys={[selectedKey]}
+        openKeys={openKeys}
+        onOpenChange={(keys) => setOpenKeys(keys as string[])}
+        onClick={({ key }) => navigate(key)}
         style={{ height: '100%', borderRight: 0, paddingTop: 8 }}
-        items={navItems.map((item) => ({
-          key: item.key,
-          icon: item.icon,
-          label: item.label,
-          onClick: () => navigate(item.key),
-          style:
-            item.key === activeKey
-              ? {
-                  color: colorTokens.primary,
-                  fontWeight: 600,
-                  background: '#EEF2FF',
-                  borderRadius: 8,
-                }
-              : {},
-        }))}
+        items={navItems}
       />
     </Sider>
   )
