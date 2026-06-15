@@ -123,6 +123,12 @@ export function RevisaoStep() {
     data.renovacaoAceite === 'personalizado'
       ? `A cada ${data.renovacaoMesesPersonalizado} meses`
       : RENOVACAO_LABELS[data.renovacaoAceite] ?? data.renovacaoAceite
+  const cobrancaLimiteLabel = data.cobrancaMaxLembretes === 0
+    ? 'sem limite'
+    : `até ${data.cobrancaMaxLembretes} ${data.cobrancaMaxLembretes === 1 ? 'lembrete' : 'lembretes'}`
+  const cobrancaLabel = data.cobrancaAutomatica
+    ? `A cada ${data.cobrancaFrequenciaDias} dias · ${cobrancaLimiteLabel}`
+    : 'Desativada'
 
   /* ── Tags de destinatários ── */
   const deptTags  = data.departamentos.map((v) => ({ label: labelOf(DEPARTAMENTOS, v), value: v }))
@@ -383,6 +389,43 @@ export function RevisaoStep() {
               <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{renovacaoLabel}</Text>
             }
           />
+        )}
+
+        {data.exigeAceite && (
+          <>
+            <ReviewRow
+              label="Cobrança automática"
+              value={
+                <Space size={6}>
+                  <ClockCircleOutlined style={{ color: data.cobrancaAutomatica ? colorTokens.primary : colorTokens.textSecondary }} />
+                  <Text style={{
+                    fontFamily: FONT, fontSize: 13, fontWeight: 500,
+                    color: data.cobrancaAutomatica ? colorTokens.textPrimary : colorTokens.textSecondary,
+                  }}>{cobrancaLabel}</Text>
+                </Space>
+              }
+            />
+            {data.prazoAssinaturaAtivo && (
+              <ReviewRow
+                label="Prazo para assinatura"
+                value={
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                    Até {data.prazoAssinaturaDias} {data.prazoAssinaturaDias === 1 ? 'dia' : 'dias'} após o envio
+                  </Text>
+                }
+              />
+            )}
+            <ReviewRow
+              label="Encerramento"
+              value={
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                  {data.encerramentoAutomatico
+                    ? `Automático (100% de aceite${data.prazoAssinaturaAtivo ? ' ou fim do prazo' : ''})`
+                    : 'Manual'}
+                </Text>
+              }
+            />
+          </>
         )}
 
         {data.exigeAceite && (

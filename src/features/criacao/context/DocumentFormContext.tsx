@@ -32,6 +32,14 @@ export interface DocumentFormData {
   canalEmail: boolean
   canalWhatsapp: boolean
 
+  // Step 3 — Cobrança e prazo de assinatura (só relevante quando exigeAceite)
+  cobrancaAutomatica: boolean          // sistema reenvia lembrete aos pendentes
+  cobrancaFrequenciaDias: number       // a cada N dias (preset: 3 | 7 | 15)
+  cobrancaMaxLembretes: number         // limite por destinatário (0 = ilimitado)
+  prazoAssinaturaAtivo: boolean        // há data-limite para aceitar?
+  prazoAssinaturaDias: number          // aceitar em até N dias após o envio
+  encerramentoAutomatico: boolean      // true = encerra ao 100% de aceite ou no prazo; false = manual
+
   // Step 4 — Validade e Envio
   possuiValidade: boolean             // "Este documento possui prazo de validade?"
   validadeInicio: string              // ISO 8601
@@ -63,6 +71,13 @@ const INITIAL_STATE: DocumentFormData = {
   deptConfig: {},
   canalEmail: true,
   canalWhatsapp: false,
+  // Step 3 — Cobrança e prazo
+  cobrancaAutomatica: false,
+  cobrancaFrequenciaDias: 3,
+  cobrancaMaxLembretes: 3,
+  prazoAssinaturaAtivo: false,
+  prazoAssinaturaDias: 7,
+  encerramentoAutomatico: true,
   // Step 4 — tudo OFF por padrão
   possuiValidade: false,
   validadeInicio: '',

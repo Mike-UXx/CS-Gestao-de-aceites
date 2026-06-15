@@ -35,6 +35,20 @@ const RENOVACAO_OPTIONS = [
   { value: 'personalizado', label: 'Personalizado…'   },
 ]
 
+const COBRANCA_FREQ_OPTIONS = [
+  { value: 3,  label: 'A cada 3 dias'  },
+  { value: 7,  label: 'A cada 7 dias'  },
+  { value: 15, label: 'A cada 15 dias' },
+]
+
+const COBRANCA_MAX_OPTIONS = [
+  { value: 1, label: 'Até 1 lembrete'   },
+  { value: 2, label: 'Até 2 lembretes'  },
+  { value: 3, label: 'Até 3 lembretes'  },
+  { value: 5, label: 'Até 5 lembretes'  },
+  { value: 0, label: 'Sem limite'       },
+]
+
 /* ─── Tipo da linha da tabela ────────────────────────────────── */
 interface DeptRow {
   key: string
@@ -144,6 +158,14 @@ export function RegrasStep() {
   const [renovacaoAtiva,  setRenovacaoAtiva]  = useState<boolean>(data.renovacaoAtiva ?? false)
   const [renovacao,       setRenovacao]       = useState<string>(data.renovacaoAceite ?? '12_meses')
   const [renovacaoMeses,  setRenovacaoMeses]  = useState<number>(data.renovacaoMesesPersonalizado || 6)
+
+  /* ── Cobrança automática e prazo de assinatura ── */
+  const [cobrancaAutomatica, setCobrancaAutomatica] = useState<boolean>(data.cobrancaAutomatica ?? false)
+  const [cobrancaFreq,       setCobrancaFreq]       = useState<number>(data.cobrancaFrequenciaDias ?? 3)
+  const [cobrancaMax,        setCobrancaMax]        = useState<number>(data.cobrancaMaxLembretes ?? 3)
+  const [prazoAtivo,         setPrazoAtivo]         = useState<boolean>(data.prazoAssinaturaAtivo ?? false)
+  const [prazoDias,          setPrazoDias]          = useState<number>(data.prazoAssinaturaDias || 7)
+  const [encerramentoAuto,   setEncerramentoAuto]   = useState<boolean>(data.encerramentoAutomatico ?? true)
 
   /* ── Tempo de leitura ── */
   const savedTempo = data.tempoLeituraGlobal ?? 0
@@ -331,6 +353,12 @@ export function RegrasStep() {
         deptConfig:                  exigeAceite ? deptConfig : {},
         canalEmail,
         canalWhatsapp,
+        cobrancaAutomatica:      exigeAceite ? cobrancaAutomatica : false,
+        cobrancaFrequenciaDias:  cobrancaFreq,
+        cobrancaMaxLembretes:    cobrancaMax,
+        prazoAssinaturaAtivo:    exigeAceite ? prazoAtivo : false,
+        prazoAssinaturaDias:     prazoDias,
+        encerramentoAutomatico:  exigeAceite ? encerramentoAuto : true,
       },
     })
     navigate('/documentos/criar/revisao')
@@ -482,7 +510,120 @@ export function RegrasStep() {
           </div>
         )}
 
-        {/* ══ 3. MECANISMOS DE GARANTIA ════════════════════════════════ */}
+        {/* ══ 3. COBRANÇA E PRAZO DE ASSINATURA — só exibe quando aceite = Sim ══ */}
+        {exigeAceite && (
+          <>
+            <SectionDivider
+              title="Cobrança e prazo de assinatura"
+              subtitle="Automatize os lembretes aos pendentes e defina quando o documento encerra — sem depender de cobrança manual."
+            />
+
+            {/* Cobrança automática */}
+            <div style={{ marginBottom: 20 }}>
+              <Checkbox
+                checked={cobrancaAutomatica}
+                onChange={(e) => setCobrancaAutomatica(e.target.checked)}
+                style={{ fontFamily: FONT, alignItems: 'flex-start' }}
+              >
+                <div>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>
+                    Cobrança automática de pendentes
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                    O sistema reenvia lembretes aos destinatários que ainda não aceitaram, pelos canais selecionados acima.
+                  </Text>
+                </div>
+              </Checkbox>
+
+              {cobrancaAutomatica && (
+                <div style={{ marginTop: 12, marginLeft: 24, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>Reenviar</Text>
+                  <Select
+                    value={cobrancaFreq}
+                    onChange={setCobrancaFreq}
+                    options={COBRANCA_FREQ_OPTIONS}
+                    style={{ width: 160, fontFamily: FONT }}
+                  />
+                  <Select
+                    value={cobrancaMax}
+                    onChange={setCobrancaMax}
+                    options={COBRANCA_MAX_OPTIONS}
+                    style={{ width: 170, fontFamily: FONT }}
+                  />
+                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>por destinatário</Text>
+                </div>
+              )}
+            </div>
+
+            {/* Prazo para assinatura */}
+            <div style={{ marginBottom: 20 }}>
+              <Checkbox
+                checked={prazoAtivo}
+                onChange={(e) => setPrazoAtivo(e.target.checked)}
+                style={{ fontFamily: FONT, alignItems: 'flex-start' }}
+              >
+                <div>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>
+                    Definir prazo para assinatura
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                    Data-limite para os destinatários aceitarem o documento. Diferente da vigência do conteúdo.
+                  </Text>
+                </div>
+              </Checkbox>
+
+              {prazoAtivo && (
+                <div style={{ marginTop: 12, marginLeft: 24, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>Aceitar em até</Text>
+                  <InputNumber
+                    min={1}
+                    max={365}
+                    value={prazoDias}
+                    onChange={(v) => setPrazoDias(v ?? 7)}
+                    style={{ width: 90, fontFamily: FONT }}
+                  />
+                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>dias após o envio</Text>
+                </div>
+              )}
+            </div>
+
+            {/* Encerramento */}
+            <div style={{ marginBottom: 4 }}>
+              <FieldLabel
+                label="Encerramento do documento"
+                tooltip="Quando o documento deixa de aceitar novos aceites e é finalizado."
+              />
+              <Radio.Group
+                value={encerramentoAuto ? 'auto' : 'manual'}
+                onChange={(e) => setEncerramentoAuto(e.target.value === 'auto')}
+                style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}
+              >
+                <Radio value="auto" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+                  <div>
+                    <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>
+                      Automático
+                    </Text>
+                    <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                      Encerra ao atingir 100% de aceite{prazoAtivo ? ' ou ao fim do prazo' : ''}, registrando quem ficou pendente.
+                    </Text>
+                  </div>
+                </Radio>
+                <Radio value="manual" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+                  <div>
+                    <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>
+                      Manual
+                    </Text>
+                    <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
+                      O documento fica aberto até você encerrá-lo na tela de detalhes.
+                    </Text>
+                  </div>
+                </Radio>
+              </Radio.Group>
+            </div>
+          </>
+        )}
+
+        {/* ══ 4. MECANISMOS DE GARANTIA ════════════════════════════════ */}
         {exigeAceite && (
           <>
             <SectionDivider
