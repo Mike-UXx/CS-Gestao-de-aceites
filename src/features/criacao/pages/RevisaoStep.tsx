@@ -17,9 +17,10 @@ import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
 import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
 import {
-  CLASSIFICATIONS, GESTOES_RESPONSAVEIS,
+  GESTOES_RESPONSAVEIS,
   DEPARTAMENTOS, COLABORADORES,
 } from '@/data/mockClassifications'
+import { classificacaoLabel } from '@/data/mockClassificacoes'
 import { colorTokens } from '@/theme/tokens'
 
 dayjs.locale('pt-br')
@@ -116,7 +117,7 @@ export function RevisaoStep() {
       : `${totalDest} pessoa${totalDest !== 1 ? 's' : ''}`
 
   /* ── Labels resolvidos ── */
-  const classificacoesLabels = (data.classificacoes ?? []).map((v) => labelOf(CLASSIFICATIONS, v))
+  const classificacoesLabels = (data.classificacoes ?? []).map((v) => classificacaoLabel(v))
   const gestaoLabel    = labelOf(GESTOES_RESPONSAVEIS, data.gestaoResponsavel)
   const tempoLabel     = TEMPO_LABELS[data.tempoLeituraGlobal] ?? `${data.tempoLeituraGlobal}s`
   const renovacaoLabel =

@@ -5,6 +5,7 @@
    Espelha o padrão da listagem de documentos (tabela única + coluna de
    gestão responsável), evitando um segundo Select de empresa/gestão.
 ───────────────────────────────────────────────────────────── */
+import { CLASSIFICATIONS } from './mockClassifications'
 
 export interface Classificacao {
   id: string
@@ -23,6 +24,25 @@ export interface Classificacao {
  * Em produção virá do RBAC/perfil; aqui simula um gestor com várias áreas.
  */
 export const USUARIO_GESTOES: string[] = ['compliance', 'ti', 'juridico', 'rh']
+
+/** Classificações de uma gestão (para o select filtrado na criação do documento). */
+export function classificacoesDaGestao(gestao: string): { value: string; label: string }[] {
+  return MOCK_CLASSIFICACOES
+    .filter((c) => c.gestao === gestao)
+    .map((c) => ({ value: c.id, label: c.nome }))
+}
+
+/**
+ * Resolve o rótulo de exibição de uma classificação.
+ * Aceita id do modelo novo (cl-xx) e, por compatibilidade, valor do modelo
+ * antigo plano (politicas, procedimentos…) usado em documentos pré-existentes.
+ */
+export function classificacaoLabel(key: string): string {
+  const novo = MOCK_CLASSIFICACOES.find((c) => c.id === key)
+  if (novo) return novo.nome
+  const antigo = CLASSIFICATIONS.find((c) => c.value === key)
+  return antigo?.label ?? key
+}
 
 export const MOCK_CLASSIFICACOES: Classificacao[] = [
   /* ── Compliance ── */
