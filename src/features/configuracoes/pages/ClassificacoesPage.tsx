@@ -78,6 +78,9 @@ export function ClassificacoesPage() {
   }
 
   const formValido = !!fNome.trim() && !!fGestao
+  // A gestão é imutável enquanto houver documentos vinculados (evita quebrar a
+  // coerência Gestão→Classificação e deixar documentos com classificação de outra área).
+  const gestaoBloqueada = !!editTarget && editTarget.documentos > 0
 
   function handleSave() {
     if (!formValido) return
@@ -264,8 +267,18 @@ export function ClassificacoesPage() {
           onChange={setFGestao}
           options={GESTAO_OPTIONS}
           placeholder="Selecione a gestão"
-          style={{ width: '100%', fontFamily: FONT, marginBottom: 16 }}
+          disabled={gestaoBloqueada}
+          style={{ width: '100%', fontFamily: FONT, marginBottom: gestaoBloqueada ? 6 : 16 }}
         />
+        {gestaoBloqueada && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+            <ExclamationCircleFilled style={{ color: colorTokens.warning, fontSize: 13, marginTop: 2, flexShrink: 0 }} />
+            <Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, lineHeight: '17px' }}>
+              Esta classificação tem <Text strong style={{ fontSize: 12 }}>{editTarget?.documentos}</Text> documento(s) vinculado(s),
+              então a gestão não pode ser alterada. Para movê-la de área, crie uma nova classificação na gestão de destino e migre os documentos.
+            </Text>
+          </div>
+        )}
 
         <FieldLabel label="Descrição" />
         <Input.TextArea
