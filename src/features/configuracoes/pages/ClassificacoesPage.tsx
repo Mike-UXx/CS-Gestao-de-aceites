@@ -18,8 +18,9 @@ import {
   ExclamationCircleFilled,
 } from '@ant-design/icons'
 import { GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
-import { MOCK_CLASSIFICACOES, USUARIO_GESTOES, type Classificacao } from '@/data/mockClassificacoes'
+import { MOCK_CLASSIFICACOES, type Classificacao } from '@/data/mockClassificacoes'
 import { colorTokens } from '@/theme/tokens'
+import { useRole } from '@/auth/RoleContext'
 
 const { Text } = Typography
 const FONT = "'Montserrat', sans-serif"
@@ -27,11 +28,6 @@ const COR_PADRAO = '#263072'
 
 const GESTAO_MAP = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value, g.label]))
 const gestaoLabel = (v: string) => GESTAO_MAP[v] ?? v
-
-/** Opções de gestão que o usuário pode usar (apenas as que ele acessa). */
-const GESTAO_OPTIONS = GESTOES_RESPONSAVEIS
-  .filter((g) => USUARIO_GESTOES.includes(g.value))
-  .map((g) => ({ value: g.value, label: g.label }))
 
 /* ── Tag colorida de classificação ──────────────────────────── */
 function ClassifTag({ nome, cor }: { nome: string; cor: string }) {
@@ -48,10 +44,17 @@ function ClassifTag({ nome, cor }: { nome: string; cor: string }) {
 
 export function ClassificacoesPage() {
   const navigate = useNavigate()
+  const { can, podeVerGestao } = useRole()
+  const canGerenciar = can('classificacao:gerenciar')
 
-  const [items, setItems] = useState<Classificacao[]>(
-    () => MOCK_CLASSIFICACOES.filter((c) => USUARIO_GESTOES.includes(c.gestao)),
-  )
+  // Mantém todas as classificações em estado (para CRUD); a visibilidade por
+  // gestão é aplicada no render conforme o perfil.
+  const [items, setItems] = useState<Classificacao[]>(() => [...MOCK_CLASSIFICACOES])
+
+  // Opções de gestão para criar: apenas as que o perfil acessa.
+  const GESTAO_OPTIONS = GESTOES_RESPONSAVEIS
+    .filter((g) => podeVerGestao(g.value))
+    .map((g) => ({ value: g.value, label: g.label }))
 
   /* ── Modal de criar/editar ── */
   const [formOpen,   setFormOpen]   = useState(false)
@@ -136,8 +139,11 @@ export function ClassificacoesPage() {
     setDeleteTarget(null)
   }
 
+  /* ── Lista visível conforme o escopo do perfil ── */
+  const visibleItems = items.filter((c) => podeVerGestao(c.gestao))
+
   /* ── Colunas (padrão da listagem de documentos) ── */
-  const gestoesPresentes = Array.from(new Set(items.map((c) => c.gestao)))
+  const gestoesPresentes = Array.from(new Set(visibleItems.map((c) => c.gestao)))
   const columns: ColumnsType<Classificacao> = [
     {
       title: 'Classificação', key: 'nome', width: 200,
@@ -168,9 +174,9 @@ export function ClassificacoesPage() {
         <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary }}>{n}</Text>
       ),
     },
-    {
+    ...(canGerenciar ? [{
       title: '', key: 'acoes', width: 56, align: 'right' as const,
-      render: (_, r) => {
+      render: (_: unknown, r: Classificacao) => {
         const menu: MenuProps['items'] = [
           { key: 'editar', icon: <EditOutlined />, label: 'Editar', onClick: () => openEdit(r) },
           { key: 'excluir', icon: <DeleteOutlined />, label: 'Excluir', danger: true, onClick: () => openDelete(r) },
@@ -183,7 +189,7 @@ export function ClassificacoesPage() {
           </Dropdown>
         )
       },
-    },
+    }] : []),
   ]
 
   return (
@@ -209,12 +215,14 @@ export function ClassificacoesPage() {
             Organize os documentos por classificações para facilitar a gestão e análise.
           </Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} style={{
-          height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
-          background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 10,
-        }}>
-          Classificação
-        </Button>
+        {canGerenciar && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} style={{
+            height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+            background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 10,
+          }}>
+            Classificação
+          </Button>
+        )}
       </div>
 
       {/* ── Tabela ── */}
@@ -222,7 +230,7 @@ export function ClassificacoesPage() {
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={items}
+          dataSource={visibleItems}
           pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
           locale={{ emptyText: 'Nenhuma classificação cadastrada.' }}
         />

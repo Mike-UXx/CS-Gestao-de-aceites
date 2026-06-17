@@ -27,6 +27,7 @@ import { colorTokens } from '@/theme/tokens'
 import { HistoricoDrawer } from '../components/HistoricoDrawer'
 import { PendenciasDrawer } from '../components/PendenciasDrawer'
 import { exportarRelatorioCSV, exportarRelatorioPDF } from '../utils/exportRelatorio'
+import { useRole } from '@/auth/RoleContext'
 
 dayjs.locale('pt-br')
 
@@ -148,6 +149,7 @@ function fmt(iso: string | null) {
 export function DetalhesPage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { can }  = useRole()
 
   const [pendenciasOpen,     setPendenciasOpen]     = useState(false)
   const [regrasDrawerOpen,   setRegrasDrawerOpen]   = useState(false)
@@ -233,49 +235,37 @@ export function DetalhesPage() {
     },
   ]
 
-  /* ── Menu de ações contextual ── */
-  const actionItems: MenuProps['items'] = [
-    ...(doc.status === 'Ativo' ? [{
-      key: 'editar',
-      icon: <EditOutlined />,
-      label: 'Editar documento',
-      onClick: () => navigate(`/documentos/${doc.id}/editar`),
-    }] : []),
-    ...(doc.status === 'Agendado' ? [{
-      key: 'editar-agendado',
-      icon: <EditOutlined />,
-      label: 'Editar documento',
-      onClick: () => navigate(`/documentos/${doc.id}/editar-agendado`),
-    }] : []),
-    {
-      key: 'historico',
-      icon: <AuditOutlined />,
-      label: 'Histórico de ações',
-      onClick: () => setHistoricoOpen(true),
-    },
-    { type: 'divider' as const },
-    {
-      key: 'audit-pdf',
-      icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
-      label: 'Exportar auditoria (PDF)',
-      onClick: handleExportPDF,
-    },
-    {
-      key: 'audit-excel',
-      icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
-      label: 'Exportar auditoria (Excel)',
-      onClick: handleExportCSV,
-    },
-    ...(doc.status === 'Ativo' ? [
-      { type: 'divider' as const },
-      {
-        key: 'inativar',
-        icon: <StopOutlined style={{ color: colorTokens.error }} />,
-        label: <span style={{ color: colorTokens.error }}>Inativar documento</span>,
-        onClick: () => setInativarOpen(true),
-      },
-    ] : []),
+  /* ── Menu de ações contextual (gated por perfil) ── */
+  const canGerenciar = can('documento:gerenciar')
+  const canExportar  = can('relatorio:exportar')
+
+  const editarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo'
+    ? [{ key: 'editar', icon: <EditOutlined />, label: 'Editar documento', onClick: () => navigate(`/documentos/${doc.id}/editar`) }]
+    : canGerenciar && doc.status === 'Agendado'
+    ? [{ key: 'editar-agendado', icon: <EditOutlined />, label: 'Editar documento', onClick: () => navigate(`/documentos/${doc.id}/editar-agendado`) }]
+    : []
+
+  const historicoItems: MenuProps['items'] = [
+    { key: 'historico', icon: <AuditOutlined />, label: 'Histórico de ações', onClick: () => setHistoricoOpen(true) },
   ]
+
+  const exportItems: MenuProps['items'] = canExportar ? [
+    { key: 'audit-pdf', icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />, label: 'Exportar auditoria (PDF)', onClick: handleExportPDF },
+    { key: 'audit-excel', icon: <FileExcelOutlined style={{ color: '#52c41a' }} />, label: 'Exportar auditoria (Excel)', onClick: handleExportCSV },
+  ] : []
+
+  const inativarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo' ? [
+    { key: 'inativar', icon: <StopOutlined style={{ color: colorTokens.error }} />, label: <span style={{ color: colorTokens.error }}>Inativar documento</span>, onClick: () => setInativarOpen(true) },
+  ] : []
+
+  // Junta as seções não-vazias com divisores entre elas (sem órfãos).
+  const actionItems: MenuProps['items'] = [
+    [...(editarItems ?? []), ...historicoItems],
+    exportItems ?? [],
+    inativarItems ?? [],
+  ]
+    .filter((s) => s.length > 0)
+    .flatMap((s, i) => (i === 0 ? s : [{ type: 'divider' as const }, ...s]))
 
   /* ── Handle inativar ── */
   function handleInativar() {
@@ -587,7 +577,7 @@ export function DetalhesPage() {
             </Row>
 
             {/* Botão download (status Concluído) */}
-            {doc.status === 'Concluído' && (
+            {doc.status === 'Concluído' && canExportar && (
               <div style={{ marginBottom: 24 }}>
                 <Dropdown menu={{ items: downloadItems }} trigger={['click']}>
                   <Button

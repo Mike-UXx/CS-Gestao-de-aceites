@@ -9,17 +9,29 @@ import {
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { colorTokens } from '@/theme/tokens'
+import { useRole } from '@/auth/RoleContext'
+import type { Permission } from '@/auth/roles'
 
 const { Sider } = Layout
 
-const navItems: MenuProps['items'] = [
+/** Item de navegação + permissão necessária (undefined = sempre visível). */
+interface NavDef {
+  key: string
+  icon: React.ReactNode
+  label: string
+  perm?: Permission
+  children?: { key: string; label: string }[]
+}
+
+const NAV_DEFS: NavDef[] = [
   { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   { key: '/documentos', icon: <FileTextOutlined />, label: 'Documentos' },
-  { key: '/estatisticas', icon: <BarChartOutlined />, label: 'Estatísticas' },
+  { key: '/estatisticas', icon: <BarChartOutlined />, label: 'Estatísticas', perm: 'dashboard:acessar' },
   {
     key: '/configuracoes',
     icon: <SettingOutlined />,
     label: 'Configurações',
+    perm: 'config:acessar',
     children: [
       { key: '/configuracoes/classificacoes', label: 'Classificações' },
     ],
@@ -37,6 +49,16 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { can } = useRole()
+
+  const navItems: MenuProps['items'] = NAV_DEFS
+    .filter((d) => !d.perm || can(d.perm))
+    .map((d) => ({
+      key: d.key,
+      icon: d.icon,
+      label: d.label,
+      ...(d.children ? { children: d.children } : {}),
+    }))
 
   // Item ativo = rota conhecida mais específica que casa com o pathname
   const selectedKey = ALL_KEYS

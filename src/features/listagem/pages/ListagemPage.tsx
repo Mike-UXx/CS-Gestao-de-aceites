@@ -30,6 +30,7 @@ import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassification
 import { colorTokens } from '@/theme/tokens'
 import { useDocumentForm, type DocumentFormData } from '@/features/criacao/context/DocumentFormContext'
 import { PendenciasDrawer } from '@/features/detalhes/components/PendenciasDrawer'
+import { useRole } from '@/auth/RoleContext'
 
 dayjs.locale('pt-br')
 dayjs.extend(relativeTime)
@@ -381,6 +382,7 @@ export function ListagemPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { dispatch } = useDocumentForm()
+  const { can, podeVerGestao } = useRole()
 
   const [search,           setSearch]           = useState('')
   const [activeTab,        setActiveTab]        = useState('todos')
@@ -454,10 +456,10 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela (sem rascunhos) ── */
+  /* ── Documentos da tabela (sem rascunhos; escopado por gestão do perfil) ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho')
-  }, [])
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
+  }, [podeVerGestao])
 
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
@@ -586,8 +588,12 @@ export function ListagemPage() {
   }, [])
 
   /* ── Menu de ações por status (conforme PDF handoff) ── */
+  /* Chaves de ações de escrita — ocultadas para perfis sem 'documento:gerenciar' */
+  const WRITE_ACTION_KEYS = new Set(['editar-doc', 'editar', 'nova-versao', 'inativar', 'excluir', 'duplicar'])
+
   function actionsMenu(record: DocumentoComMeta): MenuProps['items'] {
     const duplicar = { key: 'duplicar', icon: <CopyOutlined />, label: 'Duplicar documento', onClick: () => handleDuplicar(record) }
+    const full = ((): MenuProps['items'] => {
     switch (record.status) {
       case 'Ativo':
         return [
@@ -626,6 +632,11 @@ export function ListagemPage() {
       default:
         return []
     }
+    })()
+    // Perfis sem permissão de gerenciar veem apenas ações de leitura (ex.: "Ver relatórios"),
+    // sem divisores órfãos.
+    if (can('documento:gerenciar')) return full
+    return (full ?? []).filter((it) => it && it.type !== 'divider' && !WRITE_ACTION_KEYS.has((it as { key?: string }).key ?? ''))
   }
 
   /* ── Colunas da tabela ── */
@@ -878,14 +889,18 @@ export function ListagemPage() {
     },
     {
       title: '', key: 'acoes', width: 56, align: 'right' as const,
-      render: (_: unknown, record) => (
-        <Dropdown menu={{ items: actionsMenu(record) }} trigger={['click']} placement="bottomRight">
-          <Button type="text" icon={<MoreOutlined style={{ fontSize: 15 }} />} style={{
-            width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            color: colorTokens.textSecondary, borderRadius: 6,
-          }} />
-        </Dropdown>
-      ),
+      render: (_: unknown, record) => {
+        const items = actionsMenu(record)
+        if (!items || items.length === 0) return null
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+            <Button type="text" icon={<MoreOutlined style={{ fontSize: 15 }} />} style={{
+              width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              color: colorTokens.textSecondary, borderRadius: 6,
+            }} />
+          </Dropdown>
+        )
+      },
     },
   ]
 
@@ -992,12 +1007,14 @@ export function ListagemPage() {
             Gerencie todos os termos, políticas e documentos enviados para aceite dentro da organização.
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
-          height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
-          background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8, marginTop: 4,
-        }}>
-          Documento
-        </Button>
+        {can('documento:criar') && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
+            height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+            background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8, marginTop: 4,
+          }}>
+            Documento
+          </Button>
+        )}
       </div>
 
       {/* ════════════════════════════════════════════════════════

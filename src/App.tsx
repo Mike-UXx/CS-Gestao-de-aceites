@@ -16,8 +16,17 @@ import { ConfiguracoesPage, ClassificacoesPage } from '@/features/configuracoes'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
 import { colorTokens } from '@/theme/tokens'
+import { RoleProvider, useRole } from '@/auth/RoleContext'
+import type { Permission } from '@/auth/roles'
+import type { ReactNode } from 'react'
 
 const { Content } = Layout
+
+/** Guarda de rota: redireciona se o perfil não tiver a permissão. */
+function RequirePermission({ perm, children }: { perm: Permission; children: ReactNode }) {
+  const { can } = useRole()
+  return can(perm) ? <>{children}</> : <Navigate to="/documentos" replace />
+}
 
 function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
@@ -38,13 +47,13 @@ function AppShell() {
                 <Route path="/documentos/:id/editar" element={<EditarAtivoPage />} />
                 <Route path="/documentos/:id/editar-agendado" element={<EditarAgendadoPage />} />
                 <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
-                <Route path="/documentos/criar" element={<SelectTemplate />} />
-                <Route path="/documentos/criar/informacoes" element={<InformacoesStep />} />
-                <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
-                <Route path="/documentos/criar/regras" element={<RegrasStep />} />
-                <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
-                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-                <Route path="/configuracoes/classificacoes" element={<ClassificacoesPage />} />
+                <Route path="/documentos/criar" element={<RequirePermission perm="documento:criar"><SelectTemplate /></RequirePermission>} />
+                <Route path="/documentos/criar/informacoes" element={<RequirePermission perm="documento:criar"><InformacoesStep /></RequirePermission>} />
+                <Route path="/documentos/criar/destinatarios" element={<RequirePermission perm="documento:criar"><DestinatariosStep /></RequirePermission>} />
+                <Route path="/documentos/criar/regras" element={<RequirePermission perm="documento:criar"><RegrasStep /></RequirePermission>} />
+                <Route path="/documentos/criar/revisao" element={<RequirePermission perm="documento:criar"><RevisaoStep /></RequirePermission>} />
+                <Route path="/configuracoes" element={<RequirePermission perm="config:acessar"><ConfiguracoesPage /></RequirePermission>} />
+                <Route path="/configuracoes/classificacoes" element={<RequirePermission perm="config:acessar"><ClassificacoesPage /></RequirePermission>} />
                 <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
             </div>
@@ -78,9 +87,11 @@ export default function App() {
       }}
     >
       <BrowserRouter>
-        <DocumentFormProvider>
-          <AppShell />
-        </DocumentFormProvider>
+        <RoleProvider>
+          <DocumentFormProvider>
+            <AppShell />
+          </DocumentFormProvider>
+        </RoleProvider>
       </BrowserRouter>
     </ConfigProvider>
   )
