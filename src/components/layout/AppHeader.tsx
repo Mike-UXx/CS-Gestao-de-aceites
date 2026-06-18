@@ -1,17 +1,89 @@
-import { Avatar, Input, Space, Typography, Dropdown, Tag } from 'antd'
+import { Avatar, Input, Space, Typography, Dropdown, Tag, Badge, Popover, Empty } from 'antd'
 import type { MenuProps } from 'antd'
-import { SearchOutlined, ClockCircleOutlined, DownOutlined, CheckOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import {
+  SearchOutlined, ClockCircleOutlined, DownOutlined, CheckOutlined,
+  BellOutlined, ExclamationCircleFilled, ClockCircleFilled, TeamOutlined, ArrowRightOutlined,
+} from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { colorTokens } from '@/theme/tokens'
 import { useRole } from '@/auth/RoleContext'
 import { ROLES, roleMeta } from '@/auth/roles'
+import { buildNotificacoes, type NotificacaoTipo } from '@/features/notificacoes/utils/notificacoes'
 
 const { Text } = Typography
 
+/* Ícone + cor por tipo de notificação */
+const NOTIF_STYLE: Record<NotificacaoTipo, { icon: React.ReactNode; color: string }> = {
+  vencido:   { icon: <ExclamationCircleFilled />, color: '#CF1322' },
+  vencendo:  { icon: <ClockCircleFilled />,        color: '#D46B08' },
+  pendencia: { icon: <TeamOutlined />,             color: colorTokens.primary },
+}
+
 export function AppHeader() {
   const [time, setTime] = useState('')
-  const { role, setRole } = useRole()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const navigate = useNavigate()
+  const { role, setRole, podeVerGestao } = useRole()
   const meta = roleMeta(role)
+
+  /* Notificações escopadas pela gestão do perfil ativo */
+  const notificacoes = useMemo(() => buildNotificacoes(podeVerGestao), [podeVerGestao])
+
+  function abrirDocumento(docId: string) {
+    setNotifOpen(false)
+    navigate(`/documentos/${docId}`)
+  }
+
+  const notifPanel = (
+    <div style={{ width: 340 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 4px 10px', borderBottom: '1px solid #F0F0F0' }}>
+        <Text strong style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, color: colorTokens.textPrimary }}>
+          Notificações
+        </Text>
+        {notificacoes.length > 0 && (
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#D4380D', background: '#FFF2E8', border: '1px solid #ffbb96', borderRadius: 10, padding: '1px 8px' }}>
+            {notificacoes.length}
+          </span>
+        )}
+      </div>
+
+      {notificacoes.length === 0 ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={
+          <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, color: colorTokens.textSecondary }}>Tudo em dia por aqui.</span>
+        } style={{ padding: '20px 0' }} />
+      ) : (
+        <div style={{ maxHeight: 380, overflowY: 'auto', paddingTop: 4 }}>
+          {notificacoes.map((n) => {
+            const s = NOTIF_STYLE[n.tipo]
+            return (
+              <div
+                key={n.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => abrirDocumento(n.docId)}
+                onKeyDown={(e) => { if (e.key === 'Enter') abrirDocumento(n.docId) }}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 6px', borderRadius: 8, cursor: 'pointer', borderBottom: '1px solid #F7F7F7' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#FAFAFA' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <span style={{ color: s.color, fontSize: 15, marginTop: 2, flexShrink: 0 }}>{s.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {n.titulo}
+                  </Text>
+                  <Text style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 12, color: s.color }}>
+                    {n.mensagem}
+                  </Text>
+                </div>
+                <ArrowRightOutlined style={{ color: colorTokens.textMuted, fontSize: 12, marginTop: 3, flexShrink: 0 }} />
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 
   const roleItems: MenuProps['items'] = [
     {
@@ -88,8 +160,20 @@ export function AppHeader() {
         />
       </div>
 
-      {/* Right: clock + user */}
+      {/* Right: bell + clock + user */}
       <Space size={16} style={{ minWidth: 220, justifyContent: 'flex-end' }}>
+        <Popover
+          open={notifOpen}
+          onOpenChange={setNotifOpen}
+          trigger="click"
+          placement="bottomRight"
+          content={notifPanel}
+          styles={{ body: { padding: 12 } }}
+        >
+          <Badge count={notificacoes.length} size="small" offset={[-2, 2]} style={{ boxShadow: 'none' }}>
+            <BellOutlined style={{ fontSize: 18, color: colorTokens.textSecondary, cursor: 'pointer' }} />
+          </Badge>
+        </Popover>
         <Space size={4}>
           <ClockCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 14 }} />
           <Text style={{ fontSize: 13, color: colorTokens.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
