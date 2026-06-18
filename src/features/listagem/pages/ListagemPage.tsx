@@ -17,7 +17,7 @@ import {
   CopyOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
   ExclamationCircleOutlined, HistoryOutlined,
-  HolderOutlined, TeamOutlined,
+  HolderOutlined, TeamOutlined, AuditOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -468,6 +468,7 @@ export function ListagemPage() {
       if (activeTab === 'exigem_aceite') return doc.tipo === 'adesao'
       if (activeTab === 'informativos')  return doc.tipo === 'ciencia'
       if (activeTab === 'agendados')     return doc.status === 'Agendado'
+      if (activeTab === 'em_revisao')    return doc.status === 'Em revisão'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
       return matchesSmartFilters(doc, custom.smartFilters)
@@ -489,6 +490,7 @@ export function ListagemPage() {
     exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
     informativos:   tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
     agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
+    em_revisao:     tableDocumentos.filter((d) => d.status === 'Em revisão').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -506,6 +508,7 @@ export function ListagemPage() {
     { key: 'exigem_aceite', label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
     { key: 'informativos',  label: tabLabel('Informativos',   counts.informativos) },
     { key: 'agendados',     label: tabLabel('Agendados',      counts.agendados) },
+    { key: 'em_revisao',    label: tabLabel('Em revisão',     counts.em_revisao) },
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
@@ -595,6 +598,10 @@ export function ListagemPage() {
     const duplicar = { key: 'duplicar', icon: <CopyOutlined />, label: 'Duplicar documento', onClick: () => handleDuplicar(record) }
     const full = ((): MenuProps['items'] => {
     switch (record.status) {
+      case 'Em revisão':
+        return [
+          { key: 'revisar', icon: <AuditOutlined />, label: 'Revisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
+        ]
       case 'Ativo':
         return [
           { key: 'editar-doc',  icon: <EditOutlined />,               label: 'Editar detalhes',   onClick: () => navigate(`/documentos/${record.id}/editar`) },
@@ -866,7 +873,8 @@ export function ListagemPage() {
       sorter: (a, b) => a.status.localeCompare(b.status, 'pt-BR'),
       render: (status: DocumentoStatus) => {
         const palette: Record<DocumentoStatus, { dot: string; color: string; bg: string; border: string }> = {
-          Ativo:     { dot: '#52c41a', color: '#389e0d', bg: '#f6ffed',  border: '#b7eb8f' },
+          Ativo:        { dot: '#52c41a', color: '#389e0d', bg: '#f6ffed',  border: '#b7eb8f' },
+          'Em revisão': { dot: '#2F54EB', color: '#1D39C4', bg: '#F0F5FF',  border: '#adc6ff' },
           Agendado:  { dot: '#FA8C16', color: '#D46B08', bg: '#FFF7E6',  border: '#ffd591' },
           Rascunho:  { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#D9D9D9' },
           Concluído: { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#BFBFBF' },
@@ -924,6 +932,11 @@ export function ListagemPage() {
     // Agendados → Título | Classificações | Responsável | Destinatários | Agendado para | Ações
     if (activeTab === 'agendados') {
       const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // Em revisão → Título | Classificações | Responsável | Destinatários | Status | Ações
+    if (activeTab === 'em_revisao') {
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
     // Custom tabs: respeita ordem drag-and-drop

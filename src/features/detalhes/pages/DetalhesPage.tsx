@@ -3,7 +3,7 @@
    US 2.4–2.8 | Página de Detalhes do Documento — redesign completo
    Layout: Main Card · KPI Dashboard · Grid Info · Deptos · Timeline
 ───────────────────────────────────────────────────────────── */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col, Divider,
@@ -23,6 +23,7 @@ import {
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
+import type { ComentarioRevisao } from '@/features/listagem/types/documento'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 import { HistoricoDrawer } from '../components/HistoricoDrawer'
@@ -160,6 +161,8 @@ export function DetalhesPage() {
   const [historicoOpen,      setHistoricoOpen]      = useState(false)
   const [encerrarOpen,       setEncerrarOpen]       = useState(false)
   const [encerrarLoading,    setEncerrarLoading]    = useState(false)
+  const [revisaoComentarios, setRevisaoComentarios] = useState<ComentarioRevisao[]>([])
+  const [novoComentario,     setNovoComentario]     = useState('')
 
   const doc = MOCK_DOCUMENTOS.find((d) => d.id === id)
 
@@ -202,10 +205,11 @@ export function DetalhesPage() {
 
   /* ── Status badge palette ── */
   const statusPalette: Record<string, { border: string; color: string }> = {
-    Ativo:     { border: '#52c41a', color: '#389e0d' },
-    Agendado:  { border: '#FA8C16', color: '#D46B08' },
-    Concluído: { border: '#BFBFBF', color: '#8C8C8C' },
-    Rascunho:  { border: '#D9D9D9', color: '#8C8C8C' },
+    Ativo:        { border: '#52c41a', color: '#389e0d' },
+    'Em revisão': { border: '#2F54EB', color: '#1D39C4' },
+    Agendado:     { border: '#FA8C16', color: '#D46B08' },
+    Concluído:    { border: '#BFBFBF', color: '#8C8C8C' },
+    Rascunho:     { border: '#D9D9D9', color: '#8C8C8C' },
   }
   const sp = statusPalette[doc.status] ?? statusPalette.Rascunho
 
@@ -270,6 +274,45 @@ export function DetalhesPage() {
   ]
     .filter((s) => s.length > 0)
     .flatMap((s, i) => (i === 0 ? s : [{ type: 'divider' as const }, ...s]))
+
+  /* ── Fluxo de aprovação: comentários e decisões ── */
+  useEffect(() => {
+    setRevisaoComentarios(doc?.comentariosRevisao ?? [])
+    setNovoComentario('')
+  }, [doc?.id])
+
+  const papelAtual: ComentarioRevisao['papel'] = can('documento:aprovar') ? 'Aprovador' : 'Gestor'
+
+  function addComentario(texto: string, tipo: ComentarioRevisao['tipo']) {
+    const c: ComentarioRevisao = {
+      id: `c-${Date.now()}`, autor: 'Você', papel: papelAtual, texto, data: new Date().toISOString(), tipo,
+    }
+    setRevisaoComentarios((prev) => [...prev, c])
+  }
+
+  function handleComentar() {
+    if (!novoComentario.trim()) return
+    addComentario(novoComentario.trim(), 'comentario')
+    setNovoComentario('')
+    message.success('Comentário adicionado.')
+  }
+
+  function handleAprovar() {
+    addComentario('Documento aprovado para publicação.', 'aprovacao')
+    message.success('Documento aprovado. Ele pode ser publicado.')
+    setTimeout(() => navigate('/documentos'), 600)
+  }
+
+  function handleSolicitarAjustes() {
+    if (!novoComentario.trim()) {
+      message.warning('Escreva o que precisa ser ajustado antes de solicitar.')
+      return
+    }
+    addComentario(novoComentario.trim(), 'ajuste')
+    setNovoComentario('')
+    message.success('Ajustes solicitados ao gestor responsável.')
+    setTimeout(() => navigate('/documentos'), 600)
+  }
 
   /* ── Handle encerrar (finaliza a coleta de aceites) ── */
   function handleEncerrar() {
@@ -406,6 +449,87 @@ export function DetalhesPage() {
         </div>
 
         <Divider style={{ margin: '20px 0' }} />
+
+        {/* ══ Fluxo de aprovação (status "Em revisão") ═════════ */}
+        {doc.status === 'Em revisão' && (
+          <>
+            <div style={{
+              background: '#F0F5FF', border: '1px solid #adc6ff',
+              borderRadius: 8, padding: '14px 18px',
+              display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20,
+            }}>
+              <AuditOutlined style={{ fontSize: 22, color: '#1D39C4', flexShrink: 0 }} />
+              <div>
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: '#1D39C4', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 2 }}>
+                  Aguardando aprovação
+                </Typography.Text>
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, color: colorTokens.textPrimary }}>
+                  {doc.enviadoParaAprovacaoEm
+                    ? <>Enviado para aprovação em <strong>{fmt(doc.enviadoParaAprovacaoEm)}</strong>.</>
+                    : 'Documento aguardando revisão de um aprovador.'}
+                  {can('documento:aprovar') ? ' Revise os comentários e tome uma decisão abaixo.' : ' Acompanhe os comentários do aprovador abaixo.'}
+                </Typography.Text>
+              </div>
+            </div>
+
+            {/* Thread de comentários */}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 12 }}>
+              Comentários da revisão ({revisaoComentarios.length})
+            </Typography.Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {revisaoComentarios.map((c) => {
+                const isAjuste = c.tipo === 'ajuste'
+                const isAprov = c.tipo === 'aprovacao'
+                const accent = isAjuste ? '#D46B08' : isAprov ? '#389e0d' : colorTokens.primary
+                return (
+                  <div key={c.id} style={{
+                    border: `1px solid ${accent}22`, background: `${accent}0D`,
+                    borderRadius: 8, padding: '10px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.autor}</Typography.Text>
+                      <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, color: accent, background: `${accent}1A`, border: `1px solid ${accent}55`, borderRadius: 4, padding: '0 6px' }}>
+                        {c.papel}{isAjuste ? ' · ajuste' : isAprov ? ' · aprovação' : ''}
+                      </span>
+                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(c.data)}</Typography.Text>
+                    </div>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.texto}</Typography.Text>
+                  </div>
+                )
+              })}
+              {revisaoComentarios.length === 0 && (
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhum comentário ainda.</Typography.Text>
+              )}
+            </div>
+
+            {/* Caixa de comentário + ações */}
+            <Input.TextArea
+              value={novoComentario}
+              onChange={(e) => setNovoComentario(e.target.value)}
+              placeholder={can('documento:aprovar') ? 'Comente ou descreva os ajustes necessários…' : 'Adicione um comentário…'}
+              rows={3}
+              maxLength={400}
+              style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 12 }}
+            />
+            <Space wrap>
+              <Button onClick={handleComentar} disabled={!novoComentario.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
+                Comentar
+              </Button>
+              {can('documento:aprovar') && (
+                <>
+                  <Button onClick={handleSolicitarAjustes} icon={<EditOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>
+                    Solicitar ajustes
+                  </Button>
+                  <Button type="primary" onClick={handleAprovar} icon={<CheckCircleOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>
+                    Aprovar documento
+                  </Button>
+                </>
+              )}
+            </Space>
+
+            <Divider style={{ margin: '20px 0' }} />
+          </>
+        )}
 
         {/* ══ Banner Agendado ══════════════════════════════════ */}
         {doc.status === 'Agendado' && (

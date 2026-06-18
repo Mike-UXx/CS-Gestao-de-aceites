@@ -3,7 +3,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
 import {
   Typography, Button, Space, Modal, Tag, Divider,
-  Tooltip, message, Checkbox, DatePicker, ConfigProvider,
+  Tooltip, message, Checkbox, DatePicker, ConfigProvider, Radio,
 } from 'antd'
 import {
   FilePdfOutlined, EditOutlined,
@@ -91,6 +91,8 @@ export function RevisaoStep() {
 
   const [showCancel,  setShowCancel]  = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  /* ── Finalização: publicar direto ou enviar para aprovação ── */
+  const [enviarAprovacao, setEnviarAprovacao] = useState(false)
 
   /* ── Agendamento — estado local, validado apenas aqui ── */
   const [agendarEnvio,   setAgendarEnvio]   = useState<boolean>(!(data.envioImediato ?? true))
@@ -104,7 +106,9 @@ export function RevisaoStep() {
   const isToday = dataLancamento ? dataLancamento.startOf('day').isSame(hoje) : false
 
   /* ── Rótulo do botão principal ── */
-  const actionLabel = agendarEnvio ? 'Confirmar agendamento' : 'Publicar agora'
+  const actionLabel = enviarAprovacao
+    ? 'Enviar para aprovação'
+    : agendarEnvio ? 'Confirmar agendamento' : 'Publicar agora'
 
   /* ── Contagem de destinatários ── */
   const totalDest =
@@ -143,7 +147,7 @@ export function RevisaoStep() {
 
   /* ── Avançar: valida, persiste no contexto e abre confirm ── */
   function handleNext() {
-    if (agendarEnvio && !dataLancamento) {
+    if (!enviarAprovacao && agendarEnvio && !dataLancamento) {
       setDataError('Selecione a data e hora do envio para continuar.')
       return
     }
@@ -164,9 +168,11 @@ export function RevisaoStep() {
     clearDraft()
     dispatch({ type: 'RESET' })
     message.success(
-      !agendarEnvio
-        ? 'Documento publicado e enviado com sucesso!'
-        : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
+      enviarAprovacao
+        ? 'Documento enviado para aprovação. Você será avisado quando for revisado.'
+        : !agendarEnvio
+          ? 'Documento publicado e enviado com sucesso!'
+          : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
       4,
     )
     navigate('/documentos')
@@ -475,11 +481,47 @@ export function RevisaoStep() {
 
       </div>{/* /card resumo */}
 
-      {/* ══ BLOCO FINAL — Agendamento de envio ═══════════════════════ */}
+      {/* ══ BLOCO FINAL — Finalização (publicar / aprovação / agendamento) ═══ */}
       <div style={{
         background: '#fff', borderRadius: 8, padding: '24px 28px',
         width: '100%', marginTop: 12,
       }}>
+        {/* Como finalizar */}
+        <Text style={{ display: 'block', fontSize: 13, fontFamily: FONT, fontWeight: 600, color: colorTokens.textPrimary, marginBottom: 10 }}>
+          Como deseja finalizar?
+        </Text>
+        <Radio.Group
+          value={enviarAprovacao ? 'aprovacao' : 'publicar'}
+          onChange={(e) => {
+            const ap = e.target.value === 'aprovacao'
+            setEnviarAprovacao(ap)
+            if (ap) { setAgendarEnvio(false); setDataLancamento(null); setDataError('') }
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: enviarAprovacao ? 4 : 20 }}
+        >
+          <Radio value="publicar" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+            <div>
+              <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Publicar agora</Text>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>O documento é publicado e enviado aos destinatários.</Text>
+            </div>
+          </Radio>
+          <Radio value="aprovacao" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+            <div>
+              <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Enviar para aprovação</Text>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>Vai para revisão de um aprovador antes de ser publicado.</Text>
+            </div>
+          </Radio>
+        </Radio.Group>
+
+        {enviarAprovacao && (
+          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 4 }}>
+            <Text style={{ fontFamily: FONT, fontSize: 12, color: '#1D39C4' }}>
+              O documento entrará em <strong>Em revisão</strong>. O agendamento de envio é definido após a aprovação.
+            </Text>
+          </div>
+        )}
+
+        {!enviarAprovacao && (<>
         <Checkbox
           checked={agendarEnvio}
           onChange={(e) => {
@@ -539,6 +581,7 @@ export function RevisaoStep() {
             </div>
           </ConfigProvider>
         )}
+        </>)}
       </div>
 
       {/* Modal de confirmação */}

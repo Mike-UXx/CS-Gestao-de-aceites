@@ -9,6 +9,7 @@ export type Role = 'admin' | 'gestor' | 'aprovador' | 'auditor'
 export type Permission =
   | 'documento:criar'        // iniciar o wizard de criação
   | 'documento:gerenciar'    // editar, inativar, excluir, nova versão, duplicar, encerrar
+  | 'documento:aprovar'      // aprovar / solicitar ajustes em documentos "Em revisão"
   | 'relatorio:exportar'     // exportar relatórios de auditoria (CSV/PDF)
   | 'classificacao:gerenciar'// criar/editar/excluir classificações
   | 'config:acessar'         // abrir Configurações
@@ -34,7 +35,7 @@ export const DEFAULT_ROLE: Role = 'admin'
 /** Permissões por perfil. */
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   admin: [
-    'documento:criar', 'documento:gerenciar', 'relatorio:exportar',
+    'documento:criar', 'documento:gerenciar', 'documento:aprovar', 'relatorio:exportar',
     'classificacao:gerenciar', 'config:acessar', 'dashboard:acessar',
   ],
   // Gestor: cria/gerencia documentos da sua área e usa classificações,
@@ -43,9 +44,9 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'documento:criar', 'documento:gerenciar', 'relatorio:exportar',
     'config:acessar', 'dashboard:acessar',
   ],
-  // Aprovador: revisa/aprova; leitura nos demais fluxos.
+  // Aprovador: revisa/aprova documentos; leitura nos demais fluxos.
   aprovador: [
-    'dashboard:acessar',
+    'documento:aprovar', 'dashboard:acessar',
   ],
   // Auditor: somente leitura + exportação de relatórios.
   auditor: [
