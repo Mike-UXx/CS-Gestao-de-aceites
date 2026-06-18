@@ -18,6 +18,7 @@ import {
   StopOutlined, ExclamationCircleOutlined, HistoryOutlined,
   SafetyCertificateOutlined, FieldTimeOutlined, InfoCircleOutlined,
   FileTextOutlined, AuditOutlined, SwapOutlined, ArrowLeftOutlined,
+  BellOutlined, ClockCircleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -157,6 +158,8 @@ export function DetalhesPage() {
   const [justificativa,      setJustificativa]      = useState('')
   const [inativarLoading,    setInativarLoading]    = useState(false)
   const [historicoOpen,      setHistoricoOpen]      = useState(false)
+  const [encerrarOpen,       setEncerrarOpen]       = useState(false)
+  const [encerrarLoading,    setEncerrarLoading]    = useState(false)
 
   const doc = MOCK_DOCUMENTOS.find((d) => d.id === id)
 
@@ -254,7 +257,8 @@ export function DetalhesPage() {
     { key: 'audit-excel', icon: <FileExcelOutlined style={{ color: '#52c41a' }} />, label: 'Exportar auditoria (Excel)', onClick: handleExportCSV },
   ] : []
 
-  const inativarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo' ? [
+  const finalizarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo' ? [
+    { key: 'encerrar', icon: <CheckCircleOutlined />, label: 'Encerrar documento', onClick: () => setEncerrarOpen(true) },
     { key: 'inativar', icon: <StopOutlined style={{ color: colorTokens.error }} />, label: <span style={{ color: colorTokens.error }}>Inativar documento</span>, onClick: () => setInativarOpen(true) },
   ] : []
 
@@ -262,10 +266,21 @@ export function DetalhesPage() {
   const actionItems: MenuProps['items'] = [
     [...(editarItems ?? []), ...historicoItems],
     exportItems ?? [],
-    inativarItems ?? [],
+    finalizarItems ?? [],
   ]
     .filter((s) => s.length > 0)
     .flatMap((s, i) => (i === 0 ? s : [{ type: 'divider' as const }, ...s]))
+
+  /* ── Handle encerrar (finaliza a coleta de aceites) ── */
+  function handleEncerrar() {
+    setEncerrarLoading(true)
+    setTimeout(() => {
+      setEncerrarLoading(false)
+      setEncerrarOpen(false)
+      message.success('Documento encerrado. A coleta de aceites foi finalizada.')
+      navigate('/documentos')
+    }, 800)
+  }
 
   /* ── Handle inativar ── */
   function handleInativar() {
@@ -593,6 +608,90 @@ export function DetalhesPage() {
                 </Dropdown>
               </div>
             )}
+
+            {/* ══ Cobrança e prazo de assinatura (config da criação) ══ */}
+            {doc.status === 'Ativo' && (doc.cobrancaAutomatica || doc.prazoAssinaturaEm) && (() => {
+              const proxDias = doc.proximoLembreteEm ? dayjs(doc.proximoLembreteEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+              const prazoDias = doc.prazoAssinaturaEm ? dayjs(doc.prazoAssinaturaEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+              const maxTxt = doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 ? ` de ${doc.cobrancaMaxLembretes}` : ''
+              const limiteAtingido = !!doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 && (doc.lembretesEnviados ?? 0) >= doc.cobrancaMaxLembretes
+              return (
+                <div style={{
+                  border: `1px solid ${colorTokens.primary}22`, background: '#F7F8FF',
+                  borderRadius: 8, padding: '16px 20px', marginBottom: 24,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                    <BellOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
+                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                      Cobrança e prazo de assinatura
+                    </Typography.Text>
+                    <span style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textMuted }}>· simulado</span>
+                  </div>
+                  <Row gutter={[16, 12]}>
+                    {/* Cobrança automática */}
+                    <Col xs={24} sm={8}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <BellOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                        <div>
+                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Cobrança automática</Typography.Text>
+                          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                            {doc.cobrancaAutomatica ? `A cada ${doc.cobrancaFrequenciaDias} dias` : 'Desativada'}
+                          </Typography.Text>
+                          {doc.cobrancaAutomatica && (
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
+                              {doc.lembretesEnviados ?? 0}{maxTxt} lembrete(s) enviado(s)
+                            </Typography.Text>
+                          )}
+                        </div>
+                      </div>
+                    </Col>
+                    {/* Próximo lembrete */}
+                    {doc.cobrancaAutomatica && (
+                      <Col xs={24} sm={8}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <ClockCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                          <div>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Próximo lembrete</Typography.Text>
+                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: limiteAtingido ? colorTokens.textSecondary : colorTokens.textPrimary }}>
+                              {limiteAtingido
+                                ? 'Limite atingido'
+                                : proxDias === null ? '—'
+                                : proxDias <= 0 ? 'Hoje'
+                                : `Em ${proxDias} dia(s)`}
+                            </Typography.Text>
+                            {!limiteAtingido && doc.proximoLembreteEm && (
+                              <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
+                                {fmt(doc.proximoLembreteEm)}
+                              </Typography.Text>
+                            )}
+                          </div>
+                        </div>
+                      </Col>
+                    )}
+                    {/* Prazo de assinatura */}
+                    {doc.prazoAssinaturaEm && (
+                      <Col xs={24} sm={8}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <FieldTimeOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                          <div>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Prazo para assinatura</Typography.Text>
+                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textPrimary }}>
+                              {fmt(doc.prazoAssinaturaEm)}
+                            </Typography.Text>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textSecondary, display: 'block' }}>
+                              {prazoDias === null ? '' : prazoDias < 0 ? `Encerrado há ${Math.abs(prazoDias)} dia(s)` : prazoDias === 0 ? 'Encerra hoje' : `Faltam ${prazoDias} dia(s)`}
+                            </Typography.Text>
+                          </div>
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
+                    Encerramento: <strong>{doc.encerramentoAutomatico ? 'Automático (100% de aceite ou fim do prazo)' : 'Manual'}</strong>
+                  </Typography.Text>
+                </div>
+              )
+            })()}
 
             <Divider style={{ margin: '0 0 24px' }} />
           </>
@@ -947,6 +1046,35 @@ export function DetalhesPage() {
       </div>
 
       <PendenciasDrawer open={pendenciasOpen} onClose={() => setPendenciasOpen(false)} doc={doc} />
+
+      {/* ════ Modal: Encerrar Documento (finaliza coleta) ══════ */}
+      <Modal
+        open={encerrarOpen}
+        onCancel={() => setEncerrarOpen(false)}
+        title={
+          <Space>
+            <CheckCircleOutlined style={{ color: colorTokens.primary, fontSize: 18 }} />
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              Encerrar Documento
+            </Typography.Text>
+          </Space>
+        }
+        footer={[
+          <Button key="cancel" onClick={() => setEncerrarOpen(false)} style={{ fontFamily: FONT, borderRadius: 8 }}>Cancelar</Button>,
+          <Button key="ok" type="primary" loading={encerrarLoading} onClick={handleEncerrar} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: colorTokens.primary, borderColor: colorTokens.primary }}>
+            Encerrar documento
+          </Button>,
+        ]}
+        width={480}
+        centered
+        destroyOnHidden
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+          A coleta de aceites de <strong>{doc.titulo}</strong> será finalizada e o documento passará para <strong>Concluído</strong>.
+          {pendentes > 0 && <> Restam <strong>{pendentes}</strong> destinatário(s) pendente(s), que ficarão registrados como não concluídos.</>}
+          {' '}O histórico de aceites é preservado para auditoria.
+        </Typography.Text>
+      </Modal>
 
       {/* ════ Modal: Inativar Documento (US 2.6) ══════════════ */}
       <Modal

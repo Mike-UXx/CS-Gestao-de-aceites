@@ -67,6 +67,22 @@ export interface Documento {
    * Valores: 'sem_validade' | '3_meses' | '6_meses' | '12_meses' | '24_meses'
    */
   recorrenciaAceite?: string
+
+  /* ── Cobrança automática e prazo de assinatura (config da criação) ── */
+  /** Sistema reenvia lembretes aos pendentes */
+  cobrancaAutomatica?: boolean
+  /** Cadência dos lembretes automáticos, em dias */
+  cobrancaFrequenciaDias?: number
+  /** Limite de lembretes por destinatário (0 = ilimitado) */
+  cobrancaMaxLembretes?: number
+  /** Quantos lembretes automáticos já foram disparados */
+  lembretesEnviados?: number
+  /** Data do próximo lembrete automático (ISO); null = limite atingido */
+  proximoLembreteEm?: string | null
+  /** Data-limite para os destinatários aceitarem (ISO); null = sem prazo */
+  prazoAssinaturaEm?: string | null
+  /** Encerramento automático (100% ou prazo) vs manual */
+  encerramentoAutomatico?: boolean
 }
 
 /** Filtros aplicados na listagem */
