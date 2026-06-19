@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col, Divider,
   Space, Modal, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Table,
+  Alert, Timeline, Drawer, Table, List,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -24,7 +24,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import type { ComentarioRevisao } from '@/features/listagem/types/documento'
-import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
+import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS, COLABORADORES } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
 import { HistoricoDrawer } from '../components/HistoricoDrawer'
 import { PendenciasDrawer } from '../components/PendenciasDrawer'
@@ -163,6 +163,8 @@ export function DetalhesPage() {
   const [encerrarLoading,    setEncerrarLoading]    = useState(false)
   const [revisaoComentarios, setRevisaoComentarios] = useState<ComentarioRevisao[]>([])
   const [novoComentario,     setNovoComentario]     = useState('')
+  const [previewOpen,        setPreviewOpen]        = useState(false)
+  const [publicoOpen,        setPublicoOpen]        = useState(false)
 
   const doc = MOCK_DOCUMENTOS.find((d) => d.id === id)
 
@@ -434,18 +436,30 @@ export function DetalhesPage() {
             </Typography.Text>
           </div>
 
-          {/* Dropdown de ações */}
-          <Dropdown menu={{ items: actionItems }} trigger={['click']} placement="bottomRight">
+          {/* Ações do cabeçalho */}
+          <Space size={8} style={{ flexShrink: 0 }}>
             <Button
+              icon={<FilePdfOutlined />}
+              onClick={() => setPreviewOpen(true)}
               style={{
                 fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                borderColor: '#D9D9D9', borderRadius: 8,
-                height: 38, flexShrink: 0,
+                borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8, height: 38,
               }}
             >
-              Ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+              Visualizar documento
             </Button>
-          </Dropdown>
+            <Dropdown menu={{ items: actionItems }} trigger={['click']} placement="bottomRight">
+              <Button
+                style={{
+                  fontFamily: FONT, fontWeight: 600, fontSize: 13,
+                  borderColor: '#D9D9D9', borderRadius: 8,
+                  height: 38,
+                }}
+              >
+                Ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+              </Button>
+            </Dropdown>
+          </Space>
         </div>
 
         <Divider style={{ margin: '20px 0' }} />
@@ -915,12 +929,21 @@ export function DetalhesPage() {
             </Space>
           )}
 
-          <Typography.Text style={{
-            fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-            display: 'block',
-          }}>
-            total de {doc.totalDestinatarios} destinatários
-          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <Typography.Text style={{
+              fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
+            }}>
+              total de {doc.totalDestinatarios} destinatários
+            </Typography.Text>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setPublicoOpen(true)}
+              style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.primary, padding: 0, height: 'auto' }}
+            >
+              Ver público-alvo completo ↗
+            </Button>
+          </div>
         </div>
 
         {/* ── 3 cards: Responsável · Tipo · Regras ── */}
@@ -1374,6 +1397,98 @@ export function DetalhesPage() {
       </Drawer>
 
       <HistoricoDrawer open={historicoOpen} onClose={() => setHistoricoOpen(false)} docId={doc.id} />
+
+      {/* ════ Modal: Pré-visualização do documento ═════════════ */}
+      <Modal
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
+        title={
+          <Space>
+            <FilePdfOutlined style={{ color: '#FF4D4F', fontSize: 18 }} />
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              {doc.fileName ?? 'Documento'}
+            </Typography.Text>
+          </Space>
+        }
+        footer={[
+          <Button key="close" onClick={() => setPreviewOpen(false)} style={{ fontFamily: FONT, borderRadius: 8 }}>Fechar</Button>,
+          <Button key="dl" type="primary" icon={<DownloadOutlined />} onClick={() => message.success('Download do documento iniciado.')} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: colorTokens.primary, borderColor: colorTokens.primary }}>
+            Baixar arquivo
+          </Button>,
+        ]}
+        width={760}
+        centered
+        destroyOnHidden
+      >
+        {/* Página simulada do documento */}
+        <div style={{ background: '#F5F5F5', borderRadius: 8, padding: 24, maxHeight: '60vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', boxShadow: '0 1px 6px rgba(0,0,0,0.12)', borderRadius: 4, padding: '48px 56px', maxWidth: 620, margin: '0 auto', minHeight: 480 }}>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
+              {(doc.classificacoes ?? []).map((c) => CLASSIF_MAP[c] ?? c).join(' · ')}
+            </Typography.Text>
+            <Typography.Title level={3} style={{ fontFamily: FONT, color: colorTokens.textPrimary, marginTop: 0, marginBottom: 20 }}>
+              {doc.titulo}
+            </Typography.Title>
+            <Typography.Paragraph style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '22px' }}>
+              {doc.descricao || 'Conteúdo do documento.'}
+            </Typography.Paragraph>
+            <Typography.Paragraph style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '22px' }}>
+              Esta é uma pré-visualização simulada do arquivo no protótipo. Em produção, o PDF original
+              (imutável, com hash registrado) é renderizado aqui para conferência antes da aprovação.
+            </Typography.Paragraph>
+            {doc.fileHash && (
+              <Typography.Text style={{ fontFamily: 'monospace', fontSize: 10, color: colorTokens.textMuted, display: 'block', marginTop: 24, wordBreak: 'break-all' }}>
+                SHA-256: {doc.fileHash}
+              </Typography.Text>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ════ Drawer: Público-alvo completo ════════════════════ */}
+      <Drawer
+        open={publicoOpen}
+        onClose={() => setPublicoOpen(false)}
+        placement="right"
+        width={420}
+        title={
+          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+            Público-alvo ({doc.totalDestinatarios})
+          </Typography.Text>
+        }
+        styles={{ header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' }, body: { padding: '12px 24px' } }}
+        destroyOnHidden
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 12 }}>
+          {doc.modalidadeEnvio === 'pessoa'
+            ? 'Envio por destinatários individuais.'
+            : 'Envio por departamento. Todos os colaboradores dos setores abaixo recebem o documento.'}
+        </Typography.Text>
+
+        {doc.modalidadeEnvio === 'pessoa' ? (
+          <List
+            dataSource={COLABORADORES.slice(0, doc.totalDestinatarios).map((c) => c.label)}
+            renderItem={(nome) => (
+              <List.Item style={{ padding: '10px 0', borderBottom: '1px solid #F5F5F5' }}>
+                <Space size={10}>
+                  <Avatar size={32} style={{ background: '#EEF2FF', color: colorTokens.primary, fontFamily: FONT, fontWeight: 700, fontSize: 13 }}>
+                    {nome.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{nome}</Typography.Text>
+                </Space>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Space size={[8, 8]} wrap>
+            {(doc.destinatariosPreview ?? []).map((depto) => (
+              <Tag key={depto} style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, borderRadius: 6, padding: '4px 12px', margin: 0, background: '#FAFAFA', border: '1px solid #D9D9D9', color: colorTokens.textPrimary }}>
+                {depto}
+              </Tag>
+            ))}
+          </Space>
+        )}
+      </Drawer>
 
     </div>
   )
