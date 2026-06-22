@@ -13,6 +13,7 @@ import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormCon
 import { ListagemPage } from '@/features/listagem'
 import { DashboardPage } from '@/features/dashboard'
 import { ConfiguracoesPage, ClassificacoesPage } from '@/features/configuracoes'
+import { EnvioLotePage } from '@/features/envio-lote'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
 import { colorTokens } from '@/theme/tokens'
@@ -47,6 +48,7 @@ function AppShell() {
                 <Route path="/documentos/:id/editar" element={<EditarAtivoPage />} />
                 <Route path="/documentos/:id/editar-agendado" element={<EditarAgendadoPage />} />
                 <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
+                <Route path="/documentos/envio-lote" element={<RequirePermission perm="documento:criar"><EnvioLotePage /></RequirePermission>} />
                 <Route path="/documentos/criar" element={<RequirePermission perm="documento:criar"><SelectTemplate /></RequirePermission>} />
                 <Route path="/documentos/criar/informacoes" element={<RequirePermission perm="documento:criar"><InformacoesStep /></RequirePermission>} />
                 <Route path="/documentos/criar/destinatarios" element={<RequirePermission perm="documento:criar"><DestinatariosStep /></RequirePermission>} />

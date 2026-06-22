@@ -17,7 +17,7 @@ import {
   CopyOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
   ExclamationCircleOutlined, HistoryOutlined,
-  HolderOutlined, TeamOutlined, AuditOutlined,
+  HolderOutlined, TeamOutlined, AuditOutlined, AppstoreAddOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -1021,12 +1021,20 @@ export function ListagemPage() {
           </Typography.Text>
         </div>
         {can('documento:criar') && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
-            height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
-            background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8, marginTop: 4,
-          }}>
-            Documento
-          </Button>
+          <Space size={8} style={{ marginTop: 4 }}>
+            <Button icon={<AppstoreAddOutlined />} onClick={() => navigate('/documentos/envio-lote')} style={{
+              height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+              borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8,
+            }}>
+              Envio em lote
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
+              height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+              background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8,
+            }}>
+              Documento
+            </Button>
+          </Space>
         )}
       </div>
 
