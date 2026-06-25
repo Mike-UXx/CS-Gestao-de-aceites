@@ -89,9 +89,15 @@ export function exportarRelatorioCSV(doc: Documento): void {
     lines.push(csvRow([label, valor]))
   }
   lines.push('')
-  lines.push(csvRow(['Nome', 'Situação', 'Data de aceite']))
+  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização']))
   for (const s of signatarios) {
-    lines.push(csvRow([s.nome, s.situacao, s.dataAceite ?? '—']))
+    lines.push(csvRow([
+      s.nome,
+      s.situacao,
+      s.dataHoraAceite ?? '—',
+      s.ip ?? '—',
+      s.geolocalizacao ?? '—',
+    ]))
   }
 
   // BOM (﻿) garante acentuação correta no Excel pt-BR.
@@ -128,7 +134,9 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
       return `<tr>
         <td>${escapeHtml(s.nome)}</td>
         <td><span class="badge" style="color:${cor};border-color:${cor}">${escapeHtml(s.situacao)}</span></td>
-        <td>${escapeHtml(s.dataAceite ?? '—')}</td>
+        <td>${escapeHtml(s.dataHoraAceite ?? '—')}</td>
+        <td>${escapeHtml(s.ip ?? '—')}</td>
+        <td>${escapeHtml(s.geolocalizacao ?? '—')}</td>
       </tr>`
     })
     .join('')
@@ -164,7 +172,7 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   <h2>Signatários (${signatarios.length})</h2>
   <table class="sig">
-    <thead><tr><th>Nome</th><th>Situação</th><th>Data de aceite</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>
     <tbody>${sigRows}</tbody>
   </table>
 
