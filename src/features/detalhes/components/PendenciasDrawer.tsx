@@ -29,6 +29,39 @@ function formatCooldown(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+/* ── Agrupa por departamento, ordenando por quantidade (desc) ─── */
+function groupByDepto<T extends { departamento?: string }>(items: T[]): [string, T[]][] {
+  const map = new Map<string, T[]>()
+  for (const it of items) {
+    const d = it.departamento ?? 'Sem departamento'
+    if (!map.has(d)) map.set(d, [])
+    map.get(d)!.push(it)
+  }
+  return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
+}
+
+/* ── Cabeçalho de seção (departamento + contador) ─────────────── */
+function DeptHeader({ nome, count }: { nome: string; count: number }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 0 8px', marginTop: 4,
+      borderBottom: '1px solid #EBEBEB',
+    }}>
+      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {nome}
+      </Typography.Text>
+      <span style={{
+        fontFamily: FONT, fontSize: 11, fontWeight: 700,
+        background: '#EEF2FF', color: colorTokens.primary, border: '1px solid #C3CAF5',
+        borderRadius: 10, padding: '1px 8px',
+      }}>
+        {count}
+      </span>
+    </div>
+  )
+}
+
 interface PendenciasDrawerProps {
   open: boolean
   onClose: () => void
@@ -94,10 +127,68 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
 
   if (!doc) return <Drawer open={open} onClose={onClose} width={480} destroyOnHidden />
 
+  /* ── Agrupamento por departamento (só no envio por departamento) ── */
+  const porDepto = doc.modalidadeEnvio === 'departamento'
+  const pendentesSig = signatarios.filter((s) => s.situacao === 'Pendente')
+
   /* ── Concluídos (derivados da fonte única de signatários) ── */
   const concluidosMock = signatarios
     .filter((s) => s.situacao === 'Concluído')
-    .map((s) => ({ nome: s.nome, data: s.dataAceite ?? '—' }))
+    .map((s) => ({ nome: s.nome, data: s.dataAceite ?? '—', departamento: s.departamento }))
+
+  /* ── Renderizadores de item (reutilizados nas listas planas e agrupadas) ── */
+  function renderPendenteItem(nome: string) {
+    const cooldownUntil = reminderCooldowns[nome]
+    const remaining = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0
+    const inCooldown = remaining > 0
+    return (
+      <List.Item
+        key={nome}
+        style={{ padding: '12px 0', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <Space size={10}>
+          <Avatar size={36} style={{ background: '#EEF2FF', color: colorTokens.primary, fontFamily: FONT, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+            {nome.charAt(0).toUpperCase()}
+          </Avatar>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, fontWeight: 500 }}>
+            {nome}
+          </Typography.Text>
+        </Space>
+        <Button
+          type="link"
+          size="small"
+          icon={inCooldown ? <ClockCircleOutlined style={{ fontSize: 11 }} /> : <SendOutlined style={{ fontSize: 11 }} />}
+          loading={reminderLoadingKey === nome}
+          disabled={inCooldown}
+          onClick={() => handleReminder(nome)}
+          style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: inCooldown ? '#8C8C8C' : colorTokens.primary, padding: '0 4px', height: 'auto', flexShrink: 0 }}
+        >
+          {inCooldown ? `Aguarde ${formatCooldown(remaining)}` : 'Enviar lembrete'}
+        </Button>
+      </List.Item>
+    )
+  }
+
+  function renderConcluidoItem(item: { nome: string; data: string }) {
+    return (
+      <List.Item
+        key={item.nome}
+        style={{ padding: '12px 0', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <Space size={10}>
+          <Avatar size={36} style={{ background: '#F6FFED', color: '#389e0d', fontFamily: FONT, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+            {item.nome.charAt(0).toUpperCase()}
+          </Avatar>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, fontWeight: 500 }}>
+            {item.nome}
+          </Typography.Text>
+        </Space>
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: '#8C8C8C', flexShrink: 0 }}>
+          Concluído em {item.data}
+        </Typography.Text>
+      </List.Item>
+    )
+  }
 
   /* ── Exportação do relatório de auditoria ── */
   function handleExportCSV() {
@@ -126,7 +217,7 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
       width={480}
       title={
         <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-          Acompanhamento de Destinatários
+          Relatório de aceites
         </Typography.Text>
       }
       extra={
@@ -217,65 +308,23 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
                         </Button>
                       </div>
 
-                      {/* Lista de pendentes */}
-                      <List
-                        dataSource={pendentesNomes}
-                        renderItem={(nome) => {
-                          const cooldownUntil = reminderCooldowns[nome]
-                          const remaining = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0
-                          const inCooldown = remaining > 0
-                          return (
-                            <List.Item
-                              style={{
-                                padding: '12px 0',
-                                borderBottom: '1px solid #F5F5F5',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Space size={10}>
-                                <Avatar
-                                  size={36}
-                                  style={{
-                                    background: '#EEF2FF',
-                                    color: colorTokens.primary,
-                                    fontFamily: FONT,
-                                    fontWeight: 700,
-                                    fontSize: 14,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {nome.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Typography.Text style={{
-                                  fontFamily: FONT, fontSize: 13,
-                                  color: colorTokens.textPrimary, fontWeight: 500,
-                                }}>
-                                  {nome}
-                                </Typography.Text>
-                              </Space>
-
-                              <Button
-                                type="link"
-                                size="small"
-                                icon={inCooldown ? <ClockCircleOutlined style={{ fontSize: 11 }} /> : <SendOutlined style={{ fontSize: 11 }} />}
-                                loading={reminderLoadingKey === nome}
-                                disabled={inCooldown}
-                                onClick={() => handleReminder(nome)}
-                                style={{
-                                  fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                                  color: inCooldown ? '#8C8C8C' : colorTokens.primary, padding: '0 4px',
-                                  height: 'auto', flexShrink: 0,
-                                }}
-                              >
-                                {inCooldown ? `Aguarde ${formatCooldown(remaining)}` : 'Enviar lembrete'}
-                              </Button>
-                            </List.Item>
-                          )
-                        }}
-                        style={{ paddingBottom: 24 }}
-                      />
+                      {/* Lista de pendentes — agrupada por departamento quando aplicável */}
+                      {porDepto ? (
+                        <div style={{ paddingBottom: 24 }}>
+                          {groupByDepto(pendentesSig).map(([dept, items]) => (
+                            <div key={dept}>
+                              <DeptHeader nome={dept} count={items.length} />
+                              {items.map((s) => renderPendenteItem(s.nome))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <List
+                          dataSource={pendentesNomes}
+                          renderItem={(nome) => renderPendenteItem(nome)}
+                          style={{ paddingBottom: 24 }}
+                        />
+                      )}
                     </>
                   )}
                 </div>
@@ -314,50 +363,22 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
                       </Typography.Text>
                     </div>
                   ) : (
-                    <List
-                      dataSource={concluidosMock}
-                      renderItem={(item) => (
-                        <List.Item
-                          style={{
-                            padding: '12px 0',
-                            borderBottom: '1px solid #F5F5F5',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Space size={10}>
-                            <Avatar
-                              size={36}
-                              style={{
-                                background: '#F6FFED',
-                                color: '#389e0d',
-                                fontFamily: FONT,
-                                fontWeight: 700,
-                                fontSize: 14,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {item.nome.charAt(0).toUpperCase()}
-                            </Avatar>
-                            <Typography.Text style={{
-                              fontFamily: FONT, fontSize: 13,
-                              color: colorTokens.textPrimary, fontWeight: 500,
-                            }}>
-                              {item.nome}
-                            </Typography.Text>
-                          </Space>
-
-                          <Typography.Text style={{
-                            fontFamily: FONT, fontSize: 12,
-                            color: '#8C8C8C', flexShrink: 0,
-                          }}>
-                            Concluído em {item.data}
-                          </Typography.Text>
-                        </List.Item>
-                      )}
-                      style={{ paddingBottom: 24 }}
-                    />
+                    porDepto ? (
+                      <div style={{ paddingBottom: 24 }}>
+                        {groupByDepto(concluidosMock).map(([dept, items]) => (
+                          <div key={dept}>
+                            <DeptHeader nome={dept} count={items.length} />
+                            {items.map((item) => renderConcluidoItem(item))}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <List
+                        dataSource={concluidosMock}
+                        renderItem={(item) => renderConcluidoItem(item)}
+                        style={{ paddingBottom: 24 }}
+                      />
+                    )
                   )}
                 </div>
               ),

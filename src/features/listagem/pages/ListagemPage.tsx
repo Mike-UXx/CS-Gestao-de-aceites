@@ -608,7 +608,7 @@ export function ListagemPage() {
           { type: 'divider' as const },
           { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
           { type: 'divider' as const },
-          { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Ver relatórios',     onClick: () => setRelatoriosTarget(record) },
+          { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Relatório de aceites',     onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
           duplicar,
           { type: 'divider' as const },
@@ -630,7 +630,7 @@ export function ListagemPage() {
         ]
       case 'Concluído':
         return [
-          { key: 'relatorios', icon: <TeamOutlined />, label: 'Ver relatórios', onClick: () => setRelatoriosTarget(record) },
+          { key: 'relatorios', icon: <TeamOutlined />, label: 'Relatório de aceites', onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
           duplicar,
         ]
