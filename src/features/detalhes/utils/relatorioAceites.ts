@@ -16,12 +16,13 @@ export interface SignatarioRelatorio {
   nome: string
   departamento?: string
   situacao: SituacaoAceite
-  /** Evidências do aceite vigente (apenas 'Aceito') */
+  /**
+   * Evidências do aceite. Em 'Aceito' é o aceite vigente; em 'Renovação
+   * pendente' é o último aceite (já vencido); em 'Pendente' é null.
+   */
   dataHoraAceite: string | null
   ip: string | null
   geolocalizacao: string | null
-  /** Último aceite válido antes de vencer (apenas 'Renovação pendente') */
-  ultimoAceite: string | null
 }
 
 export interface VersaoAceites {
@@ -75,14 +76,13 @@ export function buildRelatorioAceites(doc: Documento): RelatorioAceites {
   let idxConcluido = 0
   const signatarios: SignatarioRelatorio[] = base.map((s) => {
     if (s.situacao === 'Pendente') {
-      return { nome: s.nome, departamento: s.departamento, situacao: 'Pendente', dataHoraAceite: null, ip: null, geolocalizacao: null, ultimoAceite: null }
+      return { nome: s.nome, departamento: s.departamento, situacao: 'Pendente', dataHoraAceite: null, ip: null, geolocalizacao: null }
     }
     const i = idxConcluido++
     // Com recorrência, ~1 em cada 4 concluídos teve o aceite vencido → renovação pendente.
-    if (temRecorrencia && i % 4 === 0) {
-      return { nome: s.nome, departamento: s.departamento, situacao: 'Renovação pendente', dataHoraAceite: null, ip: null, geolocalizacao: null, ultimoAceite: s.dataHoraAceite }
-    }
-    return { nome: s.nome, departamento: s.departamento, situacao: 'Aceito', dataHoraAceite: s.dataHoraAceite, ip: s.ip, geolocalizacao: s.geolocalizacao, ultimoAceite: null }
+    // A evidência (data/IP/geo do aceite que venceu) é preservada; o badge sinaliza a validade.
+    const situacao: SituacaoAceite = temRecorrencia && i % 4 === 0 ? 'Renovação pendente' : 'Aceito'
+    return { nome: s.nome, departamento: s.departamento, situacao, dataHoraAceite: s.dataHoraAceite, ip: s.ip, geolocalizacao: s.geolocalizacao }
   })
 
   const resumo = {

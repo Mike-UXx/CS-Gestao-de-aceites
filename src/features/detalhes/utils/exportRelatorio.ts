@@ -101,15 +101,17 @@ export function exportarRelatorioCSV(doc: Documento): void {
   // Situação atual (versão vigente + ciclo de recorrência)
   lines.push('')
   lines.push(csvRow([`Signatários — situação atual${rel.versaoVigente ? ` (${rel.versaoVigente})` : ''}`]))
-  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)', 'Último aceite válido']))
+  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)']))
   for (const s of rel.signatarios) {
+    const dataAceite = s.dataHoraAceite
+      ? (s.situacao === 'Renovação pendente' ? `${s.dataHoraAceite} (vencido)` : s.dataHoraAceite)
+      : '—'
     lines.push(csvRow([
       s.nome,
       s.situacao,
-      s.dataHoraAceite ?? '—',
+      dataAceite,
       s.ip ?? '—',
       s.geolocalizacao ?? '—',
-      s.ultimoAceite ?? '—',
     ]))
   }
 
@@ -163,9 +165,12 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   function sigRowHtml(s: RelatorioAceites['signatarios'][number]): string {
     const c = SIT_COR[s.situacao]
-    const dataCell = s.situacao === 'Renovação pendente'
-      ? `<span class="muted">—</span><div class="ult">último aceite: ${escapeHtml(s.ultimoAceite ?? '—')}</div>`
-      : escapeHtml(s.dataHoraAceite ?? '—')
+    // Renovação pendente: mostra a data do aceite que venceu, tachada/esmaecida.
+    const dataCell = !s.dataHoraAceite
+      ? '<span class="muted">—</span>'
+      : s.situacao === 'Renovação pendente'
+        ? `<span class="expirado">${escapeHtml(s.dataHoraAceite)}</span>`
+        : escapeHtml(s.dataHoraAceite)
     return `<tr>
       <td class="nome">${escapeHtml(s.nome)}</td>
       <td><span class="badge" style="color:${c.cor};border-color:${c.cor};background:${c.bg}">${escapeHtml(s.situacao)}</span></td>
@@ -271,7 +276,7 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
   .rcard .rn { font-size: 22px; font-weight: 800; color: var(--c); line-height: 1; }
   .rcard .rl { font-size: 10px; color: #6B7280; margin-top: 4px; }
 
-  .ult { font-size: 8.5px; color: #D4380D; margin-top: 2px; }
+  .expirado { color: #9CA3AF; text-decoration: line-through; }
   .muted { color: #BFBFBF; }
 
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
