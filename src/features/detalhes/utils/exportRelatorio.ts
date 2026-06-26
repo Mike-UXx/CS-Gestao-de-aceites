@@ -89,7 +89,7 @@ export function exportarRelatorioCSV(doc: Documento): void {
     lines.push(csvRow([label, valor]))
   }
   lines.push('')
-  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização']))
+  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)', 'Hash do aceite']))
   for (const s of signatarios) {
     lines.push(csvRow([
       s.nome,
@@ -97,6 +97,7 @@ export function exportarRelatorioCSV(doc: Documento): void {
       s.dataHoraAceite ?? '—',
       s.ip ?? '—',
       s.geolocalizacao ?? '—',
+      s.hashAceite ?? '—',
     ]))
   }
 
@@ -137,6 +138,7 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
         <td>${escapeHtml(s.dataHoraAceite ?? '—')}</td>
         <td>${escapeHtml(s.ip ?? '—')}</td>
         <td>${escapeHtml(s.geolocalizacao ?? '—')}</td>
+        <td class="hash">${escapeHtml(s.hashAceite ?? '—')}</td>
       </tr>`
     })
     .join('')
@@ -153,6 +155,8 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
   .sub { color: #8C8C8C; font-size: 12px; margin: 0 0 24px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; margin: 24px 0 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sig { table-layout: fixed; }
+  .sig td.hash { font-family: 'Courier New', monospace; font-size: 9px; color: #6B7280; word-break: break-all; }
   .meta th { text-align: left; width: 200px; color: #6B7280; font-weight: 600; padding: 6px 8px; vertical-align: top; }
   .meta td { padding: 6px 8px; word-break: break-all; }
   .meta tr { border-bottom: 1px solid #F0F0F0; }
@@ -172,7 +176,7 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   <h2>Signatários (${signatarios.length})</h2>
   <table class="sig">
-    <thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização (lat, long)</th><th>Hash do aceite</th></tr></thead>
     <tbody>${sigRows}</tbody>
   </table>
 
