@@ -7,7 +7,7 @@
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { STATUS_LABEL } from '@/features/listagem/types/documento'
 import type { Documento } from '@/features/listagem/types/documento'
-import { buildSignatarios } from './signatarios'
+import { buildRelatorioAceites, type RelatorioAceites, type SituacaoAceite } from './relatorioAceites'
 
 /* ── Helpers de rótulo ──────────────────────────────────────── */
 const TIPO_LABEL: Record<Documento['tipo'], string> = {
@@ -32,13 +32,15 @@ function adesaoPct(doc: Documento): number {
 }
 
 /** Pares (rótulo, valor) dos metadados do documento — usado por CSV e PDF. */
-function metadados(doc: Documento): [string, string][] {
+function metadados(doc: Documento, rel: RelatorioAceites): [string, string][] {
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—')
   return [
     ['Título', doc.titulo],
     ['ID do documento', doc.id],
     ['Status', STATUS_LABEL[doc.status]],
     ['Tipo', TIPO_LABEL[doc.tipo]],
+    ['Versão vigente', rel.versaoVigente ?? 'Não versionado'],
+    ['Recorrência de aceite', rel.recorrenciaLabel],
     ['Área responsável', areaLabel(doc.gestaoResponsavel)],
     ['Classificações', classifLabels(doc.classificacoes)],
     ['Início da vigência', fmt(doc.dataLancamento)],
@@ -80,29 +82,48 @@ function csvRow(cells: string[]): string {
 }
 
 export function exportarRelatorioCSV(doc: Documento): void {
-  const signatarios = buildSignatarios(doc)
+  const rel = buildRelatorioAceites(doc)
   const lines: string[] = []
 
-  lines.push(csvRow(['Relatório de auditoria']))
+  lines.push(csvRow(['Relatório de aceites']))
   lines.push('')
-  for (const [label, valor] of metadados(doc)) {
+  for (const [label, valor] of metadados(doc, rel)) {
     lines.push(csvRow([label, valor]))
   }
+
+  // Resumo de conformidade
   lines.push('')
-  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)']))
-  for (const s of signatarios) {
+  lines.push(csvRow(['Resumo de conformidade']))
+  lines.push(csvRow(['Aceitos (vigente)', String(rel.resumo.aceitos)]))
+  if (rel.temRecorrencia) lines.push(csvRow(['Renovação pendente', String(rel.resumo.renovacaoPendente)]))
+  lines.push(csvRow(['Pendentes', String(rel.resumo.pendentes)]))
+
+  // Situação atual (versão vigente + ciclo de recorrência)
+  lines.push('')
+  lines.push(csvRow([`Signatários — situação atual${rel.versaoVigente ? ` (${rel.versaoVigente})` : ''}`]))
+  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)', 'Último aceite válido']))
+  for (const s of rel.signatarios) {
     lines.push(csvRow([
       s.nome,
       s.situacao,
       s.dataHoraAceite ?? '—',
       s.ip ?? '—',
       s.geolocalizacao ?? '—',
+      s.ultimoAceite ?? '—',
     ]))
+  }
+
+  // Histórico de aceites por versão (anexo)
+  for (const v of rel.historicoVersoes) {
+    lines.push('')
+    lines.push(csvRow([`Histórico de aceites — ${v.versao} (publicada em ${v.dataPublicacao})`]))
+    lines.push(csvRow(['Nome', 'Data e hora do aceite']))
+    for (const a of v.aceites) lines.push(csvRow([a.nome, a.dataHoraAceite]))
   }
 
   // BOM (﻿) garante acentuação correta no Excel pt-BR.
   const content = '﻿' + lines.join('\r\n')
-  downloadBlob(content, `relatorio-auditoria-${doc.id}.csv`, 'text/csv;charset=utf-8')
+  downloadBlob(content, `relatorio-aceites-${doc.id}.csv`, 'text/csv;charset=utf-8')
 }
 
 /* ── PDF (via impressão do navegador) ───────────────────────── */
@@ -119,28 +140,36 @@ function escapeHtml(value: string): string {
  * @returns false se o popup foi bloqueado pelo navegador.
  */
 export function exportarRelatorioPDF(doc: Documento): boolean {
-  const signatarios = buildSignatarios(doc)
+  const rel = buildRelatorioAceites(doc)
   const win = window.open('', '_blank', 'width=900,height=700')
   if (!win) return false
 
   const logoUrl = `${window.location.origin}/logo-contato-seguro.svg`
   const dataGeracao = new Date().toLocaleString('pt-BR')
   const dataCurta = new Date().toLocaleDateString('pt-BR')
-  const PER_PAGE = 22 // linhas de signatários por página (cabe numa A4 com folga)
+  const PER_PAGE = 22 // linhas por página (cabe numa A4 com folga)
 
-  const metaRows = metadados(doc)
+  const metaRows = metadados(doc, rel)
     .map(([label, valor]) =>
       `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(valor)}</td></tr>`)
     .join('')
 
-  function sigRowHtml(s: ReturnType<typeof buildSignatarios>[number]): string {
-    const concluido = s.situacao === 'Concluído'
-    const cor = concluido ? '#389e0d' : '#D46B08'
-    const bg = concluido ? '#F6FFED' : '#FFF7E6'
+  /* Cores por situação (Aceito / Renovação pendente / Pendente) */
+  const SIT_COR: Record<SituacaoAceite, { cor: string; bg: string }> = {
+    'Aceito':              { cor: '#389e0d', bg: '#F6FFED' },
+    'Renovação pendente':  { cor: '#D4380D', bg: '#FFF2E8' },
+    'Pendente':            { cor: '#8C8C8C', bg: '#F5F5F5' },
+  }
+
+  function sigRowHtml(s: RelatorioAceites['signatarios'][number]): string {
+    const c = SIT_COR[s.situacao]
+    const dataCell = s.situacao === 'Renovação pendente'
+      ? `<span class="muted">—</span><div class="ult">último aceite: ${escapeHtml(s.ultimoAceite ?? '—')}</div>`
+      : escapeHtml(s.dataHoraAceite ?? '—')
     return `<tr>
       <td class="nome">${escapeHtml(s.nome)}</td>
-      <td><span class="badge" style="color:${cor};border-color:${cor};background:${bg}">${escapeHtml(s.situacao)}</span></td>
-      <td>${escapeHtml(s.dataHoraAceite ?? '—')}</td>
+      <td><span class="badge" style="color:${c.cor};border-color:${c.cor};background:${c.bg}">${escapeHtml(s.situacao)}</span></td>
+      <td>${dataCell}</td>
       <td>${escapeHtml(s.ip ?? '—')}</td>
       <td>${escapeHtml(s.geolocalizacao ?? '—')}</td>
     </tr>`
@@ -149,16 +178,39 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
   const COLGROUP = `<colgroup><col class="c-nome"/><col class="c-sit"/><col class="c-data"/><col class="c-ip"/><col class="c-geo"/></colgroup>`
   const SIG_HEAD = `<thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>`
 
+  /* Resumo de conformidade (cartões) */
+  const resumoHtml = `<div class="resumo">
+    <div class="rcard" style="--c:#389e0d"><div class="rn">${rel.resumo.aceitos}</div><div class="rl">Aceitos (vigente)</div></div>
+    ${rel.temRecorrencia ? `<div class="rcard" style="--c:#D4380D"><div class="rn">${rel.resumo.renovacaoPendente}</div><div class="rl">Renovação pendente</div></div>` : ''}
+    <div class="rcard" style="--c:#8C8C8C"><div class="rn">${rel.resumo.pendentes}</div><div class="rl">Pendentes</div></div>
+  </div>`
+
   /* ── Conteúdo das páginas (após a capa) ── */
   const contentInners: string[] = [
-    `<h2>Dados do documento</h2><table class="meta"><tbody>${metaRows}</tbody></table>`,
+    `<h2>Dados do documento</h2><table class="meta"><tbody>${metaRows}</tbody></table>${resumoHtml}`,
   ]
-  for (let i = 0; i < signatarios.length; i += PER_PAGE) {
-    const rows = signatarios.slice(i, i + PER_PAGE).map(sigRowHtml).join('')
-    const heading = i === 0
-      ? `<h2>Signatários (${signatarios.length})</h2>`
-      : `<h2>Signatários (continuação)</h2>`
+
+  // Situação atual (versão vigente + ciclo de recorrência)
+  const tituloSit = `Signatários — situação atual${rel.versaoVigente ? ` · ${rel.versaoVigente} vigente` : ''}`
+  for (let i = 0; i < rel.signatarios.length; i += PER_PAGE) {
+    const rows = rel.signatarios.slice(i, i + PER_PAGE).map(sigRowHtml).join('')
+    const heading = i === 0 ? `<h2>${tituloSit} (${rel.signatarios.length})</h2>` : `<h2>Situação atual (continuação)</h2>`
     contentInners.push(`${heading}<table class="sig">${COLGROUP}${SIG_HEAD}<tbody>${rows}</tbody></table>`)
+  }
+
+  // Histórico de aceites por versão (anexo de evidência)
+  const HIST_HEAD = `<thead><tr><th>Nome</th><th>Data e hora do aceite</th></tr></thead>`
+  const HIST_COL = `<colgroup><col style="width:55%"/><col style="width:45%"/></colgroup>`
+  for (const v of rel.historicoVersoes) {
+    for (let i = 0; i < v.aceites.length; i += PER_PAGE) {
+      const rows = v.aceites.slice(i, i + PER_PAGE)
+        .map((a) => `<tr><td class="nome">${escapeHtml(a.nome)}</td><td>${escapeHtml(a.dataHoraAceite)}</td></tr>`)
+        .join('')
+      const heading = i === 0
+        ? `<h2>Histórico de aceites — ${v.versao} <span class="hsub">publicada em ${escapeHtml(v.dataPublicacao)} · ${v.aceites.length} aceites</span></h2>`
+        : `<h2>Histórico — ${v.versao} (continuação)</h2>`
+      contentInners.push(`${heading}<table class="sig">${HIST_COL}${HIST_HEAD}<tbody>${rows}</tbody></table>`)
+    }
   }
 
   const totalPages = 1 + contentInners.length // capa + páginas de conteúdo
@@ -211,6 +263,16 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--brand); margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB; }
   h2 + h2 { margin-top: 0; }
+  h2 .hsub { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 10px; color: #9CA3AF; }
+
+  /* Resumo de conformidade */
+  .resumo { display: flex; gap: 10px; margin-top: 18px; }
+  .rcard { flex: 1; border: 1px solid #EBEBEB; border-left: 3px solid var(--c); border-radius: 8px; padding: 12px 14px; }
+  .rcard .rn { font-size: 22px; font-weight: 800; color: var(--c); line-height: 1; }
+  .rcard .rl { font-size: 10px; color: #6B7280; margin-top: 4px; }
+
+  .ult { font-size: 8.5px; color: #D4380D; margin-top: 2px; }
+  .muted { color: #BFBFBF; }
 
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   .meta th { text-align: left; width: 38%; color: #6B7280; font-weight: 600; padding: 7px 10px; vertical-align: top; }
