@@ -20,8 +20,6 @@ export interface Signatario {
   ip: string | null
   /** Geolocalização do aceite (latitude, longitude) — evidência; null para pendentes */
   geolocalizacao: string | null
-  /** Hash do registro de aceite (SHA-256) — evidência; null para pendentes */
-  hashAceite: string | null
   /** Departamento do colaborador — apenas quando o envio é por departamento */
   departamento?: string
 }
@@ -47,20 +45,6 @@ function fakeGeo(n: number): string {
   const dLat = (((n * 17) % 100) - 50) / 10000
   const dLng = (((n * 23) % 100) - 50) / 10000
   return `${(lat + dLat).toFixed(6)}, ${(lng + dLng).toFixed(6)}`
-}
-
-/** Hash SHA-256 (simulado, determinístico) do registro de aceite. */
-function fakeHash(seed: number): string {
-  let h = ''
-  for (let i = 0; i < 64; i++) {
-    // Mistura seed + posição (variante de splitmix32) para hex bem distribuído.
-    let x = (seed * 2654435761 + i * 40503 + 0x9e3779b9) >>> 0
-    x ^= x >>> 15; x = (x * 0x85ebca6b) >>> 0
-    x ^= x >>> 13; x = (x * 0xc2b2ae35) >>> 0
-    x ^= x >>> 16
-    h += (x & 0xf).toString(16)
-  }
-  return h
 }
 
 /**
@@ -99,7 +83,6 @@ export function buildSignatarios(doc: Documento): Signatario[] {
         dataHoraAceite: aceite.format('DD/MM/YYYY HH:mm'),
         ip: fakeIp(seed),
         geolocalizacao: fakeGeo(seed),
-        hashAceite: fakeHash(seed),
         departamento: deptDe(seed),
       }
     })
