@@ -124,6 +124,10 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
   const win = window.open('', '_blank', 'width=900,height=700')
   if (!win) return false
 
+  const logoUrl = `${window.location.origin}/logo-contato-seguro.svg`
+  const dataGeracao = new Date().toLocaleString('pt-BR')
+  const dataCurta = new Date().toLocaleDateString('pt-BR')
+
   const metaRows = metadados(doc)
     .map(([label, valor]) =>
       `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(valor)}</td></tr>`)
@@ -131,10 +135,12 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   const sigRows = signatarios
     .map((s) => {
-      const cor = s.situacao === 'Concluído' ? '#389e0d' : '#D46B08'
+      const concluido = s.situacao === 'Concluído'
+      const cor = concluido ? '#389e0d' : '#D46B08'
+      const bg = concluido ? '#F6FFED' : '#FFF7E6'
       return `<tr>
-        <td>${escapeHtml(s.nome)}</td>
-        <td><span class="badge" style="color:${cor};border-color:${cor}">${escapeHtml(s.situacao)}</span></td>
+        <td class="nome">${escapeHtml(s.nome)}</td>
+        <td><span class="badge" style="color:${cor};border-color:${cor};background:${bg}">${escapeHtml(s.situacao)}</span></td>
         <td>${escapeHtml(s.dataHoraAceite ?? '—')}</td>
         <td>${escapeHtml(s.ip ?? '—')}</td>
         <td>${escapeHtml(s.geolocalizacao ?? '—')}</td>
@@ -147,40 +153,86 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<title>Relatório de auditoria — ${escapeHtml(doc.titulo)}</title>
+<title>Relatório de aceites — ${escapeHtml(doc.titulo)}</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1F2430; margin: 32px; }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  .sub { color: #8C8C8C; font-size: 12px; margin: 0 0 24px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; margin: 24px 0 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .sig { table-layout: fixed; }
-  .sig td.hash { font-family: 'Courier New', monospace; font-size: 9px; color: #6B7280; word-break: break-all; }
-  .meta th { text-align: left; width: 200px; color: #6B7280; font-weight: 600; padding: 6px 8px; vertical-align: top; }
-  .meta td { padding: 6px 8px; word-break: break-all; }
+  :root { --brand: #263072; }
+  @page { size: A4; margin: 2.4cm 1.2cm 1.6cm; }
+  body { font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1F2430; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Cabeçalho e rodapé repetidos em todas as páginas */
+  .run-header { position: fixed; top: -1.8cm; left: 0; right: 0; height: 1.3cm;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px solid var(--brand); padding-bottom: 6px; }
+  .run-header img { height: 22px; }
+  .run-header .rh-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--brand); text-transform: uppercase; }
+  .run-header .rh-date { font-size: 10px; color: #6B7280; }
+  .run-footer { position: fixed; bottom: -1.1cm; left: 0; right: 0;
+    font-size: 8.5px; color: #9CA3AF; text-align: center; border-top: 1px solid #E5E7EB; padding-top: 6px; }
+
+  /* Capa */
+  .cover { height: 23cm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; page-break-after: always; }
+  .cover img { height: 56px; margin-bottom: 40px; }
+  .cover .kicker { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--brand); text-transform: uppercase; margin-bottom: 14px; }
+  .cover .title { font-size: 30px; font-weight: 800; color: #1F2430; max-width: 80%; line-height: 1.25; margin: 0 0 18px; }
+  .cover .meta { font-size: 12px; color: #6B7280; }
+  .cover .rule { width: 64px; height: 4px; background: var(--brand); border-radius: 2px; margin: 22px 0; }
+
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--brand); margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .meta th { text-align: left; width: 38%; color: #6B7280; font-weight: 600; padding: 7px 10px; vertical-align: top; }
+  .meta td { padding: 7px 10px; word-break: break-all; font-weight: 500; }
   .meta tr { border-bottom: 1px solid #F0F0F0; }
-  .sig th { text-align: left; background: #FAFAFA; color: #6B7280; font-weight: 600; padding: 8px; border-bottom: 1px solid #E8E8E8; }
-  .sig td { padding: 8px; border-bottom: 1px solid #F0F0F0; }
-  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; border: 1px solid; }
-  .foot { margin-top: 32px; font-size: 10px; color: #BFBFBF; }
-  @media print { body { margin: 0; } }
+
+  .sig { table-layout: fixed; }
+  .sig thead { display: table-header-group; } /* repete o cabeçalho em cada página */
+  .sig th { text-align: left; background: var(--brand); color: #fff; font-weight: 600; font-size: 10px; padding: 8px; }
+  .sig td { padding: 7px 8px; border-bottom: 1px solid #F0F0F0; font-size: 10px; vertical-align: top; }
+  .sig tr { page-break-inside: avoid; }
+  .sig .nome { font-weight: 600; }
+  .sig .hash { font-family: 'Courier New', monospace; font-size: 8px; color: #6B7280; word-break: break-all; }
+  .sig col.c-nome { width: 16%; } .sig col.c-sit { width: 11%; } .sig col.c-data { width: 15%; }
+  .sig col.c-ip { width: 14%; } .sig col.c-geo { width: 16%; } .sig col.c-hash { width: 28%; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 8px; border-radius: 10px; border: 1px solid; }
 </style>
 </head>
 <body>
-  <h1>Relatório de auditoria</h1>
-  <p class="sub">${escapeHtml(doc.titulo)}</p>
+  <header class="run-header">
+    <img src="${logoUrl}" alt="Contato Seguro" />
+    <span class="rh-title">Relatório de aceites</span>
+    <span class="rh-date">${escapeHtml(dataCurta)}</span>
+  </header>
+  <footer class="run-footer">
+    Documento gerado pela Plataforma de Gestão de Documentos e Aceites — Contato Seguro
+  </footer>
 
-  <h2>Informações do documento</h2>
+  <!-- Capa -->
+  <section class="cover">
+    <img src="${logoUrl}" alt="Contato Seguro" />
+    <div class="kicker">Relatório de aceites</div>
+    <h1 class="title">${escapeHtml(doc.titulo)}</h1>
+    <div class="rule"></div>
+    <div class="meta">Gerado em ${escapeHtml(dataGeracao)}</div>
+  </section>
+
+  <!-- Dados do documento -->
+  <h2>Dados do documento</h2>
   <table class="meta"><tbody>${metaRows}</tbody></table>
 
+  <!-- Signatários -->
   <h2>Signatários (${signatarios.length})</h2>
   <table class="sig">
-    <thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização (lat, long)</th><th>Hash do aceite</th></tr></thead>
+    <colgroup>
+      <col class="c-nome" /><col class="c-sit" /><col class="c-data" />
+      <col class="c-ip" /><col class="c-geo" /><col class="c-hash" />
+    </colgroup>
+    <thead><tr>
+      <th>Nome</th><th>Situação</th><th>Data e hora do aceite</th>
+      <th>IP de origem</th><th>Geolocalização</th><th>Hash do aceite</th>
+    </tr></thead>
     <tbody>${sigRows}</tbody>
   </table>
-
-  <p class="foot">Documento gerado pela Plataforma de Gestão de Documentos e Aceites — Contato Seguro.</p>
 </body>
 </html>`)
   win.document.close()
