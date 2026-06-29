@@ -6,7 +6,6 @@
    - Histórico de aceites por versão (anexo de evidência).
    Dados simulados de forma determinística (protótipo, sem backend).
 ───────────────────────────────────────────────────────────── */
-import dayjs from 'dayjs'
 import type { Documento } from '@/features/listagem/types/documento'
 import { buildSignatarios } from './signatarios'
 
@@ -25,12 +24,6 @@ export interface SignatarioRelatorio {
   geolocalizacao: string | null
 }
 
-export interface VersaoAceites {
-  versao: string
-  dataPublicacao: string
-  aceites: { nome: string; dataHoraAceite: string }[]
-}
-
 export interface RelatorioAceites {
   /** Versão vigente do documento (null quando não versionado) */
   versaoVigente: string | null
@@ -38,8 +31,6 @@ export interface RelatorioAceites {
   temRecorrencia: boolean
   signatarios: SignatarioRelatorio[]
   resumo: { aceitos: number; renovacaoPendente: number; pendentes: number; total: number }
-  /** Histórico de aceites por versão (vazio quando não versionado) */
-  historicoVersoes: VersaoAceites[]
 }
 
 const RECORRENCIA_LABEL: Record<string, string> = {
@@ -48,25 +39,6 @@ const RECORRENCIA_LABEL: Record<string, string> = {
   '6_meses': 'A cada 6 meses',
   '12_meses': 'A cada 12 meses',
   '24_meses': 'A cada 24 meses',
-}
-
-function buildHistorico(doc: Documento, concluidosNomes: string[]): VersaoAceites[] {
-  if (concluidosNomes.length === 0) return []
-  const criado = dayjs(doc.criadoEm)
-  const fazer = (versao: string, offsetDias: number, fracao: number): VersaoAceites => {
-    const base = criado.add(offsetDias, 'day')
-    const n = Math.max(1, Math.round(concluidosNomes.length * fracao))
-    return {
-      versao,
-      dataPublicacao: base.format('DD/MM/YYYY'),
-      aceites: concluidosNomes.slice(0, n).map((nome, i) => ({
-        nome,
-        dataHoraAceite: base.add(i + 2, 'day').hour(9 + (i % 8)).minute((i * 11) % 60).format('DD/MM/YYYY HH:mm'),
-      })),
-    }
-  }
-  // v1 e v2 são as versões anteriores; a v3 (vigente) está na tabela principal.
-  return [fazer('v1', 0, 0.45), fazer('v2', 180, 0.75)]
 }
 
 export function buildRelatorioAceites(doc: Documento): RelatorioAceites {
@@ -93,7 +65,6 @@ export function buildRelatorioAceites(doc: Documento): RelatorioAceites {
   }
 
   const versionado = doc.tipo === 'adesao'
-  const concluidosNomes = base.filter((s) => s.situacao === 'Concluído').map((s) => s.nome)
 
   return {
     versaoVigente: versionado ? 'v3' : null,
@@ -101,6 +72,5 @@ export function buildRelatorioAceites(doc: Documento): RelatorioAceites {
     temRecorrencia,
     signatarios,
     resumo,
-    historicoVersoes: versionado ? buildHistorico(doc, concluidosNomes) : [],
   }
 }

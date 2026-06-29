@@ -126,14 +126,6 @@ export function exportarRelatorioCSV(doc: Documento): void {
     for (const s of pendentes) lines.push(csvRow([s.nome]))
   }
 
-  // Histórico de aceites por versão (anexo)
-  for (const v of rel.historicoVersoes) {
-    lines.push('')
-    lines.push(csvRow([`Histórico de aceites — ${v.versao} (publicada em ${v.dataPublicacao})`]))
-    lines.push(csvRow(['Nome', 'Data e hora do aceite']))
-    for (const a of v.aceites) lines.push(csvRow([a.nome, a.dataHoraAceite]))
-  }
-
   // BOM (﻿) garante acentuação correta no Excel pt-BR.
   const content = '﻿' + lines.join('\r\n')
   downloadBlob(content, `relatorio-aceites-${doc.id}.csv`, 'text/csv;charset=utf-8')
@@ -222,21 +214,6 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
 
   pushSecao('Pendentes', SIT_COR['Pendente'], COL_NOME, HEAD_PEND,
     pendentes.map((s) => `<tr><td class="nome">${escapeHtml(s.nome)}</td></tr>`))
-
-  // Histórico de aceites por versão (anexo de evidência)
-  const HIST_HEAD = `<thead><tr><th>Nome</th><th>Data e hora do aceite</th></tr></thead>`
-  const HIST_COL = `<colgroup><col style="width:55%"/><col style="width:45%"/></colgroup>`
-  for (const v of rel.historicoVersoes) {
-    for (let i = 0; i < v.aceites.length; i += PER_PAGE) {
-      const rows = v.aceites.slice(i, i + PER_PAGE)
-        .map((a) => `<tr><td class="nome">${escapeHtml(a.nome)}</td><td>${escapeHtml(a.dataHoraAceite)}</td></tr>`)
-        .join('')
-      const heading = i === 0
-        ? `<h2>Histórico de aceites — ${v.versao} <span class="hsub">publicada em ${escapeHtml(v.dataPublicacao)} · ${v.aceites.length} aceites</span></h2>`
-        : `<h2>Histórico — ${v.versao} (continuação)</h2>`
-      contentInners.push(`${heading}<table class="sig">${HIST_COL}${HIST_HEAD}<tbody>${rows}</tbody></table>`)
-    }
-  }
 
   const totalPages = 1 + contentInners.length // capa + páginas de conteúdo
 
