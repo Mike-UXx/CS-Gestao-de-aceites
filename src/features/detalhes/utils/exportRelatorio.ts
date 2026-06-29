@@ -98,21 +98,32 @@ export function exportarRelatorioCSV(doc: Documento): void {
   if (rel.temRecorrencia) lines.push(csvRow(['Renovação pendente', String(rel.resumo.renovacaoPendente)]))
   lines.push(csvRow(['Pendentes', String(rel.resumo.pendentes)]))
 
-  // Situação atual (versão vigente + ciclo de recorrência)
+  // Situação atual — listas separadas por estado, com colunas próprias
+  const aceitos = rel.signatarios.filter((s) => s.situacao === 'Aceito')
+  const renovacao = rel.signatarios.filter((s) => s.situacao === 'Renovação pendente')
+  const pendentes = rel.signatarios.filter((s) => s.situacao === 'Pendente')
+
   lines.push('')
-  lines.push(csvRow([`Signatários — situação atual${rel.versaoVigente ? ` (${rel.versaoVigente})` : ''}`]))
-  lines.push(csvRow(['Nome', 'Situação', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)']))
-  for (const s of rel.signatarios) {
-    const dataAceite = s.dataHoraAceite
-      ? (s.situacao === 'Renovação pendente' ? `${s.dataHoraAceite} (vencido)` : s.dataHoraAceite)
-      : '—'
-    lines.push(csvRow([
-      s.nome,
-      s.situacao,
-      dataAceite,
-      s.ip ?? '—',
-      s.geolocalizacao ?? '—',
-    ]))
+  lines.push(csvRow([`Aceitos — vigente${rel.versaoVigente ? ` (${rel.versaoVigente})` : ''} · ${aceitos.length}`]))
+  lines.push(csvRow(['Nome', 'Data e hora do aceite', 'IP de origem', 'Geolocalização (lat, long)']))
+  for (const s of aceitos) {
+    lines.push(csvRow([s.nome, s.dataHoraAceite ?? '—', s.ip ?? '—', s.geolocalizacao ?? '—']))
+  }
+
+  if (renovacao.length) {
+    lines.push('')
+    lines.push(csvRow([`Renovação pendente · ${renovacao.length}`]))
+    lines.push(csvRow(['Nome', 'Último aceite (vencido)', 'IP de origem', 'Geolocalização (lat, long)']))
+    for (const s of renovacao) {
+      lines.push(csvRow([s.nome, s.dataHoraAceite ?? '—', s.ip ?? '—', s.geolocalizacao ?? '—']))
+    }
+  }
+
+  if (pendentes.length) {
+    lines.push('')
+    lines.push(csvRow([`Pendentes · ${pendentes.length}`]))
+    lines.push(csvRow(['Nome']))
+    for (const s of pendentes) lines.push(csvRow([s.nome]))
   }
 
   // Histórico de aceites por versão (anexo)
@@ -157,31 +168,11 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
     .join('')
 
   /* Cores por situação (Aceito / Renovação pendente / Pendente) */
-  const SIT_COR: Record<SituacaoAceite, { cor: string; bg: string }> = {
-    'Aceito':              { cor: '#389e0d', bg: '#F6FFED' },
-    'Renovação pendente':  { cor: '#D4380D', bg: '#FFF2E8' },
-    'Pendente':            { cor: '#8C8C8C', bg: '#F5F5F5' },
+  const SIT_COR: Record<SituacaoAceite, string> = {
+    'Aceito': '#389e0d',
+    'Renovação pendente': '#D4380D',
+    'Pendente': '#8C8C8C',
   }
-
-  function sigRowHtml(s: RelatorioAceites['signatarios'][number]): string {
-    const c = SIT_COR[s.situacao]
-    // Renovação pendente: mostra a data do aceite que venceu, tachada/esmaecida.
-    const dataCell = !s.dataHoraAceite
-      ? '<span class="muted">—</span>'
-      : s.situacao === 'Renovação pendente'
-        ? `<span class="expirado">${escapeHtml(s.dataHoraAceite)}</span>`
-        : escapeHtml(s.dataHoraAceite)
-    return `<tr>
-      <td class="nome">${escapeHtml(s.nome)}</td>
-      <td><span class="badge" style="color:${c.cor};border-color:${c.cor};background:${c.bg}">${escapeHtml(s.situacao)}</span></td>
-      <td>${dataCell}</td>
-      <td>${escapeHtml(s.ip ?? '—')}</td>
-      <td>${escapeHtml(s.geolocalizacao ?? '—')}</td>
-    </tr>`
-  }
-
-  const COLGROUP = `<colgroup><col class="c-nome"/><col class="c-sit"/><col class="c-data"/><col class="c-ip"/><col class="c-geo"/></colgroup>`
-  const SIG_HEAD = `<thead><tr><th>Nome</th><th>Situação</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>`
 
   /* Resumo de conformidade (cartões) */
   const resumoHtml = `<div class="resumo">
@@ -195,13 +186,42 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
     `<h2>Dados do documento</h2><table class="meta"><tbody>${metaRows}</tbody></table>${resumoHtml}`,
   ]
 
-  // Situação atual (versão vigente + ciclo de recorrência)
-  const tituloSit = `Signatários — situação atual${rel.versaoVigente ? ` · ${rel.versaoVigente} vigente` : ''}`
-  for (let i = 0; i < rel.signatarios.length; i += PER_PAGE) {
-    const rows = rel.signatarios.slice(i, i + PER_PAGE).map(sigRowHtml).join('')
-    const heading = i === 0 ? `<h2>${tituloSit} (${rel.signatarios.length})</h2>` : `<h2>Situação atual (continuação)</h2>`
-    contentInners.push(`${heading}<table class="sig">${COLGROUP}${SIG_HEAD}<tbody>${rows}</tbody></table>`)
+  /* Empurra uma seção (tabela) paginada para o conteúdo. */
+  function pushSecao(
+    titulo: string,
+    cor: string,
+    colgroup: string,
+    head: string,
+    linhas: string[],
+  ) {
+    if (linhas.length === 0) return
+    for (let i = 0; i < linhas.length; i += PER_PAGE) {
+      const heading = i === 0
+        ? `<h2><span class="dot" style="background:${cor}"></span>${titulo} (${linhas.length})</h2>`
+        : `<h2><span class="dot" style="background:${cor}"></span>${titulo.split(' ')[0]} (continuação)</h2>`
+      contentInners.push(`${heading}<table class="sig">${colgroup}${head}<tbody>${linhas.slice(i, i + PER_PAGE).join('')}</tbody></table>`)
+    }
   }
+
+  const aceitos = rel.signatarios.filter((s) => s.situacao === 'Aceito')
+  const renovacao = rel.signatarios.filter((s) => s.situacao === 'Renovação pendente')
+  const pendentes = rel.signatarios.filter((s) => s.situacao === 'Pendente')
+
+  const td = (v: string | null) => `<td>${escapeHtml(v ?? '—')}</td>`
+  const COL_EVID = `<colgroup><col style="width:26%"/><col style="width:26%"/><col style="width:24%"/><col style="width:24%"/></colgroup>`
+  const HEAD_ACEITO = `<thead><tr><th>Nome</th><th>Data e hora do aceite</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>`
+  const HEAD_RENOV = `<thead><tr><th>Nome</th><th>Último aceite (vencido)</th><th>IP de origem</th><th>Geolocalização</th></tr></thead>`
+  const COL_NOME = `<colgroup><col style="width:100%"/></colgroup>`
+  const HEAD_PEND = `<thead><tr><th>Nome</th></tr></thead>`
+
+  pushSecao(`Aceitos — vigente${rel.versaoVigente ? ` · ${rel.versaoVigente}` : ''}`, SIT_COR['Aceito'], COL_EVID, HEAD_ACEITO,
+    aceitos.map((s) => `<tr><td class="nome">${escapeHtml(s.nome)}</td>${td(s.dataHoraAceite)}${td(s.ip)}${td(s.geolocalizacao)}</tr>`))
+
+  pushSecao('Renovação pendente', SIT_COR['Renovação pendente'], COL_EVID, HEAD_RENOV,
+    renovacao.map((s) => `<tr><td class="nome">${escapeHtml(s.nome)}</td><td><span class="expirado">${escapeHtml(s.dataHoraAceite ?? '—')}</span></td>${td(s.ip)}${td(s.geolocalizacao)}</tr>`))
+
+  pushSecao('Pendentes', SIT_COR['Pendente'], COL_NOME, HEAD_PEND,
+    pendentes.map((s) => `<tr><td class="nome">${escapeHtml(s.nome)}</td></tr>`))
 
   // Histórico de aceites por versão (anexo de evidência)
   const HIST_HEAD = `<thead><tr><th>Nome</th><th>Data e hora do aceite</th></tr></thead>`
@@ -269,6 +289,7 @@ export function exportarRelatorioPDF(doc: Documento): boolean {
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--brand); margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB; }
   h2 + h2 { margin-top: 0; }
   h2 .hsub { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 10px; color: #9CA3AF; }
+  h2 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
 
   /* Resumo de conformidade */
   .resumo { display: flex; gap: 10px; margin-top: 18px; }
