@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposta — Claude no fluxo de UX · Contato Seguro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#13163a;          /* deep navy bg */
+    --ink-2:#1b1f4d;
+    --navy:#263072;         /* brand primary */
+    --navy-2:#3a47a0;
+    --teal:#19c2a8;         /* accent */
+    --teal-deep:#0e8c7a;
+    --ice:#eef1fb;          /* light card bg */
+    --cloud:#f6f7fd;        /* light slide bg */
+    --line:#e3e7f4;
+    --muted:#6b7196;
+    --txt:#23264f;          /* text on light */
+    --txt-soft:#4b4f78;
+    --white:#ffffff;
+    --shadow:0 18px 50px rgba(19,22,58,.12);
+    --shadow-sm:0 8px 24px rgba(19,22,58,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#2a2d52;font-family:'Montserrat',system-ui,Segoe UI,Arial,sans-serif;color:var(--txt);-webkit-font-smoothing:antialiased}
+  .deck{display:flex;flex-direction:column;align-items:center;gap:26px;padding:34px 12px 60px}
+
+  /* ---- slide base ---- */
+  .slide{
+    position:relative;width:1280px;height:720px;overflow:hidden;
+    background:var(--cloud);border-radius:14px;box-shadow:var(--shadow);
+    padding:64px 72px;display:flex;flex-direction:column;
+  }
+  .slide *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* ---- footer / chrome ---- */
+  .foot{position:absolute;left:72px;right:72px;bottom:30px;display:flex;justify-content:space-between;
+    align-items:center;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+  .foot .brand{display:flex;align-items:center;gap:8px}
+  .foot .dot{width:9px;height:9px;border-radius:3px;background:var(--teal)}
+  .pageno{font-variant-numeric:tabular-nums}
+  .dark .foot{color:rgba(255,255,255,.55)} .dark .foot .dot{background:var(--teal)}
+
+  /* ---- type ---- */
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--navy)}
+  .eyebrow .bar{width:30px;height:3px;border-radius:2px;background:var(--teal)}
+  h1{font-size:30px;font-weight:700;letter-spacing:-.01em;color:var(--navy);line-height:1.12}
+  h2{font-size:26px;font-weight:700;letter-spacing:-.01em;color:var(--navy);line-height:1.15}
+  .lead{font-size:16px;line-height:1.5;color:var(--txt-soft);font-weight:500;max-width:62ch}
+  p{font-size:15px;line-height:1.55;color:var(--txt-soft)}
+  .head{display:flex;flex-direction:column;gap:14px;margin-bottom:26px}
+  .head h2{margin-top:2px}
+
+  /* ---- dark variants ---- */
+  .dark{background:linear-gradient(135deg,#11143a 0%,#1c2156 55%,#263072 130%);color:#fff}
+  .dark h1,.dark h2{color:#fff}
+  .dark .eyebrow{color:#cdd6ff}
+  .dark p,.dark .lead{color:rgba(255,255,255,.78)}
+
+  /* ---- cover ---- */
+  .cover{justify-content:center}
+  .cover h1{font-size:54px;line-height:1.05;max-width:18ch;margin:18px 0 20px}
+  .cover .sub{font-size:18px;line-height:1.5;max-width:60ch;color:rgba(255,255,255,.82);font-weight:500}
+  .cover .meta{position:absolute;left:72px;right:72px;bottom:56px;display:flex;gap:32px;flex-wrap:wrap;
+    font-size:13.5px;color:rgba(255,255,255,.7);font-weight:500;border-top:1px solid rgba(255,255,255,.16);padding-top:20px}
+  .cover .meta b{color:#fff;font-weight:600}
+  .chip{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;
+    background:rgba(25,194,168,.15);border:1px solid rgba(25,194,168,.45);color:#7defd6;font-size:13px;font-weight:600;margin-top:26px;width:max-content}
+  .glow{position:absolute;border-radius:50%;filter:blur(10px);opacity:.5}
+  .glow.a{width:420px;height:420px;right:-120px;top:-130px;background:radial-gradient(circle,rgba(25,194,168,.55),transparent 65%)}
+  .glow.b{width:360px;height:360px;left:-120px;bottom:-120px;background:radial-gradient(circle,rgba(58,71,160,.65),transparent 65%)}
+
+  /* ---- divider ---- */
+  .divider{justify-content:center}
+  .divider .big{font-size:120px;font-weight:800;line-height:.9;color:rgba(255,255,255,.10);letter-spacing:-.03em}
+  .divider h1{font-size:46px;margin:6px 0 16px}
+  .divider .lead{font-size:18px;color:rgba(255,255,255,.8)}
+
+  /* ---- layout helpers ---- */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-content:center}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-content:center}
+  .fill{flex:1 1 auto;min-height:0}
+  .row-gap{display:flex;flex-direction:column;justify-content:center;gap:16px}
+
+  /* ---- cards ---- */
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:var(--shadow-sm);
+    display:flex;flex-direction:column;gap:10px}
+  .card .ttl{font-size:17px;font-weight:700;color:var(--navy)}
+  .card p{font-size:13.5px;line-height:1.5}
+  .card .tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-deep)}
+  .icocirc{width:46px;height:46px;border-radius:12px;background:var(--ice);display:flex;align-items:center;justify-content:center;color:var(--navy)}
+  .icocirc.teal{background:rgba(25,194,168,.14);color:var(--teal-deep)}
+  .ico{width:24px;height:24px;stroke-width:1.8;fill:none;stroke:currentColor}
+  .ico.sm{width:20px;height:20px}
+
+  /* ---- icon rows (pillars) ---- */
+  .pillar{display:flex;gap:18px;align-items:flex-start;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:18px 20px;box-shadow:var(--shadow-sm)}
+  .pillar .icocirc{flex:none}
+  .pillar .ttl{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:3px}
+  .pillar p{font-size:13.5px;line-height:1.45}
+
+  /* ---- stats ---- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:26px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow-sm);
+    border-top:4px solid var(--teal)}
+  .stat .n{font-size:46px;font-weight:800;color:var(--navy);line-height:1;letter-spacing:-.02em}
+  .stat .l{font-size:13px;color:var(--txt-soft);margin-top:8px;font-weight:500;line-height:1.4}
+
+  /* ---- statement box ---- */
+  .statement{background:#fff;border:1px solid var(--line);border-left:6px solid var(--navy);border-radius:14px;
+    padding:30px 34px;box-shadow:var(--shadow-sm)}
+  .statement .q{font-size:21px;line-height:1.45;color:var(--txt);font-weight:600}
+  .statement .q b{color:var(--navy)}
+
+  /* ---- callout / ask ---- */
+  .ask{background:linear-gradient(120deg,#263072,#3a47a0);color:#fff;border-radius:14px;padding:24px 28px;
+    box-shadow:var(--shadow);display:flex;gap:18px;align-items:center}
+  .ask .icocirc{background:rgba(255,255,255,.16);color:#fff;flex:none}
+  .ask .lbl{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9fe9da}
+  .ask .txt{font-size:16px;font-weight:600;line-height:1.4;margin-top:4px}
+
+  /* ---- bullets ---- */
+  ul.clean{list-style:none;display:flex;flex-direction:column;gap:13px}
+  ul.clean li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;line-height:1.45;color:var(--txt-soft)}
+  ul.clean li .mk{flex:none;width:22px;height:22px;border-radius:7px;background:var(--ice);color:var(--navy);
+    display:flex;align-items:center;justify-content:center;margin-top:1px}
+  ul.clean li b{color:var(--txt);font-weight:600}
+  ul.clean.danger li .mk{background:#fdecea;color:#d8553f}
+
+  /* ---- flow (process steps) ---- */
+  .flow{display:flex;align-items:stretch;gap:0}
+  .flow .step{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 14px;
+    box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;text-align:center;align-items:center}
+  .flow .step .k{width:34px;height:34px;border-radius:9px;background:var(--ice);color:var(--navy);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+  .flow .step .s{font-size:13px;font-weight:600;color:var(--navy);line-height:1.3}
+  .flow .arr{flex:none;width:30px;display:flex;align-items:center;justify-content:center;color:#b9c0e0}
+  .flow .arr svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+
+  /* ---- table ---- */
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;background:#fff;
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  th{background:var(--navy);color:#fff;text-align:left;font-weight:600;padding:13px 18px;font-size:13px;letter-spacing:.01em}
+  td{padding:12px 18px;border-top:1px solid var(--line);color:var(--txt-soft);vertical-align:top;line-height:1.4}
+  td b{color:var(--txt);font-weight:600}
+  tr:nth-child(even) td{background:#fbfcfe}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.code{background:rgba(25,194,168,.14);color:var(--teal-deep)}
+  .pill.web{background:#eaf0ff;color:var(--navy-2)}
+  .pill.fig{background:#f0eafe;color:#7b3fe4}
+  .pill.have{background:#e7f7ef;color:#1f9d5b}
+  .pill.todo{background:#fff2e3;color:#cf7a13}
+
+  /* ---- comparison ---- */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .cmp .col{border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:14px}
+  .cmp .before{background:#fff;border:1px solid var(--line)}
+  .cmp .after{background:linear-gradient(150deg,#263072,#33409a);color:#fff;box-shadow:var(--shadow)}
+  .cmp .h{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .cmp .before .h{color:var(--muted)} .cmp .after .h{color:#9fe9da}
+  .cmp .it{display:flex;gap:11px;align-items:flex-start;font-size:14px;line-height:1.4}
+  .cmp .before .it{color:var(--txt-soft)} .cmp .after .it{color:rgba(255,255,255,.92)}
+  .cmp .mk{flex:none;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .cmp .before .mk{background:#f1f2f8;color:#9aa0c0} .cmp .after .mk{background:rgba(255,255,255,.18);color:#7defd6}
+
+  /* ---- timeline ---- */
+  .timeline{display:flex;gap:0;align-items:stretch;margin-top:8px}
+  .timeline .ph{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 11px;position:relative}
+  .timeline .ph:not(:last-child)::after{content:"";position:absolute;top:13px;right:-2px;width:4px;height:4px}
+  .timeline .node{display:flex;align-items:center;gap:10px}
+  .timeline .ring{width:28px;height:28px;border-radius:50%;border:3px solid var(--teal);background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--navy);flex:none}
+  .timeline .when{font-size:12px;font-weight:700;color:var(--teal-deep);letter-spacing:.04em}
+  .timeline .bar{height:3px;background:linear-gradient(90deg,var(--teal),#cfe9e3);border-radius:2px;margin:4px 0 2px}
+  .timeline .pt{font-size:14px;font-weight:700;color:var(--navy)}
+  .timeline .pd{font-size:12.5px;color:var(--txt-soft);line-height:1.4}
+
+  /* ---- squad diagram ---- */
+  .squad{display:flex;align-items:center;gap:22px}
+  .squad .hub{width:120px;height:120px;border-radius:18px;background:linear-gradient(150deg,#263072,#3a47a0);
+    color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:var(--shadow);flex:none}
+  .squad .hub .t{font-size:13px;font-weight:700;letter-spacing:.06em}
+  .squad .hub .s{font-size:11px;color:#9fe9da}
+  .squad .conn{flex:none;width:34px;color:#b9c0e0;display:flex;align-items:center;justify-content:center}
+  .squad .conn svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2}
+  .squad .projs{display:flex;flex-direction:column;gap:12px;flex:1}
+  .proj{background:#fff;border:1px solid var(--line);border-radius:11px;padding:13px 16px;box-shadow:var(--shadow-sm);
+    display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .proj .pn{font-size:14px;font-weight:700;color:var(--navy)}
+  .proj .ow{font-size:12px;color:var(--muted);font-weight:500}
+  .proj .ow b{color:var(--txt)}
+  .baton{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--teal-deep);
+    background:rgba(25,194,168,.13);padding:4px 10px;border-radius:999px}
+
+  /* ---- two-way ---- */
+  .twoway{display:flex;align-items:center;justify-content:center;gap:18px}
+  .twoway .node{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;text-align:center;
+    box-shadow:var(--shadow-sm);min-width:190px}
+  .twoway .node.mid{background:linear-gradient(150deg,#263072,#3a47a0);color:#fff;box-shadow:var(--shadow)}
+  .twoway .node .nt{font-size:16px;font-weight:700;color:var(--navy)} .twoway .node.mid .nt{color:#fff}
+  .twoway .node .nd{font-size:12px;color:var(--txt-soft);margin-top:6px;line-height:1.4} .twoway .node.mid .nd{color:#bfe9e0}
+  .twoway .ex{flex:none;color:var(--teal-deep);font-weight:800;font-size:22px}
+
+  /* ---- mini cards row ---- */
+  .minis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:6px}
+  .mini{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow-sm)}
+  .mini .icocirc{margin-bottom:10px}
+  .mini .mt{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:5px}
+  .mini .md{font-size:12.5px;color:var(--txt-soft);line-height:1.45}
+
+  /* ---- numbered steps (next) ---- */
+  .steps{display:flex;flex-direction:column;gap:13px}
+  .nstep{display:flex;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:15px 20px;box-shadow:var(--shadow-sm)}
+  .nstep .n{flex:none;width:38px;height:38px;border-radius:11px;background:var(--navy);color:#fff;font-weight:800;
+    font-size:17px;display:flex;align-items:center;justify-content:center}
+  .nstep .x{font-size:15px;font-weight:600;color:var(--txt);line-height:1.35}
+  .nstep .x span{display:block;font-size:12.5px;color:var(--muted);font-weight:500;margin-top:2px}
+
+  .note{font-size:12.5px;color:var(--muted);font-style:italic;margin-top:14px;line-height:1.45}
+
+  /* ---- closing ---- */
+  .closing{justify-content:center;text-align:left}
+  .closing h1{font-size:42px;line-height:1.12;max-width:22ch;margin-bottom:18px}
+
+  /* ---- diff visual (slide 11) ---- */
+  .diff-vis{display:flex;align-items:center;justify-content:center;gap:30px}
+  .winwrap{display:flex;flex-direction:column;gap:13px;align-items:center}
+  .win{width:360px;height:214px;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .win .tb{height:32px;display:flex;align-items:center;gap:7px;padding:0 14px;border-bottom:1px solid var(--line);background:#fafbfe}
+  .win .tb i{width:10px;height:10px;border-radius:50%;background:#dfe3f0}
+  .win .ct{flex:1;padding:18px;display:flex;flex-direction:column;gap:13px}
+  .skl{height:13px;border-radius:6px;background:#e7e9f2}
+  .win.loose .ct{gap:15px}
+  .win.loose .dash{height:46px;border:1.5px dashed #cdd2e6;border-radius:8px;
+    background:repeating-linear-gradient(90deg,#e9ebf4 0 9px,transparent 9px 16px)}
+  .win.good .hdr{height:36px;border-radius:9px;background:linear-gradient(90deg,var(--navy),var(--navy-2))}
+  .win.good .fld{height:30px;border-radius:8px;background:#f0f2fa;border:1px solid var(--line)}
+  .win.good .btns{display:flex;gap:11px;margin-top:auto}
+  .win.good .btn{height:32px;border-radius:8px;flex:1}
+  .win.good .btn.prim{background:var(--teal)}
+  .win.good .btn.ghost{flex:none;width:96px;background:#fff;border:1.5px solid var(--navy)}
+  .winlabel{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--navy)}
+  .wbadge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .wbadge.bad{background:#fdecea;color:#d8553f}
+  .wbadge.ok{background:#e7f7ef;color:#1f9d5b}
+  .diff-arrow{color:var(--teal);flex:none}
+  .diff-arrow svg{width:36px;height:36px;stroke:currentColor;fill:none;stroke-width:2.2}
+
+  /* ---- print ---- */
+  @page{size:1280px 720px;margin:0}
+  @media print{
+    html,body{background:#fff}
+    .deck{display:block;padding:0;gap:0}
+    .slide{border-radius:0;box-shadow:none;page-break-after:always;break-after:page;margin:0}
+    .slide:last-child{page-break-after:auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== icon symbols ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.3 1 2.5h6c0-1.2.4-1.9 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 17l9 5 9-5"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l6 18 2.5-7.5L21 11 5 3z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 6M17 20c0-2.5-1-4-2.5-5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2"/><path d="M14 4c4 0 6 2 6 6 0 5-5 9-8 10l-4-4c1-3 5-12 6-12z"/><circle cx="14.5" cy="9.5" r="1.6"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="7" cy="5" r="2.2"/><circle cx="7" cy="19" r="2.2"/><circle cx="17" cy="8" r="2.2"/><path d="M7 7.2v9.6M7 12h6a2 2 0 0 0 2-2v-.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8 14v3M13 9v8M18 6v11"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><path d="M3 13l9-9 9 9"/><path d="M5 11v9h14v-9"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l9 16H3l9-16z"/><path d="M12 10v4M12 17h.01"/></symbol>
+</svg>
+
+<div class="deck">
+
+<!-- 01 COVER -->
+<section class="slide dark cover">
+  <div class="glow a"></div><div class="glow b"></div>
+  <div class="eyebrow"><span class="bar"></span>Proposta interna · UX + Inteligência Artificial</div>
+  <h1>Claude no nosso fluxo de UX</h1>
+  <div class="sub">Como podemos integrar o <b style="color:#fff">Claude Code</b>, o <b style="color:#fff">Claude AI</b> e o <b style="color:#fff">Claude Design</b> ao nosso fluxo de trabalho — da pesquisa com usuários ao protótipo navegável e fiel ao nosso Design System, com o squad trabalhando junto.</div>
+  <div class="chip"><svg class="ico sm"><use href="#i-spark"/></svg> Protótipos navegáveis</div>
+  <div class="meta">
+    <div><b>Contato Seguro</b> · Time de UX</div>
+    <div>19 de junho de 2026</div>
+    <div>Elaborado por <b>Time de UX (Design Sênior)</b></div>
+    <div>Para <b>colaboradores &amp; gestão</b></div>
+  </div>
+</section>
+
+<!-- 02 DIVIDER P1 -->
+<section class="slide dark divider">
+  <div class="glow a"></div>
+  <div class="big">01</div>
+  <div class="eyebrow"><span class="bar"></span>Resumo Executivo</div>
+  <h1>A proposta de forma direta</h1>
+  <div class="lead">O problema que queremos resolver, a oportunidade com o Claude e o que precisamos para começar.</div>
+</section>
+
+<!-- 03 TL;DR -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>A proposta em uma frase</div>
+    <h2>O que estamos propondo</h2>
+  </div>
+  <div class="statement">
+    <div class="q">Adotar o Claude como <b>camada de inteligência do nosso fluxo de UX</b> — para transformar entrevistas em insights, ideias em <b>protótipos navegáveis de verdade</b>, e o trabalho individual em <b>colaboração de squad</b>.</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n">2</div><div class="l">produtos da casa já nasceram como protótipos navegáveis com o Claude: <b>Gestor</b> e <b>Portal do Colaborador</b></div></div>
+    <div class="stat"><div class="n" style="font-size:30px">Ant&nbsp;Design</div><div class="l"><b>Protótipo preciso e fiel:</b> lê o nosso Design System e configura os <b>Tokens do Ant Design</b> via Figma — rápido e no nosso padrão</div></div>
+    <div class="stat"><div class="n" style="font-size:30px">GitHub</div><div class="l"><b>Salvo e documentado:</b> cada protótipo versionado, publicado e com histórico — o squad junto, com skills e padrões comuns</div></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">03</div></div>
+</section>
+
+<!-- 04 OPORTUNIDADE -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Por que agora</div>
+    <h2>A oportunidade, em quatro frentes</h2>
+  </div>
+  <div class="fill row-gap">
+    <div class="pillar"><div class="icocirc"><svg class="ico"><use href="#i-search"/></svg></div>
+      <div><div class="ttl">Pesquisa que vira decisão</div><p>Sintetizar entrevistas, dores e alternativas de solução em horas — não em dias de planilha e post-its.</p></div></div>
+    <div class="pillar"><div class="icocirc teal"><svg class="ico"><use href="#i-cursor"/></svg></div>
+      <div><div class="ttl">Protótipo navegável e fiel</div><p>Um app real que o cliente usa — com dados, estado e regras — e fiel ao nosso Design System, como já fizemos no Gestor e no Portal.</p></div></div>
+    <div class="pillar"><div class="icocirc"><svg class="ico"><use href="#i-users"/></svg></div>
+      <div><div class="ttl">Squad trabalhando junto</div><p>Projetos versionados, acessíveis e transferíveis. O colega abre, ajuda e dá continuidade sem perder nada.</p></div></div>
+    <div class="pillar"><div class="icocirc teal"><svg class="ico"><use href="#i-chart"/></svg></div>
+      <div><div class="ttl">Apresentação que convence</div><p>Levar ao cliente um produto testável antes de codar aumenta a taxa de aprovação e reduz retrabalho.</p></div></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">04</div></div>
+</section>
+
+<!-- 05 RECOMENDAÇÃO -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Recomendação</div>
+    <h2>Nossa recomendação</h2>
+  </div>
+  <div class="statement" style="border-left-color:var(--teal)">
+    <div class="q">Adotar as <b>três superfícies do Claude</b> de forma combinada, começando por um <b>piloto de 6 semanas</b> em um projeto real do squad. <b>Investimento baixo, risco controlado, ganho já comprovado.</b></div>
+  </div>
+  <div style="height:22px"></div>
+  <div class="ask">
+    <div class="icocirc"><svg class="ico"><use href="#i-flag"/></svg></div>
+    <div><div class="lbl">O que pedimos à gestão</div><div class="txt">Liberar acesso / licenças do Claude para o time de UX e aprovar o piloto. Detalhes de custo, segurança e plano na Parte 2.</div></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">05</div></div>
+</section>
+
+<!-- 06 DIVIDER P2 -->
+<section class="slide dark divider">
+  <div class="glow b"></div>
+  <div class="big">02</div>
+  <div class="eyebrow"><span class="bar"></span>Parte 2</div>
+  <h1>Proposta Detalhada</h1>
+  <div class="lead">Como o Claude entra no processo, onde os projetos ficam, governança, custos e o plano de adoção.</div>
+</section>
+
+<!-- 07 HOJE -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Estado atual</div>
+    <h2>Onde estamos hoje — fluxo 100% Figma</h2>
+  </div>
+  <div class="flow" style="margin-bottom:26px">
+    <div class="step"><div class="k">1</div><div class="s">Pesquisa &amp; entrevistas</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k">2</div><div class="s">Fluxos &amp; telas no Figma</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k">3</div><div class="s">Protótipo no Figma Make</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k">4</div><div class="s">Apresentação</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k">5</div><div class="s">Handoff p/ dev</div></div>
+  </div>
+  <div class="head" style="margin-bottom:14px"><div class="eyebrow" style="color:#d8553f"><span class="bar" style="background:#d8553f"></span>Onde dói hoje</div></div>
+  <ul class="clean danger">
+    <li><span class="mk"><svg class="ico sm"><use href="#i-warn"/></svg></span><div><b>Protótipo navegável só sai do Figma Make</b> — e nunca fica fiel ao nosso Design System e aos Tokens do Ant Design.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-warn"/></svg></span><div><b>Síntese de pesquisa é manual e demorada</b> — insight valioso fica preso em horas de transcrição.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-warn"/></svg></span><div><b>Compartilhar e transferir um projeto é frágil</b> — o protótipo vive na máquina de uma pessoa, sem histórico nem versionamento.</div></li>
+  </ul>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">07</div></div>
+</section>
+
+<!-- 08 3 SUPERFÍCIES -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>O que é o Claude</div>
+    <h2>As três superfícies do Claude</h2>
+  </div>
+  <div class="grid3 fill">
+    <div class="card"><div class="icocirc teal"><svg class="ico"><use href="#i-cursor"/></svg></div>
+      <div class="tag">Construir</div><div class="ttl">Claude Code</div>
+      <p>Agente no terminal/IDE que cria <b>protótipos navegáveis em código</b>, lê o Figma e gera telas. Foi o que usamos no <b>Gestor</b> e no <b>Portal do Colaborador</b>.</p></div>
+    <div class="card"><div class="icocirc"><svg class="ico"><use href="#i-bulb"/></svg></div>
+      <div class="tag">Pensar</div><div class="ttl">Claude AI (web + artifacts)</div>
+      <p>Chat com <b>artifacts</b>. Síntese de entrevistas, transformação das dores em <b>soluções de design</b> e protótipos rápidos para validar ideias na hora.</p></div>
+    <div class="card"><div class="icocirc" style="background:#f0eafe;color:#7b3fe4"><svg class="ico"><use href="#i-layers"/></svg></div>
+      <div class="tag">Conectar</div><div class="ttl">Claude Design (Figma MCP)</div>
+      <p>Lê o nosso <b>Design System</b> no Figma e <b>configura os Tokens do Ant Design</b> no nosso padrão — telas e protótipo <b>fiéis ao nosso visual</b>.</p></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">08</div></div>
+</section>
+
+<!-- 09 MAPA POR ETAPA -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>O fluxo, etapa por etapa</div>
+    <h2>Onde o Claude entra no nosso processo</h2>
+  </div>
+  <table>
+    <thead><tr><th style="width:24%">Etapa</th><th style="width:54%">Como o Claude ajuda</th><th style="width:22%">Superfície</th></tr></thead>
+    <tbody>
+      <tr><td><b>Entrevistas &amp; descoberta</b></td><td>Coletar e sintetizar as dores dos usuários — temas, citações e personas a partir das entrevistas</td><td><span class="pill web">Claude AI</span></td></tr>
+      <tr><td><b>Da dor à solução</b></td><td>Transformar as dores em soluções e decisões de design; explorar alternativas antes de implementar</td><td><span class="pill web">Claude AI</span></td></tr>
+      <tr><td><b>Design System &amp; Tokens</b></td><td>Ler o nosso Design System no Figma e configurar/criar os Tokens do Ant Design no nosso padrão</td><td><span class="pill fig">Claude Design</span></td></tr>
+      <tr><td><b>Protótipo navegável</b></td><td>Implementar direto um app real (React + AntD), preciso e fiel ao Design System, com dados e regras</td><td><span class="pill code">Claude Code</span></td></tr>
+      <tr><td><b>Salvar, publicar &amp; documentar</b></td><td>Versionar no GitHub, publicar o link navegável e registrar histórico e atualizações do protótipo</td><td><span class="pill code">Claude Code</span></td></tr>
+      <tr><td><b>Validação &amp; handoff</b></td><td>Ajustes ao vivo no teste com usuário; entrega = código limpo + specs + tokens</td><td><span class="pill code">Claude Code</span> <span class="pill web">Claude AI</span></td></tr>
+    </tbody>
+  </table>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">09</div></div>
+</section>
+
+<!-- 10 ANTES / DEPOIS -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>O que muda</div>
+    <h2>No dia a dia: antes &amp; depois</h2>
+  </div>
+  <div class="cmp fill">
+    <div class="col before">
+      <div class="h">Hoje</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-arrow"/></svg></span>Protótipo só no Figma Make, pouco fiel ao Design System</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-arrow"/></svg></span>Síntese de pesquisa em dias</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-arrow"/></svg></span>Handoff em documento que envelhece</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-arrow"/></svg></span>Projeto preso na máquina de uma pessoa, sem versão</div>
+    </div>
+    <div class="col after">
+      <div class="h">Com o Claude</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span>Protótipo <b>navegável e fiel</b> ao nosso Design System</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span>Síntese em horas, com dores e alternativas</div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span>Handoff = <b>código + specs vivos</b></div>
+      <div class="it"><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span>Projeto <b>versionado, acessível e transferível</b></div>
+    </div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">10</div></div>
+</section>
+
+<!-- 11 DIFERENCIAL -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>O diferencial</div>
+    <h2>Protótipo navegável, não maquete</h2>
+  </div>
+  <div class="fill" style="display:flex;flex-direction:column;justify-content:center;gap:22px">
+    <div class="diff-vis">
+      <div class="winwrap">
+        <div class="win loose"><div class="tb"><i></i><i></i><i></i></div>
+          <div class="ct"><div class="skl" style="width:55%"></div><div class="skl" style="width:88%"></div><div class="dash"></div><div class="skl" style="width:42%;background:#e9d9c2"></div></div></div>
+        <div class="winlabel"><span class="wbadge bad">✕ fora do Design System</span> Figma&nbsp;Make</div>
+      </div>
+      <div class="diff-arrow"><svg><use href="#i-arrow"/></svg></div>
+      <div class="winwrap">
+        <div class="win good"><div class="tb"><i style="background:#263072"></i><i style="background:#19c2a8"></i><i></i></div>
+          <div class="ct"><div class="hdr"></div><div class="fld"></div><div class="fld" style="width:72%"></div><div class="btns"><div class="btn prim"></div><div class="btn ghost"></div></div></div></div>
+        <div class="winlabel">Claude <span class="wbadge ok">✓ fiel ao Design System</span></div>
+      </div>
+    </div>
+    <div class="note" style="text-align:center;margin-top:0">Provado no <b>Gestor</b> e no <b>Portal do Colaborador</b> — navegáveis e fiéis ao nosso Design System.</div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">11</div></div>
+</section>
+
+<!-- 12 PESQUISA -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Pesquisa &amp; síntese</div>
+    <h2>Da entrevista à decisão de design</h2>
+  </div>
+  <div class="flow" style="margin:8px 0 26px">
+    <div class="step"><div class="k"><svg class="ico sm"><use href="#i-doc"/></svg></div><div class="s">Entrevistas &amp; transcrições</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k"><svg class="ico sm"><use href="#i-search"/></svg></div><div class="s">Síntese: temas, dores, citações</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k"><svg class="ico sm"><use href="#i-users"/></svg></div><div class="s">Personas &amp; jornadas</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k"><svg class="ico sm"><use href="#i-bulb"/></svg></div><div class="s">Alternativas &amp; priorização (MoSCoW)</div></div>
+    <div class="arr"><svg><use href="#i-arrow"/></svg></div>
+    <div class="step"><div class="k"><svg class="ico sm"><use href="#i-cursor"/></svg></div><div class="s">Protótipo</div></div>
+  </div>
+  <div class="statement" style="border-left-color:var(--teal)">
+    <div class="q">É aqui que descobrimos <b>a melhor solução antes de desenhar</b> — partindo das dores reais dos usuários e levando só as boas ideias para o protótipo. Foi assim que priorizamos o backlog dos nossos produtos.</div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">12</div></div>
+</section>
+
+<!-- 13 COLABORAÇÃO / HANDOFF -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Colaboração</div>
+    <h2>Squad junto — e nenhum projeto se perde</h2>
+  </div>
+  <div class="squad" style="margin:6px 0 22px">
+    <div class="hub"><svg class="ico" style="stroke:#fff"><use href="#i-users"/></svg><div class="t">SQUAD</div><div class="s">de UX</div></div>
+    <div class="conn"><svg><use href="#i-arrow"/></svg></div>
+    <div class="projs">
+      <div class="proj"><div><div class="pn">Projeto A</div><div class="ow">dono atual: <b>Ana</b></div></div><div class="baton"><svg class="ico sm" style="stroke:currentColor"><use href="#i-branch"/></svg> transferido → Diego</div></div>
+      <div class="proj"><div><div class="pn">Projeto B</div><div class="ow">dono atual: <b>Bruno</b></div></div><span class="ow">acesso de apoio liberado p/ revisão</span></div>
+      <div class="proj"><div><div class="pn">Projeto C</div><div class="ow">dono atual: <b>Carla</b></div></div><span class="ow">protótipo navegável publicado</span></div>
+    </div>
+  </div>
+  <ul class="clean">
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Cada projeto tem um dono.</b> Por padrão, é ele quem trabalha nele — o squad não pisa no protótipo dos outros sem necessidade.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-eye"/></svg></span><div><b>Acesso ao protótipo do colega quando preciso</b> — para revisar, apoiar ou aprender.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-branch"/></svg></span><div><b>Transferência de projeto sem perdas</b> — quando um projeto muda de responsável, ele vai com todo o histórico, sem perder nada de uma pessoa para outra.</div></li>
+  </ul>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">13</div></div>
+</section>
+
+<!-- 14 ACERVO -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Onde os projetos ficam</div>
+    <h2>O acervo: nada se perde</h2>
+  </div>
+  <div class="lead" style="margin-bottom:22px">Cada protótipo vive em um <b>repositório versionado e privado (Git)</b> — o nosso acervo único. Todo histórico fica registrado, o acesso é controlado por pessoa, e qualquer colega consegue retomar de onde o outro parou.</div>
+  <div class="minis fill" style="align-content:center">
+    <div class="mini"><div class="icocirc"><svg class="ico"><use href="#i-branch"/></svg></div><div class="mt">Versionado</div><div class="md">Cada mudança fica registrada; dá para voltar a qualquer ponto e ver quem fez o quê.</div></div>
+    <div class="mini"><div class="icocirc teal"><svg class="ico"><use href="#i-eye"/></svg></div><div class="mt">Compartilhável</div><div class="md">Link navegável para o cliente (deploy), como já fizemos com o Portal do Colaborador.</div></div>
+    <div class="mini"><div class="icocirc"><svg class="ico"><use href="#i-arrow"/></svg></div><div class="mt">Transferível</div><div class="md">Transferir o projeto é só entregar o acesso — ele vai inteiro, sem retrabalho.</div></div>
+  </div>
+  <div class="note">É essa base que torna a transferência de projeto segura — o ponto que mais preocupa hoje.</div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">14</div></div>
+</section>
+
+<!-- 15 FIGMA -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Integração</div>
+    <h2>O Figma continua a casa do nosso Design System</h2>
+  </div>
+  <div class="lead" style="margin-bottom:18px">O Figma continua sendo a <b>casa do design system e da nossa biblioteca paga</b>. O MCP conecta o Claude ao Figma para ler tokens e componentes e manter telas e código fiéis ao nosso padrão (AntD, #263072, Montserrat).</div>
+  <div class="twoway" style="margin-bottom:20px">
+    <div class="node"><div class="nt">Figma</div><div class="nd">Design system &amp; biblioteca paga</div></div>
+    <div class="ex">⇄</div>
+    <div class="node mid"><div class="nt">Claude</div><div class="nd">Lê tokens · gera · mantém consistência</div></div>
+    <div class="ex">⇄</div>
+    <div class="node"><div class="nt">Código / Protótipo</div><div class="nd">App navegável fiel ao design</div></div>
+  </div>
+  <ul class="clean">
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Do Figma para o código:</b> transformar telas e fluxos em protótipo navegável respeitando a biblioteca.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Do código para o Figma:</b> registrar telas e padrões de volta, mantendo as duas pontas sincronizadas.</div></li>
+  </ul>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">15</div></div>
+</section>
+
+<!-- 16 GOVERNANÇA -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Confiança</div>
+    <h2>Governança, segurança e propriedade intelectual</h2>
+  </div>
+  <div class="grid2 fill">
+    <div class="card"><div class="icocirc"><svg class="ico"><use href="#i-shield"/></svg></div><div class="ttl">Contas de trabalho (plano Team)</div>
+      <p>Em planos corporativos, por padrão a Anthropic <b>não usa o conteúdo das contas para treinar os modelos</b>. Validar os termos vigentes na contratação.</p></div>
+    <div class="card"><div class="icocirc teal"><svg class="ico"><use href="#i-lock"/></svg></div><div class="ttl">Repositórios privados</div>
+      <p>Protótipos e dados de cliente vivem em <b>repositórios fechados</b>, com acesso concedido por pessoa.</p></div>
+    <div class="card"><div class="icocirc"><svg class="ico"><use href="#i-doc"/></svg></div><div class="ttl">Confidencialidade do cliente</div>
+      <p>Dados sensíveis seguem <b>NDA</b>; anonimizar sempre que possível ao usar como exemplo.</p></div>
+    <div class="card"><div class="icocirc teal"><svg class="ico"><use href="#i-eye"/></svg></div><div class="ttl">Revisão humana no comando</div>
+      <p>O Claude <b>acelera</b>; designer e dev seguem responsáveis pela decisão final. Copiloto, não piloto automático.</p></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">16</div></div>
+</section>
+
+<!-- 17 PLANO -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Adoção</div>
+    <h2>Plano de adoção — piloto enxuto</h2>
+  </div>
+  <div class="timeline" style="margin-top:18px">
+    <div class="ph"><div class="node"><span class="ring">0</span><span class="when">SEMANA 0</span></div><div class="bar"></div><div class="pt">Setup</div><div class="pd">Acesso e licenças, conexão Figma (MCP) e criação do repositório/acervo.</div></div>
+    <div class="ph"><div class="node"><span class="ring">1</span><span class="when">SEMANAS 1–3</span></div><div class="bar"></div><div class="pt">Piloto</div><div class="pd">1 projeto real, 1–2 designers. Primeiro protótipo navegável de ponta a ponta.</div></div>
+    <div class="ph"><div class="node"><span class="ring">2</span><span class="when">SEMANAS 4–5</span></div><div class="bar"></div><div class="pt">Padronizar</div><div class="pd">Templates, prompts e "skills" do time. Biblioteca paga conectada ao fluxo.</div></div>
+    <div class="ph"><div class="node"><span class="ring">3</span><span class="when">SEMANA 6</span></div><div class="bar"></div><div class="pt">Avaliar &amp; decidir</div><div class="pd">Métricas do piloto, ajustes e decisão sobre o rollout no squad.</div></div>
+  </div>
+  <div class="note" style="margin-top:30px">Métricas sugeridas: tempo de síntese de pesquisa, tempo até o primeiro protótipo navegável, e nº de iterações validadas com cliente.</div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">17</div></div>
+</section>
+
+<!-- 18 CUSTOS -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Investimento</div>
+    <h2>Custos &amp; licenças — time de até 5</h2>
+  </div>
+  <table>
+    <thead><tr><th style="width:28%">Item</th><th style="width:48%">O que é</th><th style="width:24%">Status</th></tr></thead>
+    <tbody>
+      <tr><td><b>Claude (plano Team / Pro)</b></td><td>Acesso ao Claude.ai e ao Claude Code para o time de UX</td><td><span class="pill todo">A contratar</span></td></tr>
+      <tr><td><b>Figma Pro</b></td><td>Design das telas e nossa biblioteca de componentes</td><td><span class="pill have">Já temos</span></td></tr>
+      <tr><td><b>Biblioteca de design paga</b></td><td>Componentes e tokens do design system</td><td><span class="pill have">Já temos</span></td></tr>
+      <tr><td><b>Repositório Git privado</b></td><td>Acervo e versionamento dos protótipos</td><td><span class="pill todo">A definir</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note">Os valores exatos devem ser confirmados nos planos vigentes no momento da contratação. Para um time de até 5 pessoas, o investimento incremental é <b>baixo frente ao ganho de produtividade</b> — boa parte da pilha (Figma + biblioteca) já está paga.</div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">18</div></div>
+</section>
+
+<!-- 19 JUSTIFICATIVA -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Para a gestão</div>
+    <h2>Por que liberar o acesso ao time</h2>
+  </div>
+  <ul class="clean" style="margin-bottom:18px">
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Já está comprovado:</b> dois produtos da casa (Gestor e Portal) nasceram como protótipos navegáveis com o Claude — e a gestão aprovou.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Velocidade:</b> pesquisa sintetizada e protótipos prontos em uma fração do tempo atual.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Autonomia do time:</b> menos dependência da fila de desenvolvimento para validar ideias com o cliente.</div></li>
+    <li><span class="mk"><svg class="ico sm"><use href="#i-check"/></svg></span><div><b>Risco baixo:</b> piloto curto, custo pequeno e decisão de continuidade baseada em métricas.</div></li>
+  </ul>
+  <div class="ask">
+    <div class="icocirc"><svg class="ico"><use href="#i-flag"/></svg></div>
+    <div><div class="lbl">O pedido</div><div class="txt">Liberar acesso / licenças do Claude para o time de UX e aprovar o piloto de 6 semanas.</div></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">19</div></div>
+</section>
+
+<!-- 20 RISCOS -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Transparência</div>
+    <h2>Riscos &amp; mitigação</h2>
+  </div>
+  <table>
+    <thead><tr><th style="width:38%">Risco</th><th style="width:62%">Como mitigamos</th></tr></thead>
+    <tbody>
+      <tr><td><b>Curva de aprendizado</b></td><td>Piloto guiado, com biblioteca de prompts e "skills" compartilhada pelo time</td></tr>
+      <tr><td><b>Qualidade / erros do modelo</b></td><td>Revisão humana obrigatória — o Claude é copiloto, a decisão é do designer/dev</td></tr>
+      <tr><td><b>Segurança de dados</b></td><td>Contas Team, repositórios privados, NDA e anonimização de dados de cliente</td></tr>
+      <tr><td><b>Dependência de ferramenta</b></td><td>O código e os padrões ficam nossos (Git); o Figma segue como base do design</td></tr>
+      <tr><td><b>Custo</b></td><td>Piloto enxuto e métricas antes de escalar para todo o squad</td></tr>
+    </tbody>
+  </table>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">20</div></div>
+</section>
+
+<!-- 21 PRÓXIMOS PASSOS -->
+<section class="slide">
+  <div class="head">
+    <div class="eyebrow"><span class="bar"></span>Decisão</div>
+    <h2>Próximos passos</h2>
+  </div>
+  <div class="steps fill">
+    <div class="nstep"><div class="n">1</div><div class="x">Aprovar o piloto de 6 semanas<span>Decisão da gestão</span></div></div>
+    <div class="nstep"><div class="n">2</div><div class="x">Liberar acesso / licenças do Claude para o time<span>Acesso ao Claude.ai + Claude Code</span></div></div>
+    <div class="nstep"><div class="n">3</div><div class="x">Escolher o projeto-piloto e os 1–2 donos<span>Time de UX</span></div></div>
+    <div class="nstep"><div class="n">4</div><div class="x">Setup: conexão Figma (MCP) + repositório<span>Semana 0</span></div></div>
+    <div class="nstep"><div class="n">5</div><div class="x">Revisão de resultados e decisão de rollout<span>Fim do piloto · com métricas</span></div></div>
+  </div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">21</div></div>
+</section>
+
+<!-- 22 CLOSING -->
+<section class="slide dark closing">
+  <div class="glow a"></div><div class="glow b"></div>
+  <div class="eyebrow"><span class="bar"></span>Em resumo</div>
+  <h1>Protótipos navegáveis e fiéis ao nosso Design System — com o time inteiro junto.</h1>
+  <div class="lead" style="max-width:64ch">O Claude entra como camada de inteligência do nosso processo: pesquisa mais afiada, protótipos de verdade, e um squad que se ajuda e nunca perde um projeto. Começamos pequeno, medimos, e decidimos com dados.</div>
+  <div class="chip"><svg class="ico sm"><use href="#i-rocket"/></svg> Próximo passo: aprovar o piloto</div>
+  <div class="foot"><div class="brand"><span class="dot"></span>Claude no fluxo de UX · Contato Seguro</div><div class="pageno">19/06/2026</div></div>
+</section>
+
+</div>
+</body>
+</html>
