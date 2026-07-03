@@ -17,6 +17,7 @@ import { CancelModal } from '@/features/criacao/components/CancelModal'
 import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
 import { computeSha256, validatePdfFile } from '@/features/criacao/utils/fileHash'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS, EXISTING_DOCUMENT_NAMES } from '@/data/mockClassifications'
+import { classificacoesDaGestao } from '@/data/mockClassificacoes'
 import { colorTokens } from '@/theme/tokens'
 
 dayjs.locale('pt-br')
@@ -62,6 +63,20 @@ export function InformacoesStep() {
   const [fileError,     setFileError]     = useState('')
   const [showCancel,    setShowCancel]    = useState(false)
   const [hasFormError,  setHasFormError]  = useState(false)
+
+  /* ── Gestão escolhida (define quais classificações ficam disponíveis) ── */
+  const [gestaoSel, setGestaoSel] = useState<string>(data.gestaoResponsavel ?? '')
+  // Em edição, mantém o conjunto antigo para não orfãnar seleções já salvas.
+  const classifOptions = editMode ? CLASSIFICATIONS : classificacoesDaGestao(gestaoSel)
+  const classifDisabled = !editMode && !gestaoSel
+
+  function handleGestaoChange(v: string) {
+    setGestaoSel(v)
+    dispatch({ type: 'SET_FIELD', field: 'gestaoResponsavel', value: v })
+    // Classificações pertencem à gestão: ao trocar, limpa a seleção anterior.
+    form.setFieldValue('classificacoes', undefined)
+    dispatch({ type: 'SET_MULTI', field: 'classificacoes', value: [] })
+  }
 
   /* ── Validade ── */
   const [possuiValidade, setPossuiValidade] = useState<boolean>(data.possuiValidade ?? false)
@@ -364,23 +379,45 @@ export function InformacoesStep() {
             />
           </Form.Item>
 
-          {/* Classificação */}
+          {/* Gestão responsável — definida ANTES das classificações */}
           <Form.Item
-            name="classificacoes"
+            name="gestaoResponsavel"
             label={
               <FieldLabel
-                label="Classificações"
+                label="Gestão responsável"
                 required
-                tooltip="Categorize o documento (ex: Política, Cartilha). Selecione quantas categorias forem necessárias."
+                tooltip="Defina o grupo ou setor encarregado pela conformidade deste documento. As classificações disponíveis dependem da gestão escolhida."
               />
             }
             rules={[{ required: true, message: 'Campo de seleção obrigatória' }]}
             style={{ marginBottom: 20 }}
           >
             <Select
-              mode="multiple"
               placeholder="Selecione"
-              options={CLASSIFICATIONS}
+              options={GESTOES_RESPONSAVEIS}
+              onChange={handleGestaoChange}
+              disabled={editMode}
+            />
+          </Form.Item>
+
+          {/* Classificação — habilita só após escolher a gestão; filtra por gestão */}
+          <Form.Item
+            name="classificacoes"
+            label={
+              <FieldLabel
+                label="Classificações"
+                required
+                tooltip="Categorize o documento. As opções são as classificações da gestão responsável selecionada."
+              />
+            }
+            rules={[{ required: true, message: 'Campo de seleção obrigatória' }]}
+            style={{ marginBottom: 0 }}
+          >
+            <Select
+              mode="multiple"
+              placeholder={classifDisabled ? 'Selecione a gestão responsável primeiro' : 'Selecione'}
+              options={classifOptions}
+              disabled={classifDisabled}
               maxTagCount="responsive"
               maxTagPlaceholder={(omitted) => (
                 <span style={{ color: colorTokens.primary }}>+{omitted.length}</span>
@@ -388,27 +425,6 @@ export function InformacoesStep() {
               onChange={(vals: string[]) =>
                 dispatch({ type: 'SET_MULTI', field: 'classificacoes', value: vals })
               }
-            />
-          </Form.Item>
-
-          {/* Gestão responsável */}
-          <Form.Item
-            name="gestaoResponsavel"
-            label={
-              <FieldLabel
-                label="Gestão responsável"
-                required
-                tooltip="Defina o grupo ou setor encarregado pela conformidade deste documento."
-              />
-            }
-            rules={[{ required: true, message: 'Campo de seleção obrigatória' }]}
-            style={{ marginBottom: 0 }}
-          >
-            <Select
-              placeholder="Selecione"
-              options={GESTOES_RESPONSAVEIS}
-              onChange={(v) => dispatch({ type: 'SET_FIELD', field: 'gestaoResponsavel', value: v })}
-              disabled={editMode}
             />
           </Form.Item>
         </Form>

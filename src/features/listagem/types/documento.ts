@@ -4,7 +4,18 @@
 ───────────────────────────────────────────────────────────── */
 
 /** Status possíveis de um documento na plataforma */
-export type DocumentoStatus = 'Rascunho' | 'Ativo' | 'Agendado' | 'Concluído' | 'Expirado' | 'Inativo'
+export type DocumentoStatus = 'Rascunho' | 'Em revisão' | 'Ativo' | 'Agendado' | 'Concluído' | 'Expirado' | 'Inativo'
+
+/** Comentário do fluxo de aprovação (revisão de rascunho) */
+export interface ComentarioRevisao {
+  id: string
+  autor: string
+  papel: 'Gestor' | 'Aprovador'
+  texto: string
+  data: string // ISO 8601
+  /** comentario padrão · ajuste solicitado · aprovação */
+  tipo?: 'comentario' | 'ajuste' | 'aprovacao'
+}
 
 /** Modalidade de envio do documento */
 export type ModalidadeEnvio = 'departamento' | 'pessoa'
@@ -67,6 +78,28 @@ export interface Documento {
    * Valores: 'sem_validade' | '3_meses' | '6_meses' | '12_meses' | '24_meses'
    */
   recorrenciaAceite?: string
+
+  /* ── Cobrança automática e prazo de assinatura (config da criação) ── */
+  /** Sistema reenvia lembretes aos pendentes */
+  cobrancaAutomatica?: boolean
+  /** Cadência dos lembretes automáticos, em dias */
+  cobrancaFrequenciaDias?: number
+  /** Limite de lembretes por destinatário (0 = ilimitado) */
+  cobrancaMaxLembretes?: number
+  /** Quantos lembretes automáticos já foram disparados */
+  lembretesEnviados?: number
+  /** Data do próximo lembrete automático (ISO); null = limite atingido */
+  proximoLembreteEm?: string | null
+  /** Data-limite para os destinatários aceitarem (ISO); null = sem prazo */
+  prazoAssinaturaEm?: string | null
+  /** Encerramento automático (100% ou prazo) vs manual */
+  encerramentoAutomatico?: boolean
+
+  /* ── Fluxo de aprovação (status "Em revisão") ── */
+  /** Quando foi enviado para aprovação (ISO) */
+  enviadoParaAprovacaoEm?: string
+  /** Thread de comentários da revisão */
+  comentariosRevisao?: ComentarioRevisao[]
 }
 
 /** Filtros aplicados na listagem */
@@ -99,27 +132,30 @@ export interface OrdenacaoListagem {
 
 /** Mapa de cores AntD para cada status */
 export const STATUS_COLOR: Record<DocumentoStatus, string> = {
-  Rascunho:  'default',
-  Ativo:     'success',
-  Agendado:  'processing',
-  Concluído: 'default',
-  Expirado:  'warning',
-  Inativo:   'default',
+  Rascunho:      'default',
+  'Em revisão':  'processing',
+  Ativo:         'success',
+  Agendado:      'processing',
+  Concluído:     'default',
+  Expirado:      'warning',
+  Inativo:       'default',
 }
 
 /** Label exibida na UI para cada status */
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {
-  Rascunho:  'Rascunho',
-  Ativo:     'Ativo',
-  Agendado:  'Agendado',
-  Concluído: 'Concluído',
-  Expirado:  'Expirado',
-  Inativo:   'Inativo',
+  Rascunho:      'Rascunho',
+  'Em revisão':  'Em revisão',
+  Ativo:         'Ativo',
+  Agendado:      'Agendado',
+  Concluído:     'Concluído',
+  Expirado:      'Expirado',
+  Inativo:       'Inativo',
 }
 
 /** Todos os valores de status (útil para filtros e selects) */
 export const DOCUMENTO_STATUS_LIST: DocumentoStatus[] = [
   'Rascunho',
+  'Em revisão',
   'Ativo',
   'Agendado',
   'Concluído',

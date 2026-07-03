@@ -3,13 +3,13 @@ import dayjs, { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
 import {
   Typography, Button, Space, Modal, Tag, Divider,
-  Tooltip, message, Checkbox, DatePicker, ConfigProvider,
+  Tooltip, message, Checkbox, DatePicker, ConfigProvider, Radio,
 } from 'antd'
 import {
   FilePdfOutlined, EditOutlined,
   CalendarOutlined, CheckCircleFilled,
   ClockCircleOutlined, VerticalAlignBottomOutlined,
-  CloseCircleOutlined,
+  CloseCircleOutlined, MailOutlined, WhatsAppOutlined,
 } from '@ant-design/icons'
 import ptBR from 'antd/locale/pt_BR'
 import { useNavigate } from 'react-router-dom'
@@ -17,9 +17,10 @@ import { StepPageLayout } from '@/features/criacao/components/StepPageLayout'
 import { CancelModal } from '@/features/criacao/components/CancelModal'
 import { useDocumentForm } from '@/features/criacao/context/DocumentFormContext'
 import {
-  CLASSIFICATIONS, GESTOES_RESPONSAVEIS,
+  GESTOES_RESPONSAVEIS,
   DEPARTAMENTOS, COLABORADORES,
 } from '@/data/mockClassifications'
+import { classificacaoLabel } from '@/data/mockClassificacoes'
 import { colorTokens } from '@/theme/tokens'
 
 dayjs.locale('pt-br')
@@ -90,6 +91,8 @@ export function RevisaoStep() {
 
   const [showCancel,  setShowCancel]  = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  /* ── Finalização: publicar direto ou enviar para aprovação ── */
+  const [enviarAprovacao, setEnviarAprovacao] = useState(false)
 
   /* ── Agendamento — estado local, validado apenas aqui ── */
   const [agendarEnvio,   setAgendarEnvio]   = useState<boolean>(!(data.envioImediato ?? true))
@@ -103,7 +106,9 @@ export function RevisaoStep() {
   const isToday = dataLancamento ? dataLancamento.startOf('day').isSame(hoje) : false
 
   /* ── Rótulo do botão principal ── */
-  const actionLabel = agendarEnvio ? 'Confirmar agendamento' : 'Publicar agora'
+  const actionLabel = enviarAprovacao
+    ? 'Enviar para aprovação'
+    : agendarEnvio ? 'Confirmar agendamento' : 'Publicar agora'
 
   /* ── Contagem de destinatários ── */
   const totalDest =
@@ -116,13 +121,19 @@ export function RevisaoStep() {
       : `${totalDest} pessoa${totalDest !== 1 ? 's' : ''}`
 
   /* ── Labels resolvidos ── */
-  const classificacoesLabels = (data.classificacoes ?? []).map((v) => labelOf(CLASSIFICATIONS, v))
+  const classificacoesLabels = (data.classificacoes ?? []).map((v) => classificacaoLabel(v))
   const gestaoLabel    = labelOf(GESTOES_RESPONSAVEIS, data.gestaoResponsavel)
   const tempoLabel     = TEMPO_LABELS[data.tempoLeituraGlobal] ?? `${data.tempoLeituraGlobal}s`
   const renovacaoLabel =
     data.renovacaoAceite === 'personalizado'
       ? `A cada ${data.renovacaoMesesPersonalizado} meses`
       : RENOVACAO_LABELS[data.renovacaoAceite] ?? data.renovacaoAceite
+  const cobrancaLimiteLabel = data.cobrancaMaxLembretes === 0
+    ? 'sem limite'
+    : `até ${data.cobrancaMaxLembretes} ${data.cobrancaMaxLembretes === 1 ? 'lembrete' : 'lembretes'}`
+  const cobrancaLabel = data.cobrancaAutomatica
+    ? `A cada ${data.cobrancaFrequenciaDias} dias · ${cobrancaLimiteLabel}`
+    : 'Desativada'
 
   /* ── Tags de destinatários ── */
   const deptTags  = data.departamentos.map((v) => ({ label: labelOf(DEPARTAMENTOS, v), value: v }))
@@ -136,7 +147,7 @@ export function RevisaoStep() {
 
   /* ── Avançar: valida, persiste no contexto e abre confirm ── */
   function handleNext() {
-    if (agendarEnvio && !dataLancamento) {
+    if (!enviarAprovacao && agendarEnvio && !dataLancamento) {
       setDataError('Selecione a data e hora do envio para continuar.')
       return
     }
@@ -157,9 +168,11 @@ export function RevisaoStep() {
     clearDraft()
     dispatch({ type: 'RESET' })
     message.success(
-      !agendarEnvio
-        ? 'Documento publicado e enviado com sucesso!'
-        : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
+      enviarAprovacao
+        ? 'Documento enviado para aprovação. Você será avisado quando for revisado.'
+        : !agendarEnvio
+          ? 'Documento publicado e enviado com sucesso!'
+          : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
       4,
     )
     navigate('/documentos')
@@ -355,6 +368,27 @@ export function RevisaoStep() {
           }
         />
 
+        <ReviewRow
+          label="Canais de notificação"
+          value={
+            <Space size={[4, 4]} wrap>
+              {data.canalEmail && (
+                <Tag style={{ fontFamily: FONT, borderRadius: 4, margin: 0 }} icon={<MailOutlined />}>
+                  E-mail
+                </Tag>
+              )}
+              {data.canalWhatsapp && (
+                <Tag style={{ fontFamily: FONT, borderRadius: 4, margin: 0, color: '#25D366', borderColor: '#25D366' }} icon={<WhatsAppOutlined />}>
+                  WhatsApp
+                </Tag>
+              )}
+              {!data.canalEmail && !data.canalWhatsapp && (
+                <Text style={{ fontFamily: FONT, color: colorTokens.textSecondary }}>—</Text>
+              )}
+            </Space>
+          }
+        />
+
         {data.exigeAceite && data.renovacaoAtiva && (
           <ReviewRow
             label="Renovação de aceite"
@@ -362,6 +396,43 @@ export function RevisaoStep() {
               <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>{renovacaoLabel}</Text>
             }
           />
+        )}
+
+        {data.exigeAceite && (
+          <>
+            <ReviewRow
+              label="Cobrança automática"
+              value={
+                <Space size={6}>
+                  <ClockCircleOutlined style={{ color: data.cobrancaAutomatica ? colorTokens.primary : colorTokens.textSecondary }} />
+                  <Text style={{
+                    fontFamily: FONT, fontSize: 13, fontWeight: 500,
+                    color: data.cobrancaAutomatica ? colorTokens.textPrimary : colorTokens.textSecondary,
+                  }}>{cobrancaLabel}</Text>
+                </Space>
+              }
+            />
+            {data.prazoAssinaturaAtivo && (
+              <ReviewRow
+                label="Prazo para assinatura"
+                value={
+                  <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                    Até {data.prazoAssinaturaDias} {data.prazoAssinaturaDias === 1 ? 'dia' : 'dias'} após o envio
+                  </Text>
+                }
+              />
+            )}
+            <ReviewRow
+              label="Encerramento"
+              value={
+                <Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500 }}>
+                  {data.encerramentoAutomatico
+                    ? `Automático (100% de aceite${data.prazoAssinaturaAtivo ? ' ou fim do prazo' : ''})`
+                    : 'Manual'}
+                </Text>
+              }
+            />
+          </>
         )}
 
         {data.exigeAceite && (
@@ -410,11 +481,47 @@ export function RevisaoStep() {
 
       </div>{/* /card resumo */}
 
-      {/* ══ BLOCO FINAL — Agendamento de envio ═══════════════════════ */}
+      {/* ══ BLOCO FINAL — Finalização (publicar / aprovação / agendamento) ═══ */}
       <div style={{
         background: '#fff', borderRadius: 8, padding: '24px 28px',
         width: '100%', marginTop: 12,
       }}>
+        {/* Como finalizar */}
+        <Text style={{ display: 'block', fontSize: 13, fontFamily: FONT, fontWeight: 600, color: colorTokens.textPrimary, marginBottom: 10 }}>
+          Como deseja finalizar?
+        </Text>
+        <Radio.Group
+          value={enviarAprovacao ? 'aprovacao' : 'publicar'}
+          onChange={(e) => {
+            const ap = e.target.value === 'aprovacao'
+            setEnviarAprovacao(ap)
+            if (ap) { setAgendarEnvio(false); setDataLancamento(null); setDataError('') }
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: enviarAprovacao ? 4 : 20 }}
+        >
+          <Radio value="publicar" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+            <div>
+              <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Publicar agora</Text>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>O documento é publicado e enviado aos destinatários.</Text>
+            </div>
+          </Radio>
+          <Radio value="aprovacao" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+            <div>
+              <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Enviar para aprovação</Text>
+              <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>Vai para revisão de um aprovador antes de ser publicado.</Text>
+            </div>
+          </Radio>
+        </Radio.Group>
+
+        {enviarAprovacao && (
+          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 4 }}>
+            <Text style={{ fontFamily: FONT, fontSize: 12, color: '#1D39C4' }}>
+              O documento entrará em <strong>Em revisão</strong>. O agendamento de envio é definido após a aprovação.
+            </Text>
+          </div>
+        )}
+
+        {!enviarAprovacao && (<>
         <Checkbox
           checked={agendarEnvio}
           onChange={(e) => {
@@ -474,6 +581,7 @@ export function RevisaoStep() {
             </div>
           </ConfigProvider>
         )}
+        </>)}
       </div>
 
       {/* Modal de confirmação */}

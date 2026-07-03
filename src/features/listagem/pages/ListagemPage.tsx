@@ -14,10 +14,10 @@ import type { MenuProps } from 'antd'
 import {
   PlusOutlined, SearchOutlined,
   EditOutlined, DeleteOutlined, MoreOutlined,
-  BarChartOutlined,
+  CopyOutlined,
   LeftOutlined, RightOutlined, CloseOutlined,
   ExclamationCircleOutlined, HistoryOutlined,
-  HolderOutlined,
+  HolderOutlined, TeamOutlined, AuditOutlined, AppstoreAddOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -28,6 +28,9 @@ import {
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
+import { useDocumentForm, type DocumentFormData } from '@/features/criacao/context/DocumentFormContext'
+import { PendenciasDrawer } from '@/features/detalhes/components/PendenciasDrawer'
+import { useRole } from '@/auth/RoleContext'
 
 dayjs.locale('pt-br')
 dayjs.extend(relativeTime)
@@ -64,9 +67,9 @@ type DocumentoComMeta = Documento & { _stepAtual?: number }
 const AVAILABLE_COLUMNS = [
   { key: 'classificacoes', label: 'Classificações' },
   { key: 'responsavel',    label: 'Responsável' },
-  { key: 'publico',        label: 'Público-alvo' },
+  { key: 'publico',        label: 'Destinatários' },
   { key: 'data_envio',     label: 'Data de envio' },
-  { key: 'vigencia',       label: 'Vigência' },
+  { key: 'vigencia_fim',   label: 'Vigência' },
   { key: 'progresso',      label: 'Barra de progresso' },
   { key: 'status',         label: 'Status' },
   { key: 'recorrencia',    label: 'Recorrência' },
@@ -87,6 +90,25 @@ function barColor(tipo: Documento['tipo'], status: DocumentoStatus, pct: number)
   if (status === 'Concluído') return '#BFBFBF'
   if (pct === 0) return '#D9D9D9'
   return tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
+}
+
+/* ── Verifica se um documento atende aos filtros inteligentes de uma aba customizada ── */
+function matchesSmartFilters(doc: Documento, sf: SmartFilters): boolean {
+  // Tipo de documento
+  if (sf.tipo === 'aceites' && doc.tipo !== 'adesao') return false
+  if (sf.tipo === 'leitura' && doc.tipo !== 'ciencia') return false
+  // Prazo e cronograma
+  if (sf.prazo === 'pendentes' && doc.totalAceites >= doc.totalDestinatarios) return false
+  if (sf.prazo === 'vigencia_proxima') {
+    if (!doc.dataExpiracao) return false
+    if (dayjs(doc.dataExpiracao).diff(dayjs(), 'day') > 30) return false
+  }
+  if (sf.prazo === 'requer_atualizacao' && doc.status !== 'Expirado') return false
+  if (sf.prazo === 'expirados' && doc.status !== 'Expirado') return false
+  // Público-alvo
+  if (sf.publico === 'departamentos' && doc.modalidadeEnvio !== 'departamento') return false
+  if (sf.publico === 'destinatarios' && doc.modalidadeEnvio !== 'pessoa') return false
+  return true
 }
 
 function readDraftFromStorage(): DocumentoComMeta | null {
@@ -116,6 +138,41 @@ function readDraftFromStorage(): DocumentoComMeta | null {
       _stepAtual:           (p._stepAtual as number) ?? 0,
     }
   } catch { return null }
+}
+
+/* ── Duplicar documento: mapeia um registro para o estado inicial do wizard ── */
+function buildDuplicateConfig(doc: Documento): Partial<DocumentFormData> {
+  const exigeAceite = doc.tipo === 'adesao'
+
+  let renovacaoAtiva = false
+  let renovacaoAceite = 'sem_recorrencia'
+  let renovacaoMesesPersonalizado = 0
+  if (exigeAceite) {
+    switch (doc.recorrenciaAceite) {
+      case '6_meses':
+      case '12_meses':
+      case '24_meses':
+        renovacaoAtiva = true
+        renovacaoAceite = doc.recorrenciaAceite
+        break
+      case '3_meses':
+        renovacaoAtiva = true
+        renovacaoAceite = 'personalizado'
+        renovacaoMesesPersonalizado = 3
+        break
+    }
+  }
+
+  return {
+    description: doc.descricao ?? '',
+    classificacoes: [...doc.classificacoes],
+    gestaoResponsavel: doc.gestaoResponsavel,
+    modalidadeEnvio: doc.modalidadeEnvio === 'pessoa' ? 'colaborador' : 'departamento',
+    exigeAceite,
+    renovacaoAtiva,
+    renovacaoAceite,
+    renovacaoMesesPersonalizado,
+  }
 }
 
 /* ── CSS ─────────────────────────────────────────────────────── */
@@ -324,6 +381,8 @@ const PAGE_CSS = `
 export function ListagemPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { dispatch } = useDocumentForm()
+  const { can, podeVerGestao } = useRole()
 
   const [search,           setSearch]           = useState('')
   const [activeTab,        setActiveTab]        = useState('todos')
@@ -335,6 +394,7 @@ export function ListagemPage() {
   const [deletarAgendadoTarget, setDeletarAgendadoTarget] = useState<DocumentoComMeta | null>(null)
   const [novaVersaoTarget,      setNovaVersaoTarget]      = useState<DocumentoComMeta | null>(null)
   const [novaVersaoMotivo,      setNovaVersaoMotivo]      = useState('')
+  const [relatoriosTarget,      setRelatoriosTarget]      = useState<DocumentoComMeta | null>(null)
   const [customTabs,            setCustomTabs]            = useState<CustomTab[]>([])
   const [tabDrawerOpen,         setTabDrawerOpen]         = useState(false)
   const [newTabTitle,           setNewTabTitle]           = useState('')
@@ -396,10 +456,10 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela (sem rascunhos) ── */
+  /* ── Documentos da tabela (sem rascunhos; escopado por gestão do perfil) ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho')
-  }, [])
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
+  }, [podeVerGestao])
 
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
@@ -408,24 +468,10 @@ export function ListagemPage() {
       if (activeTab === 'exigem_aceite') return doc.tipo === 'adesao'
       if (activeTab === 'informativos')  return doc.tipo === 'ciencia'
       if (activeTab === 'agendados')     return doc.status === 'Agendado'
+      if (activeTab === 'em_revisao')    return doc.status === 'Em revisão'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
-      const sf = custom.smartFilters
-      // Tipo de documento
-      if (sf.tipo === 'aceites' && doc.tipo !== 'adesao') return false
-      if (sf.tipo === 'leitura' && doc.tipo !== 'ciencia') return false
-      // Prazo e cronograma
-      if (sf.prazo === 'pendentes' && doc.totalAceites >= doc.totalDestinatarios) return false
-      if (sf.prazo === 'vigencia_proxima') {
-        if (!doc.dataExpiracao) return false
-        if (dayjs(doc.dataExpiracao).diff(dayjs(), 'day') > 30) return false
-      }
-      if (sf.prazo === 'requer_atualizacao' && doc.status !== 'Expirado') return false
-      if (sf.prazo === 'expirados' && doc.status !== 'Expirado') return false
-      // Público-alvo
-      if (sf.publico === 'departamentos' && doc.modalidadeEnvio !== 'departamento') return false
-      if (sf.publico === 'destinatarios' && doc.modalidadeEnvio !== 'pessoa') return false
-      return true
+      return matchesSmartFilters(doc, custom.smartFilters)
     })()
     const txt = !search || doc.titulo.toLowerCase().includes(search.toLowerCase())
     return tab && txt
@@ -444,6 +490,7 @@ export function ListagemPage() {
     exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
     informativos:   tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
     agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
+    em_revisao:     tableDocumentos.filter((d) => d.status === 'Em revisão').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -461,11 +508,13 @@ export function ListagemPage() {
     { key: 'exigem_aceite', label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
     { key: 'informativos',  label: tabLabel('Informativos',   counts.informativos) },
     { key: 'agendados',     label: tabLabel('Agendados',      counts.agendados) },
+    { key: 'em_revisao',    label: tabLabel('Em revisão',     counts.em_revisao) },
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
-        <span style={{ fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+        <span style={{ fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 0, whiteSpace: 'nowrap' }}>
           {t.title}
+          <span className="tab-pill">{tableDocumentos.filter((d) => matchesSmartFilters(d, t.smartFilters)).length}</span>
           <span
             className="tab-close-btn"
             onClick={(e) => { e.stopPropagation(); handleRemoveTab(t.key) }}
@@ -485,7 +534,15 @@ export function ListagemPage() {
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [counts, customTabs])
+  ], [counts, customTabs, tableDocumentos])
+
+  /* ── Ações: duplicar documento ── */
+  const handleDuplicar = useCallback((record: DocumentoComMeta) => {
+    dispatch({ type: 'RESET' })
+    dispatch({ type: 'SET_STEP', config: buildDuplicateConfig(record) })
+    navigate('/documentos/criar/informacoes')
+    message.success(`Novo documento criado a partir de "${record.titulo}". Envie o novo arquivo e revise as informações.`, 4)
+  }, [dispatch, navigate])
 
   /* ── Ações: excluir rascunho ── */
   const handleConfirmDelete = useCallback(() => {
@@ -534,15 +591,26 @@ export function ListagemPage() {
   }, [])
 
   /* ── Menu de ações por status (conforme PDF handoff) ── */
+  /* Chaves de ações de escrita — ocultadas para perfis sem 'documento:gerenciar' */
+  const WRITE_ACTION_KEYS = new Set(['editar-doc', 'editar', 'nova-versao', 'inativar', 'excluir', 'duplicar'])
+
   function actionsMenu(record: DocumentoComMeta): MenuProps['items'] {
+    const duplicar = { key: 'duplicar', icon: <CopyOutlined />, label: 'Duplicar documento', onClick: () => handleDuplicar(record) }
+    const full = ((): MenuProps['items'] => {
     switch (record.status) {
+      case 'Em revisão':
+        return [
+          { key: 'revisar', icon: <AuditOutlined />, label: 'Revisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
+        ]
       case 'Ativo':
         return [
           { key: 'editar-doc',  icon: <EditOutlined />,               label: 'Editar detalhes',   onClick: () => navigate(`/documentos/${record.id}/editar`) },
           { type: 'divider' as const },
           { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
           { type: 'divider' as const },
-          { key: 'historico',   icon: <BarChartOutlined />,            label: 'Histórico de ações' },
+          { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Relatório de aceites',     onClick: () => setRelatoriosTarget(record) },
+          { type: 'divider' as const },
+          duplicar,
           { type: 'divider' as const },
           { key: 'inativar',    icon: <ExclamationCircleOutlined />,   label: 'Inativar',          danger: true, onClick: () => setInativarTarget(record) },
         ]
@@ -550,21 +618,32 @@ export function ListagemPage() {
         return [
           { key: 'editar',  icon: <EditOutlined />,   label: 'Editar detalhes',        onClick: () => navigate(`/documentos/${record.id}/editar-agendado`) },
           { type: 'divider' as const },
+          duplicar,
+          { type: 'divider' as const },
           { key: 'excluir', icon: <DeleteOutlined />,  label: 'Excluir',               danger: true, onClick: () => setDeletarAgendadoTarget(record) },
         ]
       case 'Expirado':
         return [
           { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { type: 'divider' as const },
+          duplicar,
         ]
       case 'Concluído':
         return [
-          { key: 'relatorios', icon: <BarChartOutlined />, label: 'Ver relatórios' },
+          { key: 'relatorios', icon: <TeamOutlined />, label: 'Relatório de aceites', onClick: () => setRelatoriosTarget(record) },
+          { type: 'divider' as const },
+          duplicar,
         ]
       case 'Inativo':
-        return []
+        return [duplicar]
       default:
         return []
     }
+    })()
+    // Perfis sem permissão de gerenciar veem apenas ações de leitura (ex.: "Ver relatórios"),
+    // sem divisores órfãos.
+    if (can('documento:gerenciar')) return full
+    return (full ?? []).filter((it) => it && it.type !== 'divider' && !WRITE_ACTION_KEYS.has((it as { key?: string }).key ?? ''))
   }
 
   /* ── Colunas da tabela ── */
@@ -794,7 +873,8 @@ export function ListagemPage() {
       sorter: (a, b) => a.status.localeCompare(b.status, 'pt-BR'),
       render: (status: DocumentoStatus) => {
         const palette: Record<DocumentoStatus, { dot: string; color: string; bg: string; border: string }> = {
-          Ativo:     { dot: '#52c41a', color: '#389e0d', bg: '#f6ffed',  border: '#b7eb8f' },
+          Ativo:        { dot: '#52c41a', color: '#389e0d', bg: '#f6ffed',  border: '#b7eb8f' },
+          'Em revisão': { dot: '#2F54EB', color: '#1D39C4', bg: '#F0F5FF',  border: '#adc6ff' },
           Agendado:  { dot: '#FA8C16', color: '#D46B08', bg: '#FFF7E6',  border: '#ffd591' },
           Rascunho:  { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#D9D9D9' },
           Concluído: { dot: '#BFBFBF', color: '#8C8C8C', bg: '#FAFAFA',  border: '#BFBFBF' },
@@ -817,14 +897,18 @@ export function ListagemPage() {
     },
     {
       title: '', key: 'acoes', width: 56, align: 'right' as const,
-      render: (_: unknown, record) => (
-        <Dropdown menu={{ items: actionsMenu(record) }} trigger={['click']} placement="bottomRight">
-          <Button type="text" icon={<MoreOutlined style={{ fontSize: 15 }} />} style={{
-            width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            color: colorTokens.textSecondary, borderRadius: 6,
-          }} />
-        </Dropdown>
-      ),
+      render: (_: unknown, record) => {
+        const items = actionsMenu(record)
+        if (!items || items.length === 0) return null
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+            <Button type="text" icon={<MoreOutlined style={{ fontSize: 15 }} />} style={{
+              width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              color: colorTokens.textSecondary, borderRadius: 6,
+            }} />
+          </Dropdown>
+        )
+      },
     },
   ]
 
@@ -848,6 +932,11 @@ export function ListagemPage() {
     // Agendados → Título | Classificações | Responsável | Destinatários | Agendado para | Ações
     if (activeTab === 'agendados') {
       const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
+      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
+    }
+    // Em revisão → Título | Classificações | Responsável | Destinatários | Status | Ações
+    if (activeTab === 'em_revisao') {
+      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
     // Custom tabs: respeita ordem drag-and-drop
@@ -931,12 +1020,22 @@ export function ListagemPage() {
             Gerencie todos os termos, políticas e documentos enviados para aceite dentro da organização.
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
-          height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
-          background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8, marginTop: 4,
-        }}>
-          Documento
-        </Button>
+        {can('documento:criar') && (
+          <Space size={8} style={{ marginTop: 4 }}>
+            <Button icon={<AppstoreAddOutlined />} onClick={() => navigate('/documentos/envio-lote')} style={{
+              height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+              borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8,
+            }}>
+              Envio em lote
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/documentos/criar')} style={{
+              height: 40, fontWeight: 600, fontSize: 13, fontFamily: FONT,
+              background: colorTokens.primary, borderColor: colorTokens.primary, borderRadius: 8,
+            }}>
+              Documento
+            </Button>
+          </Space>
+        )}
       </div>
 
       {/* ════════════════════════════════════════════════════════
@@ -1475,26 +1574,14 @@ export function ListagemPage() {
                       disabled={customTabs.length >= 3}
                       onChange={(e) => {
                         const key = col.key
-                        if (e.target.checked) {
-                          // Checked: add to selected, move to last among checked in order
-                          setNewTabColumns((prev) => [...prev, key])
-                          setNewTabColumnOrder((prev) => {
-                            const without = prev.filter((k) => k !== key)
-                            const lastCheckedIdx = without.reduce((acc, k, i) => newTabColumns.includes(k) ? i : acc, -1)
-                            const insertAt = lastCheckedIdx + 1
-                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
-                          })
-                        } else {
-                          // Unchecked: remove from selected, move to first among unchecked in order
-                          setNewTabColumns((prev) => prev.filter((k) => k !== key))
-                          setNewTabColumnOrder((prev) => {
-                            const without = prev.filter((k) => k !== key)
-                            const remaining = newTabColumns.filter((k) => k !== key)
-                            const firstUncheckedIdx = without.findIndex((k) => !remaining.includes(k))
-                            const insertAt = firstUncheckedIdx === -1 ? without.length : firstUncheckedIdx
-                            return [...without.slice(0, insertAt), key, ...without.slice(insertAt)]
-                          })
-                        }
+                        const checked = e.target.checked
+                        setNewTabColumns((prev) => checked ? [...prev, key] : prev.filter((k) => k !== key))
+                        setNewTabColumnOrder((prev) => {
+                          // Reagrupa: marcadas no topo (ordem atual) + a coluna alterada na fronteira + desmarcadas abaixo (ordem atual)
+                          const checkedItems   = prev.filter((k) => k !== key && newTabColumns.includes(k))
+                          const uncheckedItems = prev.filter((k) => k !== key && !newTabColumns.includes(k))
+                          return [...checkedItems, key, ...uncheckedItems]
+                        })
                       }}
                       style={{ fontFamily: FONT, fontSize: 13, flex: 1 }}
                     >
@@ -1570,6 +1657,12 @@ export function ListagemPage() {
 
         </div>
       </Drawer>
+
+      <PendenciasDrawer
+        open={!!relatoriosTarget}
+        onClose={() => setRelatoriosTarget(null)}
+        doc={relatoriosTarget}
+      />
 
     </div>
   )

@@ -11,11 +11,23 @@ import { RegrasStep } from '@/features/criacao/pages/RegrasStep'
 import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
+import { DashboardPage } from '@/features/dashboard'
+import { ConfiguracoesPage, ClassificacoesPage } from '@/features/configuracoes'
+import { EnvioLotePage } from '@/features/envio-lote'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
 import { colorTokens } from '@/theme/tokens'
+import { RoleProvider, useRole } from '@/auth/RoleContext'
+import type { Permission } from '@/auth/roles'
+import type { ReactNode } from 'react'
 
 const { Content } = Layout
+
+/** Guarda de rota: redireciona se o perfil não tiver a permissão. */
+function RequirePermission({ perm, children }: { perm: Permission; children: ReactNode }) {
+  const { can } = useRole()
+  return can(perm) ? <>{children}</> : <Navigate to="/documentos" replace />
+}
 
 function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
@@ -29,17 +41,21 @@ function AppShell() {
           <Content style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
             <div style={{ flex: 1 }}>
               <Routes>
-                <Route path="/" element={<Navigate to="/documentos" replace />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<DashboardPage />} />
                 <Route path="/documentos" element={<ListagemPage />} />
                 <Route path="/documentos/:id" element={<DetalhesPage />} />
                 <Route path="/documentos/:id/editar" element={<EditarAtivoPage />} />
                 <Route path="/documentos/:id/editar-agendado" element={<EditarAgendadoPage />} />
                 <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
-                <Route path="/documentos/criar" element={<SelectTemplate />} />
-                <Route path="/documentos/criar/informacoes" element={<InformacoesStep />} />
-                <Route path="/documentos/criar/destinatarios" element={<DestinatariosStep />} />
-                <Route path="/documentos/criar/regras" element={<RegrasStep />} />
-                <Route path="/documentos/criar/revisao" element={<RevisaoStep />} />
+                <Route path="/documentos/envio-lote" element={<RequirePermission perm="documento:criar"><EnvioLotePage /></RequirePermission>} />
+                <Route path="/documentos/criar" element={<RequirePermission perm="documento:criar"><SelectTemplate /></RequirePermission>} />
+                <Route path="/documentos/criar/informacoes" element={<RequirePermission perm="documento:criar"><InformacoesStep /></RequirePermission>} />
+                <Route path="/documentos/criar/destinatarios" element={<RequirePermission perm="documento:criar"><DestinatariosStep /></RequirePermission>} />
+                <Route path="/documentos/criar/regras" element={<RequirePermission perm="documento:criar"><RegrasStep /></RequirePermission>} />
+                <Route path="/documentos/criar/revisao" element={<RequirePermission perm="documento:criar"><RevisaoStep /></RequirePermission>} />
+                <Route path="/configuracoes" element={<RequirePermission perm="config:acessar"><ConfiguracoesPage /></RequirePermission>} />
+                <Route path="/configuracoes/classificacoes" element={<RequirePermission perm="config:acessar"><ClassificacoesPage /></RequirePermission>} />
                 <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
             </div>
@@ -72,10 +88,12 @@ export default function App() {
         },
       }}
     >
-      <BrowserRouter>
-        <DocumentFormProvider>
-          <AppShell />
-        </DocumentFormProvider>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <RoleProvider>
+          <DocumentFormProvider>
+            <AppShell />
+          </DocumentFormProvider>
+        </RoleProvider>
       </BrowserRouter>
     </ConfigProvider>
   )

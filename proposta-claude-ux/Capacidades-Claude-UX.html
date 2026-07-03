@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude para UX — Capacidades adicionais (para avaliação)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#13163a; --navy:#263072; --navy-2:#3a47a0; --teal:#19c2a8; --teal-deep:#0e8c7a;
+    --ice:#eef1fb; --cloud:#f6f7fd; --line:#e3e7f4; --txt:#23264f; --txt-soft:#4b4f78; --muted:#6b7196;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--cloud)}
+  body{font-family:'Montserrat',system-ui,Segoe UI,Arial,sans-serif;color:var(--txt);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{max-width:880px;margin:0 auto;padding:30px 22px 60px}
+
+  /* header */
+  .hero{background:linear-gradient(135deg,#11143a 0%,#1c2156 55%,#263072 130%);color:#fff;
+    border-radius:18px;padding:36px 40px;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(19,22,58,.18)}
+  .hero .glow{position:absolute;width:340px;height:340px;right:-110px;top:-130px;border-radius:50%;
+    background:radial-gradient(circle,rgba(25,194,168,.5),transparent 65%);filter:blur(8px)}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;color:#cdd6ff}
+  .eyebrow .bar{width:28px;height:3px;border-radius:2px;background:var(--teal)}
+  .hero h1{font-size:32px;font-weight:800;letter-spacing:-.01em;margin:14px 0 12px;line-height:1.12;max-width:24ch}
+  .hero p{font-size:15px;color:rgba(255,255,255,.82);max-width:70ch;font-weight:500}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .lg{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);padding:6px 12px;border-radius:999px}
+  .lg .d{width:9px;height:9px;border-radius:50%}
+  .d.ok{background:#36d399} .d.mid{background:#fbbf5b} .d.beta{background:#7db1ff}
+
+  /* intro */
+  .intro{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:14px;
+    padding:20px 24px;margin:22px 0 6px;box-shadow:0 8px 24px rgba(19,22,58,.06)}
+  .intro p{font-size:14.5px;color:var(--txt-soft)}
+  .intro b{color:var(--txt)}
+
+  /* section */
+  .sec{margin-top:30px}
+  .sec-h{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .sec-h .num{width:34px;height:34px;border-radius:10px;background:var(--navy);color:#fff;font-weight:800;
+    font-size:15px;display:flex;align-items:center;justify-content:center;flex:none}
+  .sec-h h2{font-size:20px;font-weight:700;color:var(--navy);letter-spacing:-.01em}
+
+  /* capability cards */
+  .cap{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:11px;
+    box-shadow:0 6px 18px rgba(19,22,58,.05);break-inside:avoid}
+  .cap .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+  .cap .t{font-size:15.5px;font-weight:700;color:var(--navy)}
+  .cap .desc{font-size:13.5px;color:var(--txt-soft);margin-bottom:6px}
+  .cap .how{font-size:13px;color:var(--teal-deep);font-weight:600;display:flex;gap:7px;align-items:flex-start}
+  .cap .how .k{font-weight:800}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;font-size:11px;
+    font-weight:700;white-space:nowrap;flex:none}
+  .pill .d{width:8px;height:8px;border-radius:50%}
+  .pill.ok{background:#e7f7ef;color:#1f9d5b} .pill.ok .d{background:#1f9d5b}
+  .pill.mid{background:#fff2e3;color:#cf7a13} .pill.mid .d{background:#cf7a13}
+  .pill.beta{background:#eaf0ff;color:#2f6bd8} .pill.beta .d{background:#2f6bd8}
+
+  /* closing note */
+  .note{background:var(--ice);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-top:30px}
+  .note h3{font-size:15px;color:var(--navy);font-weight:700;margin-bottom:10px}
+  .note ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .note li{display:flex;gap:10px;font-size:13px;color:var(--txt-soft);line-height:1.45}
+  .note li .b{flex:none;width:7px;height:7px;border-radius:50%;background:var(--teal);margin-top:6px}
+  .foot{margin-top:26px;text-align:center;font-size:12px;color:var(--muted);font-weight:500}
+
+  @page{size:A4;margin:14mm}
+  @media print{ html,body{background:#fff} .page{padding:0;max-width:none} .hero{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="glow"></div>
+    <div class="eyebrow"><span class="bar"></span>Anexo da proposta · para avaliação</div>
+    <h1>Claude para UX — o que mais ele pode fazer</h1>
+    <p>Capacidades úteis para o trabalho de um Designer e para o Squad de Design da Contato Seguro que <b style="color:#fff">não entraram na proposta principal</b>. A ideia é você analisar e decidir o que faz sentido acrescentar depois. Marquei o nível de maturidade de cada item com honestidade.</p>
+    <div class="legend">
+      <span class="lg"><span class="d ok"></span>Pronto hoje</span>
+      <span class="lg"><span class="d mid"></span>Dá para fazer com ajustes</span>
+      <span class="lg"><span class="d beta"></span>Depende de ferramenta / beta</span>
+    </div>
+  </div>
+
+  <div class="intro">
+    <p>O deck já cobre: síntese de pesquisa, protótipo navegável, leitura do Design System e Tokens do Ant Design (Figma MCP), versionamento e documentação no GitHub, colaboração do squad com handoff e skills/padrões. <b>Abaixo está o que vai além disso.</b></p>
+  </div>
+
+  <!-- 1 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">1</span><h2>Pesquisa com usuários — planejar e analisar</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">Planejamento de pesquisa</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Roteiros de entrevista, plano de teste de usabilidade, surveys e critérios de recrutamento de participantes.</div>
+      <div class="how"><span class="k">Como ajuda:</span> chegar na entrevista com um guia sólido e padronizado, sem improviso.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Síntese aprofundada</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Mapas de afinidade, mapas de empatia, jornadas e personas data-driven a partir das transcrições.</div>
+      <div class="how"><span class="k">Como ajuda:</span> transformar horas de conversa em temas e decisões de design rastreáveis.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Feedback em escala</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Analisar tickets de suporte, avaliações de loja e respostas de NPS para encontrar padrões.</div>
+      <div class="how"><span class="k">Como ajuda:</span> ouvir o usuário continuamente, não só nas semanas de entrevista.</div></div>
+  </div>
+
+  <!-- 2 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">2</span><h2>Qualidade antes do handoff</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">Auditoria de acessibilidade (WCAG AA)</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Contraste, navegação por teclado, tamanho de alvos de toque e comportamento com leitores de tela.</div>
+      <div class="how"><span class="k">Como ajuda:</span> entregar protótipo acessível desde o início, não como conserto no fim.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Crítica de design e avaliação heurística</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Revisão das telas por heurísticas de Nielsen, hierarquia visual e consistência.</div>
+      <div class="how"><span class="k">Como ajuda:</span> um "segundo par de olhos" estruturado antes de apresentar ao cliente.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Consistência do Design System</span><span class="pill mid"><span class="d"></span>Com ajustes</span></div>
+      <div class="desc">Encontrar valores hardcoded, nomes inconsistentes e componentes fora do padrão no código do protótipo.</div>
+      <div class="how"><span class="k">Como ajuda:</span> manter o protótipo realmente fiel ao Design System ao longo do tempo.</div></div>
+  </div>
+
+  <!-- 3 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">3</span><h2>Conteúdo e idioma</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">UX Writing</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Microcopy, mensagens de erro, estados vazios, CTAs, tom de voz e glossário de termos.</div>
+      <div class="how"><span class="k">Como ajuda:</span> texto de interface afinado no protótipo — nada de "lorem ipsum" na apresentação.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Localização / i18n</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Adaptar interface e textos para outros idiomas e contextos.</div>
+      <div class="how"><span class="k">Como ajuda:</span> testar com públicos diferentes sem refazer telas.</div></div>
+  </div>
+
+  <!-- 4 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">4</span><h2>Prototipagem além do básico</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">Múltiplas alternativas (A/B)</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Gerar rapidamente várias versões de uma tela ou fluxo para comparar lado a lado.</div>
+      <div class="how"><span class="k">Como ajuda:</span> decidir com opções na mão, em vez de uma só ideia.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Responsivo + dark mode</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">O mesmo protótipo em desktop, mobile e tema escuro.</div>
+      <div class="how"><span class="k">Como ajuda:</span> validar a experiência real em qualquer tela, não só no desktop.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Dados realistas, gráficos e dashboards</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Popular o protótipo com dados que parecem de verdade e visualizações.</div>
+      <div class="how"><span class="k">Como ajuda:</span> teste mais convincente com cliente e usuário.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Diagramas e fluxos</span><span class="pill beta"><span class="d"></span>Depende de ferramenta</span></div>
+      <div class="desc">User flows, sitemaps e diagramas — inclusive direto no FigJam.</div>
+      <div class="how"><span class="k">Como ajuda:</span> alinhar o fluxo com o time antes de desenhar as telas.</div></div>
+  </div>
+
+  <!-- 5 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">5</span><h2>Design System e handoff</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">Documentação de componentes</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Variações, estados, regras de uso e exemplos de cada componente.</div>
+      <div class="how"><span class="k">Como ajuda:</span> Design System documentado sem ninguém parar a semana para escrever.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Tokens em vários formatos</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Além do AntD ConfigProvider, gerar CSS vars, JSON e Style Dictionary, e manter tema claro/escuro.</div>
+      <div class="how"><span class="k">Como ajuda:</span> os mesmos tokens servindo design e desenvolvimento, sem divergir.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Code Connect (Figma ↔ código)</span><span class="pill beta"><span class="d"></span>Depende de ferramenta</span></div>
+      <div class="desc">Mapear cada componente do Figma para o componente equivalente no código.</div>
+      <div class="how"><span class="k">Como ajuda:</span> handoff mais rápido e sem ambiguidade sobre "qual componente é esse".</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Spec de handoff</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Layout, tokens, estados, breakpoints e detalhes de animação reunidos num documento.</div>
+      <div class="how"><span class="k">Como ajuda:</span> o dev recebe tudo organizado, reduzindo idas e voltas.</div></div>
+  </div>
+
+  <!-- 6 -->
+  <div class="sec">
+    <div class="sec-h"><span class="num">6</span><h2>Colaboração, automação e operação do squad</h2></div>
+
+    <div class="cap"><div class="top"><span class="t">Skills e padrões do squad</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Registrar os padrões de design da Contato Seguro como instruções reutilizáveis pelo time.</div>
+      <div class="how"><span class="k">Como ajuda:</span> todo mundo no squad gera no mesmo padrão, mesmo quem entrou agora.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Integrações (Notion, Slack, Jira/Linear, Google)</span><span class="pill beta"><span class="d"></span>Depende de ferramenta</span></div>
+      <div class="desc">Automatizar status, documentação e handoffs entre as ferramentas que o time já usa.</div>
+      <div class="how"><span class="k">Como ajuda:</span> menos copia-e-cola manual entre aplicativos.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Tarefas agendadas</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Resumo semanal de pesquisa, relatório de status do squad e lembretes recorrentes.</div>
+      <div class="how"><span class="k">Como ajuda:</span> rotina rodando sozinha, sem alguém lembrar de montar toda semana.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Relatórios e apresentações</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Readouts de pesquisa, decks (como esta proposta) e documentação gerados a partir do trabalho.</div>
+      <div class="how"><span class="k">Como ajuda:</span> comunicar resultado sem montar slide a slide na mão.</div></div>
+
+    <div class="cap"><div class="top"><span class="t">Onboarding do squad</span><span class="pill ok"><span class="d"></span>Pronto</span></div>
+      <div class="desc">Guias, runbooks e um documento de padrões do time.</div>
+      <div class="how"><span class="k">Como ajuda:</span> pessoa nova produz no padrão desde o primeiro dia.</div></div>
+  </div>
+
+  <div class="note">
+    <h3>Observações honestas</h3>
+    <ul>
+      <li><span class="b"></span><div><b>Revisão humana sempre.</b> Em todos os itens o Claude acelera e propõe — a decisão e a curadoria continuam com o designer.</div></li>
+      <li><span class="b"></span><div><b>Itens "beta / depende de ferramenta"</b> precisam de acesso/configuração específica (ex.: conector do Figma, integração com Notion/Jira) e podem variar conforme a versão.</div></li>
+      <li><span class="b"></span><div><b>Dados de cliente</b> seguem NDA e confidencialidade; anonimizar sempre que possível ao usar como exemplo.</div></li>
+      <li><span class="b"></span><div>Esta lista é um <b>cardápio para avaliação</b>, não um compromisso de escopo — escolhemos juntos o que entra e quando.</div></li>
+    </ul>
+  </div>
+
+  <div class="foot">Contato Seguro · Time de UX · Anexo da proposta "Claude no nosso fluxo de UX" · 19/06/2026</div>
+
+</div>
+</body>
+</html>

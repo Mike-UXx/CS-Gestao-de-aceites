@@ -3,28 +3,33 @@
    US 2.4–2.8 | Página de Detalhes do Documento — redesign completo
    Layout: Main Card · KPI Dashboard · Grid Info · Deptos · Timeline
 ───────────────────────────────────────────────────────────── */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col, Divider,
-  Space, Modal, List, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Badge, Tabs, Spin, Table,
+  Space, Modal, Avatar, Dropdown, message, Input,
+  Alert, Timeline, Drawer, Table, List,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   DownloadOutlined, UserOutlined, CalendarOutlined,
-  CheckCircleOutlined, FilePdfOutlined, FileExcelOutlined,
+  FilePdfOutlined, FileExcelOutlined,
   DownOutlined, TeamOutlined, EditOutlined,
   StopOutlined, ExclamationCircleOutlined, HistoryOutlined,
   SafetyCertificateOutlined, FieldTimeOutlined, InfoCircleOutlined,
   FileTextOutlined, AuditOutlined, SwapOutlined, ArrowLeftOutlined,
-  SendOutlined, BellOutlined,
+  BellOutlined, ClockCircleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
+import type { ComentarioRevisao } from '@/features/listagem/types/documento'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS, COLABORADORES } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
+import { HistoricoDrawer } from '../components/HistoricoDrawer'
+import { PendenciasDrawer } from '../components/PendenciasDrawer'
+import { exportarRelatorioCSV, exportarRelatorioPDF } from '../utils/exportRelatorio'
+import { useRole } from '@/auth/RoleContext'
 
 dayjs.locale('pt-br')
 
@@ -71,66 +76,6 @@ const VERSION_HISTORY: Record<string, {
   'doc-008': [
     { versao: 'V1', data: '2025-02-14', responsavel: 'Karina Matos',    depto: 'RH',       motivo: 'Comunicado sobre atualização do plano de saúde — vigência março 2025.' },
   ],
-}
-
-/* ── Tipos do histórico geral ───────────────────────────────── */
-type HistoricoTipo = 'publicacao' | 'edicao_metadata' | 'nova_versao' | 'inativacao' | 'encerramento' | 'destinatarios'
-
-interface HistoricoItem {
-  data: string
-  autor: string
-  tipo: HistoricoTipo
-  descricao: string
-}
-
-/* ── Mock: histórico geral de auditoria administrativa ──────── */
-const HISTORICO_GERAL: Record<string, HistoricoItem[]> = {
-  'doc-001': [
-    { data: '2024-10-10T09:00:00Z', autor: 'Ana Silva',    tipo: 'publicacao',        descricao: 'Documento publicado e enviado para 148 destinatários.' },
-    { data: '2024-10-15T14:22:00Z', autor: 'Bruno Costa',  tipo: 'edicao_metadata',   descricao: 'Título atualizado de "Código de Conduta" para "Código de Conduta e Ética Empresarial".' },
-    { data: '2025-02-14T10:05:00Z', autor: 'Carla Mendes', tipo: 'nova_versao',        descricao: 'Nova versão V2 criada. Revisão de cláusulas para adequação à Lei 14.611/2023.' },
-    { data: '2025-02-14T10:06:00Z', autor: 'Carla Mendes', tipo: 'destinatarios',      descricao: '12 novos destinatários adicionados ao departamento de Compliance.' },
-    { data: '2025-12-31T08:00:00Z', autor: 'Carla Mendes', tipo: 'nova_versao',        descricao: 'Nova versão V3 criada. Atualização dos itens 4.2 e 7.1 — nova política de privacidade LGPD.' },
-  ],
-  'doc-002': [
-    { data: '2025-03-10T14:30:00Z', autor: 'Daniel Oliveira', tipo: 'publicacao',      descricao: 'Documento publicado e enviado para 148 destinatários.' },
-    { data: '2025-08-01T09:15:00Z', autor: 'Eduarda Lima',    tipo: 'nova_versao',     descricao: 'Nova versão V2 criada. Inclusão de seção sobre segurança em nuvem (AWS/Azure).' },
-    { data: '2026-03-14T07:59:00Z', autor: 'Sistema',         tipo: 'encerramento',   descricao: 'Vigência encerrada automaticamente. Documento movido para Concluídos.' },
-  ],
-  'doc-003': [
-    { data: '2025-01-08T11:00:00Z', autor: 'Felipe Rocha',  tipo: 'publicacao',        descricao: 'Documento publicado e enviado para 38 destinatários.' },
-    { data: '2025-03-20T16:45:00Z', autor: 'Felipe Rocha',  tipo: 'edicao_metadata',   descricao: 'Classificação adicionada: "Procedimentos".' },
-  ],
-  'doc-004': [
-    { data: '2025-02-01T10:00:00Z', autor: 'Gabriela Souza', tipo: 'publicacao',       descricao: 'Documento publicado e enviado para 12 destinatários específicos.' },
-  ],
-  'doc-005': [
-    { data: '2025-10-15T10:00:00Z', autor: 'Henrique Alves',  tipo: 'publicacao',      descricao: 'Documento publicado e enviado para 20 destinatários.' },
-    { data: '2025-12-16T08:01:00Z', autor: 'Sistema',         tipo: 'encerramento',    descricao: 'Vigência encerrada automaticamente. Documento movido para Concluídos.' },
-  ],
-  'doc-006': [
-    { data: '2025-03-20T16:00:00Z', autor: 'Isabela Ferreira', tipo: 'publicacao',     descricao: 'Documento criado e agendado para envio em 15/04/2026.' },
-  ],
-  'doc-007': [
-    { data: '2025-03-28T10:00:00Z', autor: 'João Pedro', tipo: 'publicacao',           descricao: 'Documento criado e agendado para envio em 20/04/2026.' },
-  ],
-  'doc-008': [
-    { data: '2025-02-14T09:00:00Z', autor: 'Karina Matos', tipo: 'publicacao',         descricao: 'Comunicado publicado e enviado para 148 destinatários.' },
-    { data: '2025-02-20T11:30:00Z', autor: 'Karina Matos', tipo: 'destinatarios',      descricao: '8 destinatários adicionados para cobrir novos contratos.' },
-  ],
-}
-
-/* ── Helper: ícone e cor por tipo de histórico ──────────────── */
-function historicoConfig(tipo: HistoricoTipo): { color: string; icon: React.ReactNode; label: string } {
-  switch (tipo) {
-    case 'publicacao':      return { color: '#52c41a', icon: <CheckCircleOutlined />,  label: 'Publicação'        }
-    case 'edicao_metadata': return { color: '#1677ff', icon: <FileTextOutlined />,     label: 'Edição de metadados' }
-    case 'nova_versao':     return { color: '#722ed1', icon: <HistoryOutlined />,      label: 'Nova versão'       }
-    case 'inativacao':      return { color: '#ff4d4f', icon: <StopOutlined />,         label: 'Inativação'        }
-    case 'encerramento':    return { color: '#8C8C8C', icon: <AuditOutlined />,        label: 'Encerramento'      }
-    case 'destinatarios':   return { color: '#fa8c16', icon: <TeamOutlined />,         label: 'Destinatários'     }
-    default:                return { color: '#8C8C8C', icon: <SwapOutlined />,         label: 'Ação'              }
-  }
 }
 
 /* ── Mock: tempo mínimo de leitura ─────────────────────────── */
@@ -206,17 +151,20 @@ function fmt(iso: string | null) {
 export function DetalhesPage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { can }  = useRole()
 
   const [pendenciasOpen,     setPendenciasOpen]     = useState(false)
-  const [pendenciasTab,      setPendenciasTab]      = useState<'pendentes' | 'concluidos'>('pendentes')
-  const [drawerLoading,      setDrawerLoading]      = useState(false)
-  const [reminderLoadingKey, setReminderLoadingKey] = useState<string | null>(null)
-  const [reminderAllLoading, setReminderAllLoading] = useState(false)
   const [regrasDrawerOpen,   setRegrasDrawerOpen]   = useState(false)
   const [inativarOpen,       setInativarOpen]       = useState(false)
   const [justificativa,      setJustificativa]      = useState('')
   const [inativarLoading,    setInativarLoading]    = useState(false)
   const [historicoOpen,      setHistoricoOpen]      = useState(false)
+  const [encerrarOpen,       setEncerrarOpen]       = useState(false)
+  const [encerrarLoading,    setEncerrarLoading]    = useState(false)
+  const [revisaoComentarios, setRevisaoComentarios] = useState<ComentarioRevisao[]>([])
+  const [novoComentario,     setNovoComentario]     = useState('')
+  const [previewOpen,        setPreviewOpen]        = useState(false)
+  const [publicoOpen,        setPublicoOpen]        = useState(false)
 
   const doc = MOCK_DOCUMENTOS.find((d) => d.id === id)
 
@@ -245,49 +193,12 @@ export function DetalhesPage() {
   const pendentes = doc.totalDestinatarios - doc.totalAceites
   const barColor  = doc.tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
 
-  /* ── Pendentes mock ── */
-  const pendentesNomes = COLABORADORES.slice(0, Math.max(pendentes, 0)).map((c) => c.label)
-
-  /* ── Concluídos mock (com datas determinísticas) ── */
-  const concluidosMock = COLABORADORES
-    .slice(Math.max(pendentes, 0), doc.totalDestinatarios)
-    .map((c, i) => ({
-      nome: c.label,
-      data: dayjs(doc.dataLancamento ?? doc.criadoEm).add(i * 2 + 1, 'day').format('DD/MM/YYYY'),
-    }))
-
-  /* ── Handlers: Drawer de pendências ── */
-  function handleOpenPendencias() {
-    // Abre diretamente na aba "Concluídos" se não houver pendentes
-    setPendenciasTab(pendentes === 0 ? 'concluidos' : 'pendentes')
-    setPendenciasOpen(true)
-    setDrawerLoading(true)
-    setTimeout(() => setDrawerLoading(false), 600)
-  }
-
-  function handleReminder(nome: string) {
-    setReminderLoadingKey(nome)
-    setTimeout(() => {
-      setReminderLoadingKey(null)
-      message.success(`Lembrete enviado para ${nome}.`)
-    }, 900)
-  }
-
-  function handleReminderAll() {
-    setReminderAllLoading(true)
-    setTimeout(() => {
-      setReminderAllLoading(false)
-      message.success(`Lembretes enviados para ${pendentes} ${pendentes === 1 ? 'destinatário' : 'destinatários'} pendentes.`)
-    }, 1200)
-  }
-
   /* ── Dados de versões e auditoria ── */
   const versoes         = [...(VERSION_HISTORY[doc.id] ?? [])].reverse()   // mais recente → mais antiga
   const tempoLeitura    = TEMPO_LEITURA_MOCK[doc.id] ?? 0
   const scrollObrigatorio  = SCROLL_MOCK[doc.id] ?? false
   const personalizaPorDept = PERSONALIZAR_DEPT_MOCK[doc.id] ?? false
   const deptRules          = DEPT_RULES_MOCK[doc.id] ?? []
-  const historico          = [...(HISTORICO_GERAL[doc.id] ?? [])].reverse()   // mais recente → mais antigo
 
   /* ── Autor original (primeira versão publicada) ── */
   const primeiraVersao = VERSION_HISTORY[doc.id]?.[0]
@@ -296,12 +207,26 @@ export function DetalhesPage() {
 
   /* ── Status badge palette ── */
   const statusPalette: Record<string, { border: string; color: string }> = {
-    Ativo:     { border: '#52c41a', color: '#389e0d' },
-    Agendado:  { border: '#FA8C16', color: '#D46B08' },
-    Concluído: { border: '#BFBFBF', color: '#8C8C8C' },
-    Rascunho:  { border: '#D9D9D9', color: '#8C8C8C' },
+    Ativo:        { border: '#52c41a', color: '#389e0d' },
+    'Em revisão': { border: '#2F54EB', color: '#1D39C4' },
+    Agendado:     { border: '#FA8C16', color: '#D46B08' },
+    Concluído:    { border: '#BFBFBF', color: '#8C8C8C' },
+    Rascunho:     { border: '#D9D9D9', color: '#8C8C8C' },
   }
   const sp = statusPalette[doc.status] ?? statusPalette.Rascunho
+
+  /* ── Export de relatório de auditoria ── */
+  function handleExportCSV() {
+    if (!doc) return
+    exportarRelatorioCSV(doc)
+    message.success('Relatório de auditoria (Excel/CSV) gerado.')
+  }
+  function handleExportPDF() {
+    if (!doc) return
+    const ok = exportarRelatorioPDF(doc)
+    if (ok) message.success('Abrindo o relatório para impressão/PDF.')
+    else message.warning('Permita pop-ups neste site para gerar o PDF.')
+  }
 
   /* ── Download items (auditoria) ── */
   const downloadItems: MenuProps['items'] = [
@@ -309,59 +234,98 @@ export function DetalhesPage() {
       key: 'audit-pdf',
       icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
       label: 'Exportar como PDF',
-      onClick: () => message.success('Download do relatório de auditoria em PDF iniciado.'),
+      onClick: handleExportPDF,
     },
     {
       key: 'audit-excel',
       icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
       label: 'Exportar como Excel',
-      onClick: () => message.success('Download do relatório de auditoria em Excel iniciado.'),
+      onClick: handleExportCSV,
     },
   ]
 
-  /* ── Menu de ações contextual ── */
-  const actionItems: MenuProps['items'] = [
-    ...(doc.status === 'Ativo' ? [{
-      key: 'editar',
-      icon: <EditOutlined />,
-      label: 'Editar documento',
-      onClick: () => navigate(`/documentos/${doc.id}/editar`),
-    }] : []),
-    ...(doc.status === 'Agendado' ? [{
-      key: 'editar-agendado',
-      icon: <EditOutlined />,
-      label: 'Editar documento',
-      onClick: () => navigate(`/documentos/${doc.id}/editar-agendado`),
-    }] : []),
-    {
-      key: 'historico',
-      icon: <AuditOutlined />,
-      label: 'Histórico de ações',
-      onClick: () => setHistoricoOpen(true),
-    },
-    { type: 'divider' as const },
-    {
-      key: 'audit-pdf',
-      icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
-      label: 'Exportar auditoria (PDF)',
-      onClick: () => message.success('Download do relatório de auditoria em PDF iniciado.'),
-    },
-    {
-      key: 'audit-excel',
-      icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
-      label: 'Exportar auditoria (Excel)',
-      onClick: () => message.success('Download do relatório de auditoria em Excel iniciado.'),
-    },
-    ...(doc.status === 'Ativo' ? [
-      { type: 'divider' as const },
-      {
-        key: 'inativar',
-        icon: <StopOutlined style={{ color: colorTokens.error }} />,
-        label: <span style={{ color: colorTokens.error }}>Inativar documento</span>,
-        onClick: () => setInativarOpen(true),
-      },
-    ] : []),
+  /* ── Menu de ações contextual (gated por perfil) ── */
+  const canGerenciar = can('documento:gerenciar')
+  const canExportar  = can('relatorio:exportar')
+
+  const editarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo'
+    ? [{ key: 'editar', icon: <EditOutlined />, label: 'Editar documento', onClick: () => navigate(`/documentos/${doc.id}/editar`) }]
+    : canGerenciar && doc.status === 'Agendado'
+    ? [{ key: 'editar-agendado', icon: <EditOutlined />, label: 'Editar documento', onClick: () => navigate(`/documentos/${doc.id}/editar-agendado`) }]
+    : []
+
+  const historicoItems: MenuProps['items'] = [
+    { key: 'historico', icon: <AuditOutlined />, label: 'Histórico de ações', onClick: () => setHistoricoOpen(true) },
   ]
+
+  const exportItems: MenuProps['items'] = canExportar ? [
+    { key: 'audit-pdf', icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />, label: 'Exportar auditoria (PDF)', onClick: handleExportPDF },
+    { key: 'audit-excel', icon: <FileExcelOutlined style={{ color: '#52c41a' }} />, label: 'Exportar auditoria (Excel)', onClick: handleExportCSV },
+  ] : []
+
+  const finalizarItems: MenuProps['items'] = canGerenciar && doc.status === 'Ativo' ? [
+    { key: 'encerrar', icon: <CheckCircleOutlined />, label: 'Encerrar documento', onClick: () => setEncerrarOpen(true) },
+    { key: 'inativar', icon: <StopOutlined style={{ color: colorTokens.error }} />, label: <span style={{ color: colorTokens.error }}>Inativar documento</span>, onClick: () => setInativarOpen(true) },
+  ] : []
+
+  // Junta as seções não-vazias com divisores entre elas (sem órfãos).
+  const actionItems: MenuProps['items'] = [
+    [...(editarItems ?? []), ...historicoItems],
+    exportItems ?? [],
+    finalizarItems ?? [],
+  ]
+    .filter((s) => s.length > 0)
+    .flatMap((s, i) => (i === 0 ? s : [{ type: 'divider' as const }, ...s]))
+
+  /* ── Fluxo de aprovação: comentários e decisões ── */
+  useEffect(() => {
+    setRevisaoComentarios(doc?.comentariosRevisao ?? [])
+    setNovoComentario('')
+  }, [doc?.id])
+
+  const papelAtual: ComentarioRevisao['papel'] = can('documento:aprovar') ? 'Aprovador' : 'Gestor'
+
+  function addComentario(texto: string, tipo: ComentarioRevisao['tipo']) {
+    const c: ComentarioRevisao = {
+      id: `c-${Date.now()}`, autor: 'Você', papel: papelAtual, texto, data: new Date().toISOString(), tipo,
+    }
+    setRevisaoComentarios((prev) => [...prev, c])
+  }
+
+  function handleComentar() {
+    if (!novoComentario.trim()) return
+    addComentario(novoComentario.trim(), 'comentario')
+    setNovoComentario('')
+    message.success('Comentário adicionado.')
+  }
+
+  function handleAprovar() {
+    addComentario('Documento aprovado para publicação.', 'aprovacao')
+    message.success('Documento aprovado. Ele pode ser publicado.')
+    setTimeout(() => navigate('/documentos'), 600)
+  }
+
+  function handleSolicitarAjustes() {
+    if (!novoComentario.trim()) {
+      message.warning('Escreva o que precisa ser ajustado antes de solicitar.')
+      return
+    }
+    addComentario(novoComentario.trim(), 'ajuste')
+    setNovoComentario('')
+    message.success('Ajustes solicitados ao gestor responsável.')
+    setTimeout(() => navigate('/documentos'), 600)
+  }
+
+  /* ── Handle encerrar (finaliza a coleta de aceites) ── */
+  function handleEncerrar() {
+    setEncerrarLoading(true)
+    setTimeout(() => {
+      setEncerrarLoading(false)
+      setEncerrarOpen(false)
+      message.success('Documento encerrado. A coleta de aceites foi finalizada.')
+      navigate('/documentos')
+    }, 800)
+  }
 
   /* ── Handle inativar ── */
   function handleInativar() {
@@ -472,21 +436,114 @@ export function DetalhesPage() {
             </Typography.Text>
           </div>
 
-          {/* Dropdown de ações */}
-          <Dropdown menu={{ items: actionItems }} trigger={['click']} placement="bottomRight">
+          {/* Ações do cabeçalho */}
+          <Space size={8} style={{ flexShrink: 0 }}>
             <Button
+              icon={<FilePdfOutlined />}
+              onClick={() => setPreviewOpen(true)}
               style={{
                 fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                borderColor: '#D9D9D9', borderRadius: 8,
-                height: 38, flexShrink: 0,
+                borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8, height: 38,
               }}
             >
-              Ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+              Visualizar documento
             </Button>
-          </Dropdown>
+            <Dropdown menu={{ items: actionItems }} trigger={['click']} placement="bottomRight">
+              <Button
+                style={{
+                  fontFamily: FONT, fontWeight: 600, fontSize: 13,
+                  borderColor: '#D9D9D9', borderRadius: 8,
+                  height: 38,
+                }}
+              >
+                Ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+              </Button>
+            </Dropdown>
+          </Space>
         </div>
 
         <Divider style={{ margin: '20px 0' }} />
+
+        {/* ══ Fluxo de aprovação (status "Em revisão") ═════════ */}
+        {doc.status === 'Em revisão' && (
+          <>
+            <div style={{
+              background: '#F0F5FF', border: '1px solid #adc6ff',
+              borderRadius: 8, padding: '14px 18px',
+              display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20,
+            }}>
+              <AuditOutlined style={{ fontSize: 22, color: '#1D39C4', flexShrink: 0 }} />
+              <div>
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: '#1D39C4', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 2 }}>
+                  Aguardando aprovação
+                </Typography.Text>
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, color: colorTokens.textPrimary }}>
+                  {doc.enviadoParaAprovacaoEm
+                    ? <>Enviado para aprovação em <strong>{fmt(doc.enviadoParaAprovacaoEm)}</strong>.</>
+                    : 'Documento aguardando revisão de um aprovador.'}
+                  {can('documento:aprovar') ? ' Revise os comentários e tome uma decisão abaixo.' : ' Acompanhe os comentários do aprovador abaixo.'}
+                </Typography.Text>
+              </div>
+            </div>
+
+            {/* Thread de comentários */}
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 12 }}>
+              Comentários da revisão ({revisaoComentarios.length})
+            </Typography.Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {revisaoComentarios.map((c) => {
+                const isAjuste = c.tipo === 'ajuste'
+                const isAprov = c.tipo === 'aprovacao'
+                const accent = isAjuste ? '#D46B08' : isAprov ? '#389e0d' : colorTokens.primary
+                return (
+                  <div key={c.id} style={{
+                    border: `1px solid ${accent}22`, background: `${accent}0D`,
+                    borderRadius: 8, padding: '10px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.autor}</Typography.Text>
+                      <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, color: accent, background: `${accent}1A`, border: `1px solid ${accent}55`, borderRadius: 4, padding: '0 6px' }}>
+                        {c.papel}{isAjuste ? ' · ajuste' : isAprov ? ' · aprovação' : ''}
+                      </span>
+                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(c.data)}</Typography.Text>
+                    </div>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.texto}</Typography.Text>
+                  </div>
+                )
+              })}
+              {revisaoComentarios.length === 0 && (
+                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhum comentário ainda.</Typography.Text>
+              )}
+            </div>
+
+            {/* Caixa de comentário + ações */}
+            <Input.TextArea
+              value={novoComentario}
+              onChange={(e) => setNovoComentario(e.target.value)}
+              placeholder={can('documento:aprovar') ? 'Comente ou descreva os ajustes necessários…' : 'Adicione um comentário…'}
+              rows={3}
+              maxLength={400}
+              style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 12 }}
+            />
+            <Space wrap>
+              <Button onClick={handleComentar} disabled={!novoComentario.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
+                Comentar
+              </Button>
+              {can('documento:aprovar') && (
+                <>
+                  <Button onClick={handleSolicitarAjustes} icon={<EditOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>
+                    Solicitar ajustes
+                  </Button>
+                  <Button type="primary" onClick={handleAprovar} icon={<CheckCircleOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>
+                    Aprovar documento
+                  </Button>
+                </>
+              )}
+            </Space>
+
+            <Divider style={{ margin: '20px 0' }} />
+          </>
+        )}
 
         {/* ══ Banner Agendado ══════════════════════════════════ */}
         {doc.status === 'Agendado' && (
@@ -609,7 +666,7 @@ export function DetalhesPage() {
                   {(doc.status === 'Ativo' || doc.status === 'Concluído') && (
                     <Button
                       size="small"
-                      onClick={handleOpenPendencias}
+                      onClick={() => setPendenciasOpen(true)}
                       style={{
                         fontFamily: FONT, fontSize: 12, fontWeight: 600,
                         borderColor: pendentes > 0 ? '#D46B08' : '#52c41a',
@@ -673,7 +730,7 @@ export function DetalhesPage() {
             </Row>
 
             {/* Botão download (status Concluído) */}
-            {doc.status === 'Concluído' && (
+            {doc.status === 'Concluído' && canExportar && (
               <div style={{ marginBottom: 24 }}>
                 <Dropdown menu={{ items: downloadItems }} trigger={['click']}>
                   <Button
@@ -689,6 +746,90 @@ export function DetalhesPage() {
                 </Dropdown>
               </div>
             )}
+
+            {/* ══ Cobrança e prazo de assinatura (config da criação) ══ */}
+            {doc.status === 'Ativo' && (doc.cobrancaAutomatica || doc.prazoAssinaturaEm) && (() => {
+              const proxDias = doc.proximoLembreteEm ? dayjs(doc.proximoLembreteEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+              const prazoDias = doc.prazoAssinaturaEm ? dayjs(doc.prazoAssinaturaEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+              const maxTxt = doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 ? ` de ${doc.cobrancaMaxLembretes}` : ''
+              const limiteAtingido = !!doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 && (doc.lembretesEnviados ?? 0) >= doc.cobrancaMaxLembretes
+              return (
+                <div style={{
+                  border: `1px solid ${colorTokens.primary}22`, background: '#F7F8FF',
+                  borderRadius: 8, padding: '16px 20px', marginBottom: 24,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                    <BellOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
+                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                      Cobrança e prazo de assinatura
+                    </Typography.Text>
+                    <span style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textMuted }}>· simulado</span>
+                  </div>
+                  <Row gutter={[16, 12]}>
+                    {/* Cobrança automática */}
+                    <Col xs={24} sm={8}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <BellOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                        <div>
+                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Cobrança automática</Typography.Text>
+                          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                            {doc.cobrancaAutomatica ? `A cada ${doc.cobrancaFrequenciaDias} dias` : 'Desativada'}
+                          </Typography.Text>
+                          {doc.cobrancaAutomatica && (
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
+                              {doc.lembretesEnviados ?? 0}{maxTxt} lembrete(s) enviado(s)
+                            </Typography.Text>
+                          )}
+                        </div>
+                      </div>
+                    </Col>
+                    {/* Próximo lembrete */}
+                    {doc.cobrancaAutomatica && (
+                      <Col xs={24} sm={8}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <ClockCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                          <div>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Próximo lembrete</Typography.Text>
+                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: limiteAtingido ? colorTokens.textSecondary : colorTokens.textPrimary }}>
+                              {limiteAtingido
+                                ? 'Limite atingido'
+                                : proxDias === null ? '—'
+                                : proxDias <= 0 ? 'Hoje'
+                                : `Em ${proxDias} dia(s)`}
+                            </Typography.Text>
+                            {!limiteAtingido && doc.proximoLembreteEm && (
+                              <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
+                                {fmt(doc.proximoLembreteEm)}
+                              </Typography.Text>
+                            )}
+                          </div>
+                        </div>
+                      </Col>
+                    )}
+                    {/* Prazo de assinatura */}
+                    {doc.prazoAssinaturaEm && (
+                      <Col xs={24} sm={8}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <FieldTimeOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                          <div>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Prazo para assinatura</Typography.Text>
+                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textPrimary }}>
+                              {fmt(doc.prazoAssinaturaEm)}
+                            </Typography.Text>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textSecondary, display: 'block' }}>
+                              {prazoDias === null ? '' : prazoDias < 0 ? `Encerrado há ${Math.abs(prazoDias)} dia(s)` : prazoDias === 0 ? 'Encerra hoje' : `Faltam ${prazoDias} dia(s)`}
+                            </Typography.Text>
+                          </div>
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
+                    Encerramento: <strong>{doc.encerramentoAutomatico ? 'Automático (100% de aceite ou fim do prazo)' : 'Manual'}</strong>
+                  </Typography.Text>
+                </div>
+              )
+            })()}
 
             <Divider style={{ margin: '0 0 24px' }} />
           </>
@@ -788,12 +929,21 @@ export function DetalhesPage() {
             </Space>
           )}
 
-          <Typography.Text style={{
-            fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-            display: 'block',
-          }}>
-            total de {doc.totalDestinatarios} destinatários
-          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <Typography.Text style={{
+              fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
+            }}>
+              total de {doc.totalDestinatarios} destinatários
+            </Typography.Text>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setPublicoOpen(true)}
+              style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.primary, padding: 0, height: 'auto' }}
+            >
+              Ver público-alvo completo ↗
+            </Button>
+          </div>
         </div>
 
         {/* ── 3 cards: Responsável · Tipo · Regras ── */}
@@ -1042,238 +1192,36 @@ export function DetalhesPage() {
 
       </div>
 
-      {/* ════ Drawer: Acompanhamento de Destinatários ══════════ */}
-      <Drawer
-        open={pendenciasOpen}
-        onClose={() => setPendenciasOpen(false)}
-        placement="right"
-        width={480}
+      <PendenciasDrawer open={pendenciasOpen} onClose={() => setPendenciasOpen(false)} doc={doc} />
+
+      {/* ════ Modal: Encerrar Documento (finaliza coleta) ══════ */}
+      <Modal
+        open={encerrarOpen}
+        onCancel={() => setEncerrarOpen(false)}
         title={
-          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-            Acompanhamento de Destinatários
-          </Typography.Text>
+          <Space>
+            <CheckCircleOutlined style={{ color: colorTokens.primary, fontSize: 18 }} />
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              Encerrar Documento
+            </Typography.Text>
+          </Space>
         }
-        styles={{
-          header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' },
-          body:   { padding: 0, overflowY: 'auto' },
-        }}
+        footer={[
+          <Button key="cancel" onClick={() => setEncerrarOpen(false)} style={{ fontFamily: FONT, borderRadius: 8 }}>Cancelar</Button>,
+          <Button key="ok" type="primary" loading={encerrarLoading} onClick={handleEncerrar} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: colorTokens.primary, borderColor: colorTokens.primary }}>
+            Encerrar documento
+          </Button>,
+        ]}
+        width={480}
+        centered
         destroyOnHidden
       >
-        <Spin spinning={drawerLoading} style={{ minHeight: 200 }}>
-
-          <Tabs
-            activeKey={pendenciasTab}
-            onChange={(k) => setPendenciasTab(k as 'pendentes' | 'concluidos')}
-            style={{ paddingInline: 24 }}
-            tabBarStyle={{ fontFamily: FONT, marginBottom: 0 }}
-            items={[
-              /* ── Aba 1: Pendentes ── */
-              {
-                key: 'pendentes',
-                label: (
-                  <span style={{ fontFamily: FONT, fontWeight: 500 }}>
-                    Pendentes
-                    <span style={{
-                      marginLeft: 6, fontSize: 11, fontWeight: 700,
-                      background: pendentes > 0 ? '#FFF7E6' : '#F5F5F5',
-                      color: pendentes > 0 ? '#D46B08' : '#8C8C8C',
-                      border: `1px solid ${pendentes > 0 ? '#FA8C16' : '#D9D9D9'}`,
-                      borderRadius: 10, padding: '1px 7px',
-                    }}>
-                      {pendentes}
-                    </span>
-                  </span>
-                ),
-                children: (
-                  <div style={{ paddingTop: 20 }}>
-
-                    {/* Empty state */}
-                    {pendentes === 0 ? (
-                      <div style={{
-                        textAlign: 'center', padding: '56px 24px',
-                      }}>
-                        <CheckCircleOutlined style={{
-                          fontSize: 44, color: '#52c41a',
-                          marginBottom: 16, display: 'block',
-                        }} />
-                        <Typography.Text strong style={{
-                          fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary,
-                          display: 'block', marginBottom: 8,
-                        }}>
-                          Excelente!
-                        </Typography.Text>
-                        <Typography.Text style={{
-                          fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary,
-                          display: 'block', lineHeight: '20px',
-                        }}>
-                          Todos os destinatários já concluíram este documento.
-                        </Typography.Text>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Ação em lote */}
-                        <div style={{ marginBottom: 16 }}>
-                          <Button
-                            type="primary"
-                            icon={<BellOutlined />}
-                            loading={reminderAllLoading}
-                            onClick={handleReminderAll}
-                            style={{
-                              fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                              borderRadius: 8, height: 38,
-                              background: colorTokens.primary,
-                              borderColor: colorTokens.primary,
-                              width: '100%',
-                            }}
-                          >
-                            Lembrar todos os pendentes
-                          </Button>
-                        </div>
-
-                        {/* Lista de pendentes */}
-                        <List
-                          dataSource={pendentesNomes}
-                          renderItem={(nome) => (
-                            <List.Item
-                              style={{
-                                padding: '12px 0',
-                                borderBottom: '1px solid #F5F5F5',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Space size={10}>
-                                <Avatar
-                                  size={36}
-                                  style={{
-                                    background: '#EEF2FF',
-                                    color: colorTokens.primary,
-                                    fontFamily: FONT,
-                                    fontWeight: 700,
-                                    fontSize: 14,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {nome.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Typography.Text style={{
-                                  fontFamily: FONT, fontSize: 13,
-                                  color: colorTokens.textPrimary, fontWeight: 500,
-                                }}>
-                                  {nome}
-                                </Typography.Text>
-                              </Space>
-
-                              <Button
-                                type="link"
-                                size="small"
-                                icon={<SendOutlined style={{ fontSize: 11 }} />}
-                                loading={reminderLoadingKey === nome}
-                                onClick={() => handleReminder(nome)}
-                                style={{
-                                  fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                                  color: colorTokens.primary, padding: '0 4px',
-                                  height: 'auto', flexShrink: 0,
-                                }}
-                              >
-                                Enviar lembrete
-                              </Button>
-                            </List.Item>
-                          )}
-                          style={{ paddingBottom: 24 }}
-                        />
-                      </>
-                    )}
-                  </div>
-                ),
-              },
-
-              /* ── Aba 2: Concluídos ── */
-              {
-                key: 'concluidos',
-                label: (
-                  <span style={{ fontFamily: FONT, fontWeight: 500 }}>
-                    Concluídos
-                    <span style={{
-                      marginLeft: 6, fontSize: 11, fontWeight: 700,
-                      background: '#F6FFED',
-                      color: '#389e0d',
-                      border: '1px solid #B7EB8F',
-                      borderRadius: 10, padding: '1px 7px',
-                    }}>
-                      {doc.totalAceites}
-                    </span>
-                  </span>
-                ),
-                children: (
-                  <div style={{ paddingTop: 20 }}>
-                    {concluidosMock.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '56px 24px' }}>
-                        <TeamOutlined style={{
-                          fontSize: 40, color: '#BFBFBF',
-                          marginBottom: 14, display: 'block',
-                        }} />
-                        <Typography.Text style={{
-                          fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary,
-                        }}>
-                          Nenhum destinatário concluiu ainda.
-                        </Typography.Text>
-                      </div>
-                    ) : (
-                      <List
-                        dataSource={concluidosMock}
-                        renderItem={(item) => (
-                          <List.Item
-                            style={{
-                              padding: '12px 0',
-                              borderBottom: '1px solid #F5F5F5',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Space size={10}>
-                              <Avatar
-                                size={36}
-                                style={{
-                                  background: '#F6FFED',
-                                  color: '#389e0d',
-                                  fontFamily: FONT,
-                                  fontWeight: 700,
-                                  fontSize: 14,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {item.nome.charAt(0).toUpperCase()}
-                              </Avatar>
-                              <Typography.Text style={{
-                                fontFamily: FONT, fontSize: 13,
-                                color: colorTokens.textPrimary, fontWeight: 500,
-                              }}>
-                                {item.nome}
-                              </Typography.Text>
-                            </Space>
-
-                            <Typography.Text style={{
-                              fontFamily: FONT, fontSize: 12,
-                              color: '#8C8C8C', flexShrink: 0,
-                            }}>
-                              Concluído em {item.data}
-                            </Typography.Text>
-                          </List.Item>
-                        )}
-                        style={{ paddingBottom: 24 }}
-                      />
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-          />
-
-        </Spin>
-      </Drawer>
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+          A coleta de aceites de <strong>{doc.titulo}</strong> será finalizada e o documento passará para <strong>Concluído</strong>.
+          {pendentes > 0 && <> Restam <strong>{pendentes}</strong> destinatário(s) pendente(s), que ficarão registrados como não concluídos.</>}
+          {' '}O histórico de aceites é preservado para auditoria.
+        </Typography.Text>
+      </Modal>
 
       {/* ════ Modal: Inativar Documento (US 2.6) ══════════════ */}
       <Modal
@@ -1448,82 +1396,97 @@ export function DetalhesPage() {
         />
       </Drawer>
 
-      {/* ════ Drawer: Histórico Geral de Ações ════════════════ */}
-      <Drawer
-        open={historicoOpen}
-        onClose={() => setHistoricoOpen(false)}
+      <HistoricoDrawer open={historicoOpen} onClose={() => setHistoricoOpen(false)} docId={doc.id} />
+
+      {/* ════ Modal: Pré-visualização do documento ═════════════ */}
+      <Modal
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
         title={
           <Space>
-            <AuditOutlined style={{ color: colorTokens.primary }} />
-            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 15 }}>Histórico de ações</span>
+            <FilePdfOutlined style={{ color: '#FF4D4F', fontSize: 18 }} />
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              {doc.fileName ?? 'Documento'}
+            </Typography.Text>
           </Space>
         }
-        width={480}
-        styles={{ body: { padding: '16px 24px' } }}
+        footer={[
+          <Button key="close" onClick={() => setPreviewOpen(false)} style={{ fontFamily: FONT, borderRadius: 8 }}>Fechar</Button>,
+          <Button key="dl" type="primary" icon={<DownloadOutlined />} onClick={() => message.success('Download do documento iniciado.')} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: colorTokens.primary, borderColor: colorTokens.primary }}>
+            Baixar arquivo
+          </Button>,
+        ]}
+        width={760}
+        centered
+        destroyOnHidden
       >
-        {historico.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <AuditOutlined style={{ fontSize: 36, color: '#BFBFBF', marginBottom: 12, display: 'block' }} />
-            <Typography.Text style={{ fontFamily: FONT, color: colorTokens.textSecondary }}>
-              Nenhum histórico disponível.
+        {/* Página simulada do documento */}
+        <div style={{ background: '#F5F5F5', borderRadius: 8, padding: 24, maxHeight: '60vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', boxShadow: '0 1px 6px rgba(0,0,0,0.12)', borderRadius: 4, padding: '48px 56px', maxWidth: 620, margin: '0 auto', minHeight: 480 }}>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
+              {(doc.classificacoes ?? []).map((c) => CLASSIF_MAP[c] ?? c).join(' · ')}
             </Typography.Text>
+            <Typography.Title level={3} style={{ fontFamily: FONT, color: colorTokens.textPrimary, marginTop: 0, marginBottom: 20 }}>
+              {doc.titulo}
+            </Typography.Title>
+            <Typography.Paragraph style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '22px' }}>
+              {doc.descricao || 'Conteúdo do documento.'}
+            </Typography.Paragraph>
+            <Typography.Paragraph style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '22px' }}>
+              Esta é uma pré-visualização simulada do arquivo no protótipo. Em produção, o PDF original
+              (imutável, com hash registrado) é renderizado aqui para conferência antes da aprovação.
+            </Typography.Paragraph>
+            {doc.fileHash && (
+              <Typography.Text style={{ fontFamily: 'monospace', fontSize: 10, color: colorTokens.textMuted, display: 'block', marginTop: 24, wordBreak: 'break-all' }}>
+                SHA-256: {doc.fileHash}
+              </Typography.Text>
+            )}
           </div>
-        ) : (
-          <Timeline
-            style={{ paddingTop: 8 }}
-            items={historico.map((h) => {
-              const cfg = historicoConfig(h.tipo)
-              return {
-                color: cfg.color,
-                dot: (
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    background: cfg.color + '18',
-                    border: `1.5px solid ${cfg.color}55`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: cfg.color, fontSize: 12 }}>{cfg.icon}</span>
-                  </div>
-                ),
-                children: (
-                  <div style={{ paddingBottom: 16, paddingLeft: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <Badge
-                        count={cfg.label}
-                        style={{
-                          backgroundColor: cfg.color + '18',
-                          color: cfg.color,
-                          border: `1px solid ${cfg.color}44`,
-                          fontFamily: FONT, fontSize: 10, fontWeight: 700,
-                          borderRadius: 4, padding: '0 7px',
-                          boxShadow: 'none',
-                        }}
-                      />
-                      <Typography.Text style={{
-                        fontFamily: FONT, fontSize: 11,
-                        color: colorTokens.textSecondary,
-                      }}>
-                        {dayjs(h.data).format('DD/MM/YYYY [às] HH:mm')}
-                      </Typography.Text>
-                    </div>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 13,
-                      color: colorTokens.textPrimary,
-                      display: 'block', lineHeight: '20px', marginBottom: 4,
-                    }}>
-                      {h.descricao}
-                    </Typography.Text>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 11,
-                      color: colorTokens.textSecondary,
-                    }}>
-                      <UserOutlined style={{ marginRight: 4 }} />{h.autor}
-                    </Typography.Text>
-                  </div>
-                ),
-              }
-            })}
+        </div>
+      </Modal>
+
+      {/* ════ Drawer: Público-alvo completo ════════════════════ */}
+      <Drawer
+        open={publicoOpen}
+        onClose={() => setPublicoOpen(false)}
+        placement="right"
+        width={420}
+        title={
+          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+            Público-alvo ({doc.totalDestinatarios})
+          </Typography.Text>
+        }
+        styles={{ header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' }, body: { padding: '12px 24px' } }}
+        destroyOnHidden
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 12 }}>
+          {doc.modalidadeEnvio === 'pessoa'
+            ? 'Envio por destinatários individuais.'
+            : 'Envio por departamento. Todos os colaboradores dos setores abaixo recebem o documento.'}
+        </Typography.Text>
+
+        {doc.modalidadeEnvio === 'pessoa' ? (
+          <List
+            dataSource={COLABORADORES.slice(0, doc.totalDestinatarios).map((c) => c.label)}
+            renderItem={(nome) => (
+              <List.Item style={{ padding: '10px 0', borderBottom: '1px solid #F5F5F5' }}>
+                <Space size={10}>
+                  <Avatar size={32} style={{ background: '#EEF2FF', color: colorTokens.primary, fontFamily: FONT, fontWeight: 700, fontSize: 13 }}>
+                    {nome.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{nome}</Typography.Text>
+                </Space>
+              </List.Item>
+            )}
           />
+        ) : (
+          <Space size={[8, 8]} wrap>
+            {(doc.destinatariosPreview ?? []).map((depto) => (
+              <Tag key={depto} style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, borderRadius: 6, padding: '4px 12px', margin: 0, background: '#FAFAFA', border: '1px solid #D9D9D9', color: colorTokens.textPrimary }}>
+                {depto}
+              </Tag>
+            ))}
+          </Space>
         )}
       </Drawer>
 
