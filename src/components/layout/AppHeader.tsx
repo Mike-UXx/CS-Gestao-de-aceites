@@ -144,7 +144,7 @@ export function AppHeader() {
       {/* Logo */}
       <div style={{ minWidth: 160, display: 'flex', alignItems: 'center' }}>
         <img
-          src="/logo-contato-seguro.svg"
+          src={`${import.meta.env.BASE_URL}logo-contato-seguro.svg`}
           alt="Contato Seguro"
           style={{ height: 40, width: 'auto', display: 'block' }}
         />

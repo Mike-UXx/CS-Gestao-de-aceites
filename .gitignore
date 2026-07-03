@@ -44,3 +44,6 @@ coverage/
 # Deploy (Vercel / Netlify — configs locais geradas automaticamente)
 .vercel/
 .netlify/
+
+# Tooling do agente (repositório git separado, não faz parte do app)
+agent-skills/

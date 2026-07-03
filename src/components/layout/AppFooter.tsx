@@ -16,7 +16,7 @@ export function AppFooter() {
     >
       {/* Logo mini */}
       <img
-        src="/logo-contato-seguro.svg"
+        src={`${import.meta.env.BASE_URL}logo-contato-seguro.svg`}
         alt="Contato Seguro"
         style={{ height: 28, width: 'auto', display: 'block' }}
       />
