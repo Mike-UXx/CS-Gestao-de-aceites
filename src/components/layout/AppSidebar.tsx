@@ -4,7 +4,6 @@ import type { MenuProps } from 'antd'
 import {
   HomeOutlined,
   FileTextOutlined,
-  BarChartOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -26,7 +25,6 @@ interface NavDef {
 const NAV_DEFS: NavDef[] = [
   { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   { key: '/documentos', icon: <FileTextOutlined />, label: 'Documentos' },
-  { key: '/estatisticas', icon: <BarChartOutlined />, label: 'Estatísticas', perm: 'dashboard:acessar' },
   {
     key: '/configuracoes',
     icon: <SettingOutlined />,
@@ -39,7 +37,7 @@ const NAV_DEFS: NavDef[] = [
 ]
 
 /** Todas as rotas conhecidas (inclui filhas) — para resolver o item ativo. */
-const ALL_KEYS = ['/home', '/documentos', '/estatisticas', '/configuracoes/classificacoes', '/configuracoes']
+const ALL_KEYS = ['/home', '/documentos', '/configuracoes/classificacoes', '/configuracoes']
 
 interface AppSidebarProps {
   collapsed: boolean
