@@ -35,8 +35,11 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
-# Claude Code (configurações locais da sessão)
-.claude/
+# Claude Code — ignora config local e skills locais, EXCETO a skill compartilhada do time
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/tela-ds-cs/
 
 # Testes / cobertura
 coverage/
