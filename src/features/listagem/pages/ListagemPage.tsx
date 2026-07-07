@@ -203,60 +203,69 @@ const PAGE_CSS = `
     border-bottom: none !important;
   }
   .listagem-table .ant-table-container { border-radius: 0 !important; }
-  /* ── Tabs — line style ── */
+  /* ── Tabs — card style (DS CS: "Tabs / Card", nó 513:39330) ──
+     A barra NÃO tem fundo/painel branco próprio: só um baseline #F0F0F0.
+     Cada aba é um card (borda l/r/t, raio 6px, gutter 2px). A aba ativa usa a
+     cor da superfície do card (#fff) e cobre o baseline, conectando ao conteúdo. */
   .listagem-tabs .ant-tabs-nav {
     margin-bottom: 0 !important;
-    padding: 0 24px !important;
-    background: #fff !important;
-    border-radius: 12px 12px 0 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
   }
+  /* Sem baseline: a barra não tem painel próprio — as abas pousam sobre o
+     fundo da página e a ativa entra no card da tabela (efeito marcador). */
   .listagem-tabs .ant-tabs-nav::before {
-    border-bottom-color: #F0F0F0 !important;
+    display: none !important;
   }
   .listagem-tabs .ant-tabs-nav-wrap {
     padding: 0 !important;
   }
   .listagem-tabs .ant-tabs-tab {
-    margin: 0 28px 0 0 !important;
-    padding: 16px 0 !important;
+    margin: 0 2px 0 0 !important;
+    padding: 8px 16px !important;
     font-family: ${FONT} !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    color: ${colorTokens.textSecondary} !important;
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    transition: color 0.2s !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    color: rgba(0, 0, 0, 0.88) !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+    border: 1px solid #F0F0F0 !important;
+    border-radius: 6px 6px 0 0 !important;
+    transition: color 0.2s, background 0.2s !important;
   }
   .listagem-tabs .ant-tabs-tab:hover {
     color: ${colorTokens.primary} !important;
   }
   .listagem-tabs .ant-tabs-tab-active {
-    background: transparent !important;
-    border: none !important;
-    color: ${colorTokens.primary} !important;
+    background: #fff !important;
+    border-color: #F0F0F0 !important;
+    border-bottom-color: #fff !important;
+    margin-bottom: -1px !important;
+    position: relative !important;
+    z-index: 2 !important;
   }
   .listagem-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
     color: ${colorTokens.primary} !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
   }
   .listagem-tabs .ant-tabs-tab .ant-tabs-tab-btn {
     color: inherit !important;
   }
-  .listagem-tabs .ant-tabs-ink-bar {
-    background: ${colorTokens.primary} !important;
-    height: 2px !important;
-    border-radius: 2px 2px 0 0 !important;
+  .listagem-tabs .ant-tabs-ink-bar { display: none !important; }
+  /* Botão "..." (abas ocultas no responsivo) — mesmo formato card */
+  .listagem-tabs .ant-tabs-nav-more {
+    padding: 8px 12px !important;
+    border: 1px solid #F0F0F0 !important;
+    border-radius: 6px 6px 0 0 !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+    margin-left: 2px !important;
   }
-  /* ── Badge pill ── */
-  .listagem-tabs .ant-tabs-tab,
-  .listagem-tabs .ant-tabs-tab-active {
-    width: auto !important;
-    overflow: visible !important;
-  }
+  /* ── Badge pill ──
+     Sem forçar width/overflow: isso quebrava a medição de overflow do rc-tabs
+     (as abas eram cortadas em vez de colapsarem no "..."). Só evitamos quebra
+     de linha do rótulo; a aba dimensiona ao conteúdo naturalmente. */
   .listagem-tabs .ant-tabs-tab .ant-tabs-tab-btn {
-    width: max-content !important;
-    overflow: visible !important;
     white-space: nowrap !important;
   }
   /* Pill badge — inativa */
@@ -267,33 +276,35 @@ const PAGE_CSS = `
     font-size: 11px !important;
     font-weight: 600 !important;
     font-family: ${FONT} !important;
-    background: #F0F2F5 !important;
-    color: #8C8C8C !important;
+    background: rgba(0, 0, 0, 0.06) !important;
+    color: rgba(0, 0, 0, 0.65) !important;
     line-height: 18px !important;
     margin-left: 6px !important;
     vertical-align: middle !important;
     white-space: nowrap !important;
     transition: background 0.2s, color 0.2s !important;
   }
-  /* Pill badge — ativa */
+  /* Pill badge — ativa (DS Badge: bg Blue/1, texto Blue/6) */
   .listagem-tabs .ant-tabs-tab-active .tab-pill {
-    background: #EEF2FF !important;
+    background: #E8F6FD !important;
     color: ${colorTokens.primary} !important;
   }
-  /* Aba "+" */
+  /* Aba "+" (adicionar aba personalizada) — card discreto tracejado */
   .listagem-tabs [data-node-key="__add__"] {
-    padding: 16px 4px !important;
+    padding: 8px 12px !important;
     color: ${colorTokens.textSecondary} !important;
     background: transparent !important;
-    border: none !important;
-    margin: 0 !important;
+    border: 1px dashed #D9D9D9 !important;
+    border-radius: 6px 6px 0 0 !important;
+    margin: 0 0 0 2px !important;
   }
   .listagem-tabs [data-node-key="__add__"]:hover {
     color: ${colorTokens.primary} !important;
+    border-color: ${colorTokens.primary} !important;
   }
   .listagem-tabs [data-node-key="__add__"].ant-tabs-tab-active {
     background: transparent !important;
-    border: none !important;
+    border: 1px dashed #D9D9D9 !important;
     color: ${colorTokens.textSecondary} !important;
   }
   .listagem-tabs [data-node-key="__add__"].ant-tabs-tab-active .ant-tabs-tab-btn {
@@ -1164,11 +1175,9 @@ export function ListagemPage() {
       {/* ════════════════════════════════════════════════════════
          Card: Listagem — Tabs + Tabela
       ════════════════════════════════════════════════════════ */}
-      <div style={{
-        background: '#fff', borderRadius: 12,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-      }}>
+      <div style={{ position: 'relative' }}>
       <Tabs
+        type="card"
         className="listagem-tabs"
         activeKey={activeTab}
         onChange={(k) => {
@@ -1180,7 +1189,7 @@ export function ListagemPage() {
         style={{ marginBottom: 0 }}
       />
 
-      <div style={{ borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
+      <div className="listagem-card" style={{ background: '#fff', borderRadius: '0 12px 12px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
         {/* ── Barra de filtros ── */}
         <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
 
