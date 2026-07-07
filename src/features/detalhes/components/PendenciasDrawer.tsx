@@ -1,15 +1,15 @@
 /* ─────────────────────────────────────────────────────────────
    src/features/detalhes/components/PendenciasDrawer.tsx
-   Drawer: Acompanhamento de Destinatários (Pendentes / Concluídos)
-   Compartilhado entre DetalhesPage e ListagemPage
+   Drawer "Relatório de aceites" — acompanhamento de signatários
+   (Pendentes / Concluídos) + exportação. Layout conforme EP03 (DS CS):
+   grupos colapsáveis por departamento, avatares coloridos, rodapé fixo.
+   Compartilhado entre DetalhesPage e ListagemPage.
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect } from 'react'
-import {
-  Typography, Button, Drawer, List, Avatar, Space, Tabs, Spin, message, Dropdown,
-} from 'antd'
+import { Typography, Button, Drawer, Avatar, Spin, message, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import {
-  BellOutlined, SendOutlined, CheckCircleOutlined, TeamOutlined, ClockCircleOutlined,
+  CheckCircleOutlined, TeamOutlined, DownOutlined,
   DownloadOutlined, FilePdfOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
 import { colorTokens } from '@/theme/tokens'
@@ -19,18 +19,27 @@ import { exportarRelatorioCSV, exportarRelatorioPDF } from '../utils/exportRelat
 
 const FONT = "'Montserrat', sans-serif"
 
-/* ── Cooldown para evitar disparo repetido de lembretes ─────── */
-const REMINDER_COOLDOWN_MS = 5 * 60_000  // 5min — lembrete individual e "lembrar todos"
-
-function formatCooldown(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
+/* Paleta de avatar (cores do DS/AntD) — atribuída de forma determinística. */
+const AVATAR_COLORS = [
+  '#EB2F96', '#52C41A', '#13C2C2', '#FA8C16', '#722ED1', '#2F54EB',
+  '#F5222D', '#1677FF', '#08979C', '#389E0D', '#D4380D', '#9254DE',
+]
+function avatarColor(nome: string): string {
+  let h = 0
+  for (let i = 0; i < nome.length; i++) h = (h * 31 + nome.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+/** Iniciais de 2 letras (primeiro + último nome). */
+function initials(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  const a = parts[0]?.[0] ?? ''
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? '')
+  return (a + b).toUpperCase()
 }
 
-/* ── Agrupa por departamento, ordenando por quantidade (desc) ─── */
-function groupByDepto<T extends { departamento?: string }>(items: T[]): [string, T[]][] {
+/* Agrupa por departamento, ordenando por quantidade (desc). */
+function groupByDepto<T extends { departamento?: string }>(items: T[], porDepto: boolean): [string, T[]][] {
+  if (!porDepto) return items.length ? [['Destinatários', items]] : []
   const map = new Map<string, T[]>()
   for (const it of items) {
     const d = it.departamento ?? 'Sem departamento'
@@ -40,25 +49,88 @@ function groupByDepto<T extends { departamento?: string }>(items: T[]): [string,
   return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
 }
 
-/* ── Cabeçalho de seção (departamento + contador) ─────────────── */
-function DeptHeader({ nome, count }: { nome: string; count: number }) {
+/* Linha de signatário: avatar colorido + nome (+ evidência à direita). */
+function SignatarioRow({ nome, right }: { nome: string; right?: React.ReactNode }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '10px 0 8px', marginTop: 4,
-      borderBottom: '1px solid #EBEBEB',
+      gap: 12, padding: '10px 14px', borderTop: '1px solid #F0F0F0',
     }}>
-      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-        {nome}
-      </Typography.Text>
-      <span style={{
-        fontFamily: FONT, fontSize: 11, fontWeight: 700,
-        background: '#EEF2FF', color: colorTokens.primary, border: '1px solid #C3CAF5',
-        borderRadius: 10, padding: '1px 8px',
-      }}>
-        {count}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <Avatar size={32} style={{ background: avatarColor(nome), color: '#fff', fontFamily: FONT, fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+          {initials(nome)}
+        </Avatar>
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary, fontWeight: 500 }} ellipsis>
+          {nome}
+        </Typography.Text>
+      </div>
+      {right}
     </div>
+  )
+}
+
+/* Grupo colapsável por departamento (card com header, pill e "Ver mais"). */
+type Tone = 'pendente' | 'concluido'
+function DeptGroup({
+  nome, count, tone, defaultOpen, children,
+}: { nome: string; count: number; tone: Tone; defaultOpen: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const pill = tone === 'concluido'
+    ? { bg: '#F6FFED', border: '#B7EB8F', color: '#389E0D' }
+    : { bg: '#FFF7E6', border: '#FFD591', color: '#D46B08' }
+  return (
+    <div style={{
+      border: `1px solid ${open ? '#C3CAF5' : '#EBEBEB'}`, borderRadius: 8,
+      marginBottom: 12, overflow: 'hidden', background: '#fff',
+    }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8, padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer',
+        }}
+        aria-expanded={open}
+      >
+        <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>
+          {nome}
+        </Typography.Text>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            fontFamily: FONT, fontSize: 11, fontWeight: 700,
+            background: pill.bg, color: pill.color, border: `1px solid ${pill.border}`,
+            borderRadius: 12, padding: '2px 10px', whiteSpace: 'nowrap',
+          }}>
+            {count} {count === 1 ? 'Colaborador' : 'Colaboradores'}
+          </span>
+          <DownOutlined style={{ fontSize: 12, color: '#8C8C8C', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+        </span>
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  )
+}
+
+/* Lista de um grupo com "Ver mais" (mostra os primeiros N; expande o resto). */
+function GroupItems<T extends { nome: string }>({ items, render }: { items: T[]; render: (it: T) => React.ReactNode }) {
+  const LIMIT = 8
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? items : items.slice(0, LIMIT)
+  return (
+    <>
+      {visible.map((it) => <div key={it.nome}>{render(it)}</div>)}
+      {items.length > LIMIT && !showAll && (
+        <button
+          onClick={() => setShowAll(true)}
+          style={{
+            width: '100%', padding: '10px', background: 'transparent', border: 'none', borderTop: '1px solid #F0F0F0',
+            cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.primary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+        >
+          Ver mais <DownOutlined style={{ fontSize: 11 }} />
+        </button>
+      )}
+    </>
   )
 }
 
@@ -69,145 +141,81 @@ interface PendenciasDrawerProps {
 }
 
 export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) {
-  const [pendenciasTab,      setPendenciasTab]      = useState<'pendentes' | 'concluidos'>('pendentes')
-  const [drawerLoading,      setDrawerLoading]      = useState(false)
-  const [reminderLoadingKey, setReminderLoadingKey] = useState<string | null>(null)
-  const [reminderAllLoading, setReminderAllLoading] = useState(false)
-  const [reminderCooldowns,  setReminderCooldowns]  = useState<Record<string, number>>({})
-  const [allCooldownUntil,   setAllCooldownUntil]   = useState<number | null>(null)
-  const [now,                setNow]                = useState(() => Date.now())
+  const [tab, setTab] = useState<'pendentes' | 'concluidos'>('pendentes')
+  const [loading, setLoading] = useState(false)
 
-  const pendentes = doc ? doc.totalDestinatarios - doc.totalAceites : 0
-
-  /* ── Signatários (fonte única, compartilhada com a exportação) ── */
   const signatarios = doc ? buildSignatarios(doc) : []
-  const pendentesNomes = signatarios.filter((s) => s.situacao === 'Pendente').map((s) => s.nome)
-
-  /* ── Abre direto na aba "Concluídos" se não houver pendentes ── */
-  useEffect(() => {
-    if (!open || !doc) return
-    setPendenciasTab(pendentes === 0 ? 'concluidos' : 'pendentes')
-    setDrawerLoading(true)
-    const timer = setTimeout(() => setDrawerLoading(false), 600)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, doc?.id])
-
-  /* ── Atualiza contadores de cooldown a cada segundo ── */
-  useEffect(() => {
-    const hasActiveCooldown = allCooldownUntil !== null || Object.keys(reminderCooldowns).length > 0
-    if (!hasActiveCooldown) return
-    const interval = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(interval)
-  }, [reminderCooldowns, allCooldownUntil])
-
-  function handleReminder(nome: string) {
-    setReminderLoadingKey(nome)
-    setTimeout(() => {
-      setReminderLoadingKey(null)
-      setReminderCooldowns((prev) => ({ ...prev, [nome]: Date.now() + REMINDER_COOLDOWN_MS }))
-      message.success(`Lembrete enviado para ${nome}.`)
-    }, 900)
-  }
-
-  function handleReminderAll() {
-    setReminderAllLoading(true)
-    setTimeout(() => {
-      setReminderAllLoading(false)
-      const until = Date.now() + REMINDER_COOLDOWN_MS
-      setAllCooldownUntil(until)
-      setReminderCooldowns((prev) => {
-        const next = { ...prev }
-        pendentesNomes.forEach((nome) => { next[nome] = until })
-        return next
-      })
-      message.success(`Lembretes enviados para ${pendentes} ${pendentes === 1 ? 'destinatário' : 'destinatários'} pendentes.`)
-    }, 1200)
-  }
-
-  if (!doc) return <Drawer open={open} onClose={onClose} width={480} destroyOnHidden />
-
-  /* ── Agrupamento por departamento (só no envio por departamento) ── */
-  const porDepto = doc.modalidadeEnvio === 'departamento'
+  const porDepto = doc?.modalidadeEnvio === 'departamento'
   const pendentesSig = signatarios.filter((s) => s.situacao === 'Pendente')
-
-  /* ── Concluídos (derivados da fonte única de signatários) ── */
-  const concluidosMock = signatarios
+  const concluidosSig = signatarios
     .filter((s) => s.situacao === 'Concluído')
     .map((s) => ({ nome: s.nome, data: s.dataAceite ?? '—', departamento: s.departamento }))
 
-  /* ── Renderizadores de item (reutilizados nas listas planas e agrupadas) ── */
-  function renderPendenteItem(nome: string) {
-    const cooldownUntil = reminderCooldowns[nome]
-    const remaining = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0
-    const inCooldown = remaining > 0
-    return (
-      <List.Item
-        key={nome}
-        style={{ padding: '12px 0', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <Space size={10}>
-          <Avatar size={36} style={{ background: '#EEF2FF', color: colorTokens.primary, fontFamily: FONT, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-            {nome.charAt(0).toUpperCase()}
-          </Avatar>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, fontWeight: 500 }}>
-            {nome}
-          </Typography.Text>
-        </Space>
-        <Button
-          type="link"
-          size="small"
-          icon={inCooldown ? <ClockCircleOutlined style={{ fontSize: 11 }} /> : <SendOutlined style={{ fontSize: 11 }} />}
-          loading={reminderLoadingKey === nome}
-          disabled={inCooldown}
-          onClick={() => handleReminder(nome)}
-          style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: inCooldown ? '#8C8C8C' : colorTokens.primary, padding: '0 4px', height: 'auto', flexShrink: 0 }}
-        >
-          {inCooldown ? `Aguarde ${formatCooldown(remaining)}` : 'Enviar lembrete'}
-        </Button>
-      </List.Item>
-    )
-  }
+  /* Abre em "Concluídos" quando não há pendentes; simula carregamento. */
+  useEffect(() => {
+    if (!open || !doc) return
+    setTab(pendentesSig.length === 0 ? 'concluidos' : 'pendentes')
+    setLoading(true)
+    const t = setTimeout(() => setLoading(false), 500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, doc?.id])
 
-  function renderConcluidoItem(item: { nome: string; data: string }) {
-    return (
-      <List.Item
-        key={item.nome}
-        style={{ padding: '12px 0', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <Space size={10}>
-          <Avatar size={36} style={{ background: '#F6FFED', color: '#389e0d', fontFamily: FONT, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-            {item.nome.charAt(0).toUpperCase()}
-          </Avatar>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, fontWeight: 500 }}>
-            {item.nome}
-          </Typography.Text>
-        </Space>
-        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: '#8C8C8C', flexShrink: 0 }}>
-          Concluído em {item.data}
-        </Typography.Text>
-      </List.Item>
-    )
-  }
+  if (!doc) return <Drawer open={open} onClose={onClose} width={480} destroyOnHidden />
 
-  /* ── Exportação do relatório de auditoria ── */
-  function handleExportCSV() {
-    exportarRelatorioCSV(doc!)
-    message.success('Relatório de auditoria (Excel/CSV) gerado.')
-  }
+  /* Exportação (PDF / Excel). */
   function handleExportPDF() {
     const ok = exportarRelatorioPDF(doc!)
     if (ok) message.success('Abrindo o relatório para impressão/PDF.')
     else message.warning('Permita pop-ups neste site para gerar o PDF.')
   }
+  function handleExportCSV() {
+    exportarRelatorioCSV(doc!)
+    message.success('Relatório de auditoria (Excel/CSV) gerado.')
+  }
   const exportItems: MenuProps['items'] = [
-    { key: 'pdf',   icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,  label: 'Exportar como PDF',   onClick: handleExportPDF },
+    { key: 'pdf', icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />, label: 'Exportar como PDF', onClick: handleExportPDF },
     { key: 'excel', icon: <FileExcelOutlined style={{ color: '#52c41a' }} />, label: 'Exportar como Excel', onClick: handleExportCSV },
   ]
 
-  /* ── Cooldown do botão "Lembrar todos os pendentes" ── */
-  const allRemaining = allCooldownUntil ? Math.max(0, Math.ceil((allCooldownUntil - now) / 1000)) : 0
-  const allInCooldown = allRemaining > 0
+  /* ── Aba de tabs (rótulo + contador colorido) ── */
+  const TabButton = ({ id, label, count, tone }: { id: 'pendentes' | 'concluidos'; label: string; count: number; tone: Tone }) => {
+    const active = tab === id
+    const c = tone === 'concluido'
+      ? { bg: '#F6FFED', border: '#B7EB8F', color: '#389E0D' }
+      : { bg: '#FFF7E6', border: '#FFD591', color: '#D46B08' }
+    return (
+      <button
+        onClick={() => setTab(id)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '10px 2px', marginRight: 24,
+          background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? colorTokens.primary : 'transparent'}`,
+          cursor: 'pointer', fontFamily: FONT, fontSize: 14, fontWeight: active ? 600 : 500,
+          color: active ? colorTokens.primary : colorTokens.textSecondary,
+        }}
+      >
+        {label}
+        <span style={{
+          fontFamily: FONT, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color,
+          border: `1px solid ${c.border}`, borderRadius: 12, padding: '1px 8px',
+        }}>
+          {count}
+        </span>
+      </button>
+    )
+  }
+
+  const emptyState = (icon: React.ReactNode, title: string, subtitle: string) => (
+    <div style={{ textAlign: 'center', padding: '56px 24px' }}>
+      {icon}
+      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary, display: 'block', marginTop: 16, marginBottom: 6 }}>
+        {title}
+      </Typography.Text>
+      <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '20px' }}>
+        {subtitle}
+      </Typography.Text>
+    </div>
+  )
 
   return (
     <Drawer
@@ -216,176 +224,79 @@ export function PendenciasDrawer({ open, onClose, doc }: PendenciasDrawerProps) 
       placement="right"
       width={480}
       title={
-        <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-          Relatório de aceites
-        </Typography.Text>
-      }
-      extra={
-        <Dropdown menu={{ items: exportItems }} trigger={['click']} placement="bottomRight">
-          <Button
-            icon={<DownloadOutlined />}
-            style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 8 }}
-          >
-            Exportar
-          </Button>
-        </Dropdown>
+        <div>
+          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 18, color: colorTokens.primary, display: 'block' }}>
+            Relatório de aceites
+          </Typography.Text>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, fontWeight: 400 }}>
+            Acompanhe o status dos aceites e exporte o relatório
+          </Typography.Text>
+        </div>
       }
       styles={{
-        header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' },
-        body:   { padding: 0, overflowY: 'auto' },
+        header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0', alignItems: 'flex-start' },
+        body: { padding: '16px 24px', background: '#FAFAFA' },
+        footer: { padding: '12px 24px' },
       }}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <Button onClick={onClose} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 40, minWidth: 96 }}>
+            Voltar
+          </Button>
+          <Dropdown menu={{ items: exportItems }} trigger={['click']} placement="topRight">
+            <Button type="primary" icon={<DownloadOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 40, background: colorTokens.primary, borderColor: colorTokens.primary }}>
+              Exportar relatório
+            </Button>
+          </Dropdown>
+        </div>
+      }
       destroyOnHidden
     >
-      <Spin spinning={drawerLoading} style={{ minHeight: 200 }}>
+      <Spin spinning={loading} style={{ minHeight: 200 }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #EBEBEB', marginBottom: 16 }}>
+          <TabButton id="pendentes" label="Pendentes" count={pendentesSig.length} tone="pendente" />
+          <TabButton id="concluidos" label="Concluídos" count={concluidosSig.length} tone="concluido" />
+        </div>
 
-        <Tabs
-          activeKey={pendenciasTab}
-          onChange={(k) => setPendenciasTab(k as 'pendentes' | 'concluidos')}
-          style={{ paddingInline: 24 }}
-          tabBarStyle={{ fontFamily: FONT, marginBottom: 0 }}
-          items={[
-            /* ── Aba 1: Pendentes ── */
-            {
-              key: 'pendentes',
-              label: (
-                <span style={{ fontFamily: FONT, fontWeight: 500 }}>
-                  Pendentes
-                  <span style={{
-                    marginLeft: 6, fontSize: 11, fontWeight: 700,
-                    background: pendentes > 0 ? '#FFF7E6' : '#F5F5F5',
-                    color: pendentes > 0 ? '#D46B08' : '#8C8C8C',
-                    border: `1px solid ${pendentes > 0 ? '#FA8C16' : '#D9D9D9'}`,
-                    borderRadius: 10, padding: '1px 7px',
-                  }}>
-                    {pendentes}
-                  </span>
-                </span>
-              ),
-              children: (
-                <div style={{ paddingTop: 20 }}>
-
-                  {/* Empty state */}
-                  {pendentes === 0 ? (
-                    <div style={{
-                      textAlign: 'center', padding: '56px 24px',
-                    }}>
-                      <CheckCircleOutlined style={{
-                        fontSize: 44, color: '#52c41a',
-                        marginBottom: 16, display: 'block',
-                      }} />
-                      <Typography.Text strong style={{
-                        fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary,
-                        display: 'block', marginBottom: 8,
-                      }}>
-                        Excelente!
-                      </Typography.Text>
-                      <Typography.Text style={{
-                        fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary,
-                        display: 'block', lineHeight: '20px',
-                      }}>
-                        Todos os destinatários já concluíram este documento.
-                      </Typography.Text>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Ação em lote */}
-                      <div style={{ marginBottom: 16 }}>
-                        <Button
-                          type="primary"
-                          icon={allInCooldown ? <ClockCircleOutlined /> : <BellOutlined />}
-                          loading={reminderAllLoading}
-                          disabled={allInCooldown}
-                          onClick={handleReminderAll}
-                          style={{
-                            fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                            borderRadius: 8, height: 38,
-                            background: allInCooldown ? undefined : colorTokens.primary,
-                            borderColor: allInCooldown ? undefined : colorTokens.primary,
-                            width: '100%',
-                          }}
-                        >
-                          {allInCooldown ? `Aguarde ${formatCooldown(allRemaining)} para reenviar` : 'Lembrar todos os pendentes'}
-                        </Button>
-                      </div>
-
-                      {/* Lista de pendentes — agrupada por departamento quando aplicável */}
-                      {porDepto ? (
-                        <div style={{ paddingBottom: 24 }}>
-                          {groupByDepto(pendentesSig).map(([dept, items]) => (
-                            <div key={dept}>
-                              <DeptHeader nome={dept} count={items.length} />
-                              {items.map((s) => renderPendenteItem(s.nome))}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <List
-                          dataSource={pendentesNomes}
-                          renderItem={(nome) => renderPendenteItem(nome)}
-                          style={{ paddingBottom: 24 }}
-                        />
-                      )}
-                    </>
+        {/* Conteúdo por aba */}
+        {tab === 'pendentes' ? (
+          pendentesSig.length === 0 ? (
+            emptyState(
+              <CheckCircleOutlined style={{ fontSize: 44, color: '#52c41a' }} />,
+              'Tudo em dia!',
+              'Todos os destinatários já concluíram este documento.',
+            )
+          ) : (
+            groupByDepto(pendentesSig, porDepto).map(([dept, items], i) => (
+              <DeptGroup key={dept} nome={dept} count={items.length} tone="pendente" defaultOpen={i === 0}>
+                <GroupItems items={items} render={(it) => <SignatarioRow nome={it.nome} />} />
+              </DeptGroup>
+            ))
+          )
+        ) : (
+          concluidosSig.length === 0 ? (
+            emptyState(
+              <TeamOutlined style={{ fontSize: 40, color: '#BFBFBF' }} />,
+              'Nenhum aceite ainda',
+              'Assim que houver aceites, eles aparecem aqui.',
+            )
+          ) : (
+            groupByDepto(concluidosSig, porDepto).map(([dept, items], i) => (
+              <DeptGroup key={dept} nome={dept} count={items.length} tone="concluido" defaultOpen={i === 0}>
+                <GroupItems
+                  items={items}
+                  render={(it) => (
+                    <SignatarioRow
+                      nome={it.nome}
+                      right={<Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: '#8C8C8C', whiteSpace: 'nowrap', flexShrink: 0 }}>Concluído em {it.data}</Typography.Text>}
+                    />
                   )}
-                </div>
-              ),
-            },
-
-            /* ── Aba 2: Concluídos ── */
-            {
-              key: 'concluidos',
-              label: (
-                <span style={{ fontFamily: FONT, fontWeight: 500 }}>
-                  Concluídos
-                  <span style={{
-                    marginLeft: 6, fontSize: 11, fontWeight: 700,
-                    background: '#F6FFED',
-                    color: '#389e0d',
-                    border: '1px solid #B7EB8F',
-                    borderRadius: 10, padding: '1px 7px',
-                  }}>
-                    {doc.totalAceites}
-                  </span>
-                </span>
-              ),
-              children: (
-                <div style={{ paddingTop: 20 }}>
-                  {concluidosMock.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '56px 24px' }}>
-                      <TeamOutlined style={{
-                        fontSize: 40, color: '#BFBFBF',
-                        marginBottom: 14, display: 'block',
-                      }} />
-                      <Typography.Text style={{
-                        fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary,
-                      }}>
-                        Nenhum destinatário concluiu ainda.
-                      </Typography.Text>
-                    </div>
-                  ) : (
-                    porDepto ? (
-                      <div style={{ paddingBottom: 24 }}>
-                        {groupByDepto(concluidosMock).map(([dept, items]) => (
-                          <div key={dept}>
-                            <DeptHeader nome={dept} count={items.length} />
-                            {items.map((item) => renderConcluidoItem(item))}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <List
-                        dataSource={concluidosMock}
-                        renderItem={(item) => renderConcluidoItem(item)}
-                        style={{ paddingBottom: 24 }}
-                      />
-                    )
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
-
+                />
+              </DeptGroup>
+            ))
+          )
+        )}
       </Spin>
     </Drawer>
   )
