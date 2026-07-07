@@ -7,9 +7,11 @@ description: >-
   spec) e pedir para "analisar o documento", "estudar a doc", "ler a documentação",
   "trazer sugestões de fluxo/usabilidade", "quais as ideias antes de desenvolver",
   "analisar o EP0X", ou variações — mesmo que não diga "UX". A skill lê o documento
-  inteiro (incluindo comentários), resume em linguagem de produto/UX, entrega OPÇÕES
-  de fluxo sempre apontando a mais recomendada, levanta cenários que a documentação
-  talvez não previu (com sugestão), e monta um backlog de ideias pronto para o
+  inteiro (incluindo comentários), resume em linguagem de produto/UX e conduz um FUNIL
+  INTERATIVO de decisões: apresenta UMA decisão de fluxo por vez com até 3 opções
+  (recomendada marcada) + "Outros", aguarda a escolha do usuário, e adapta as decisões
+  seguintes ao que foi escolhido. Só depois de todas as escolhas entrega cenários que a
+  documentação talvez não previu (com sugestão) e um backlog de ideias pronto para o
   protótipo. É a etapa de DISCOVERY que antecede a construção: ela NÃO desenha UI —
   quem implementa é a skill "tela-ds-cs", e só depois que o usuário escolher os fluxos.
 ---
@@ -63,23 +65,36 @@ Antes de propor fluxos, mostre que entendeu o problema. Extraia do documento:
 Escreva isso de forma enxuta — é o alicerce, não o produto final. Se algo na doc estiver
 ambíguo, sinalize aqui (vira pergunta no Passo 5).
 
-## Passo 3 — Fluxos: opções com recomendação
+## Passo 3 — Decisões de fluxo guiadas (uma por vez, interativo)
 
-Para **cada decisão de fluxo relevante**, apresente 2–3 opções reais com trade-offs e
-**sempre aponte a recomendada, com o porquê**. Bons critérios para recomendar: menos
-passos até o objetivo, consistência com telas/produtos que já existem, clareza da
-hierarquia, esforço de implementação, e aderência ao Design System. A recomendação é uma
-opinião de sênior — assuma uma posição, não empurre a decisão de volta sem sugestão.
+**Não despeje todas as decisões de uma vez** — uma parede de opções sobrecarrega e
+dificulta escolher. Conduza o usuário por um **funil de decisões**:
 
-Formato:
-```
-### Fluxo: [nome do fluxo/decisão]
-- **Opção A** — [descrição curta] · prós: … · contras: …
-- **Opção B** — [descrição curta] · prós: … · contras: …
-- ⭐ **Recomendado: [A/B]** — [motivo em 1–2 frases]
-```
+1. **Ordene as decisões** da mais estrutural (a que muda todas as outras — ex.: qual
+   versão da spec vale, qual o escopo) para a mais pontual (ex.: onde fica um botão).
+2. **Apresente UMA decisão por vez**, com **até 3 opções reais** + recomendação:
+   - **No Claude Code:** use a ferramenta `AskUserQuestion`. Coloque a recomendada como
+     **primeira opção** com "(Recomendada)" no rótulo; descreva prós/contras na descrição
+     de cada opção. A 4ª opção "Outros" (texto livre) é adicionada **automaticamente**
+     pela ferramenta — não crie uma opção "Outros" manual.
+   - **Sem a ferramenta (claude.ai):** liste "Opção 1 / 2 / 3 (⭐ recomendada)" +
+     "4. Outra — descreva com suas palavras" e **PARE**. Aguarde a resposta antes de
+     qualquer análise adicional.
+3. **Leia a escolha e adapte:** a próxima decisão deve refletir as anteriores (ex.: se o
+   usuário escolheu "drawer" em vez de "página", as perguntas seguintes falam do drawer).
+   Decisões genuinamente independentes entre si podem ser agrupadas numa mesma rodada
+   (máx. 4 perguntas), mas na dúvida, pergunte separado.
+4. Mantenha um **placar das decisões** (decisão → escolha) para usar nos passos seguintes.
+
+Critérios para recomendar: menos passos até o objetivo, consistência com telas/produtos
+existentes, clareza de hierarquia, esforço de implementação, aderência ao Design System.
+A recomendação é opinião de sênior — assuma posição e explique o porquê em 1–2 frases.
+Cada opção: descrição curta + prós/contras em uma linha.
 
 ## Passo 4 — Cenários que a documentação talvez não previu
+
+**Só entregue este passo depois que todas as decisões do Passo 3 estiverem fechadas** —
+assim os cenários refletem os fluxos escolhidos, não hipóteses descartadas.
 
 Specs quase sempre descrevem o "caminho feliz". O valor de um sênior é antecipar o resto.
 Para cada cenário provável e ausente na doc, diga **o que é**, **por que vai/deve surgir** e
@@ -97,7 +112,9 @@ Não precisa esgotar tudo — priorize os cenários com maior chance de virar bu
 
 ## Passo 5 — Backlog de ideias para o protótipo (entrada da `tela-ds-cs`)
 
-Traduza a análise em uma lista **priorizada e acionável** de telas/componentes a construir.
+Traduza a análise em uma lista **priorizada e acionável** de telas/componentes a construir,
+**refletindo as escolhas do Passo 3** (o backlog descreve o que foi decidido, não as
+alternativas descartadas).
 Cada item já aponta os componentes prováveis do Design System, para o handoff à `tela-ds-cs`
 ser direto — **sem** especificar pixels/tokens aqui (isso é trabalho da `tela-ds-cs`).
 
@@ -105,25 +122,30 @@ ser direto — **sem** especificar pixels/tokens aqui (isso é trabalho da `tela
 - [ ] [Tela/componente] — objetivo · componentes DS prováveis · prioridade (Alta/Média/Baixa)
 ```
 
-## Passo 6 — Perguntas em aberto e handoff
+## Passo 6 — Handoff
 
-Feche com as **decisões que dependem do usuário** (as escolhas de fluxo do Passo 3 + as
-ambiguidades do Passo 2). Deixe explícito o próximo passo:
+Com o placar de decisões fechado, sobram poucas (ou nenhuma) perguntas em aberto — liste
+as que restarem (ex.: valores "A DEFINIR" na spec que não bloqueiam o fluxo). Deixe
+explícito o próximo passo:
 
 > Escolha os fluxos acima. Assim que você decidir, implemento no protótipo com a skill
 > **`tela-ds-cs`** (que garante uso só de componentes/tokens do DS). Não vou desenhar
 > nada antes dessa escolha.
 
-## Estrutura da entrega (use este template)
+## Estrutura da entrega (em duas fases)
 
+**Fase 1 — imediata após a leitura:**
 ```
 # Análise UX — [Documento] · [Página/Seção]
-
 ## 1. O que o documento pede (em linguagem de produto/UX)
-## 2. Fluxos — opções e recomendação
-## 3. Cenários que a documentação talvez não previu
+→ e em seguida a PRIMEIRA decisão de fluxo (Passo 3), uma por vez.
+```
+
+**Fase 2 — só depois de todas as decisões fechadas:**
+```
+## 2. Resumo das decisões (placar: decisão → sua escolha)
+## 3. Cenários que a documentação talvez não previu (já refletindo as escolhas)
 ## 4. Backlog de ideias para o protótipo (pronto para tela-ds-cs)
-## 5. Perguntas em aberto (decisões suas)
 ## Próximo passo
 ```
 
@@ -134,6 +156,9 @@ ambiguidades do Passo 2). Deixe explícito o próximo passo:
 - **Inventar conteúdo** quando o doc não abriu. Sem acesso, peça reconexão do Drive ou o
   texto colado.
 - **Listar opções sem recomendar.** Sempre aponte a preferida e explique o porquê.
+- **Despejar todas as decisões de uma vez.** O formato é interativo: uma decisão por vez,
+  aguardando a escolha do usuário antes de seguir — a parede de opções única foi
+  exatamente o formato rejeitado pelo time.
 - **Só repetir a doc.** O valor está em traduzir para UX, recomendar fluxo e antecipar o
   que a doc não previu.
 - **Descer a pixel/token.** Medidas e componentes exatos são responsabilidade da
