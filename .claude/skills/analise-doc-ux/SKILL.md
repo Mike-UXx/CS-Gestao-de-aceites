@@ -1,21 +1,17 @@
 ---
 name: analise-doc-ux
 description: >-
-  Analisa um documento de requisitos/especificação (de preferência no Google Drive)
-  e o traduz para a linguagem de UX/Designer Sênior ANTES de qualquer desenvolvimento.
-  Use SEMPRE que o usuário indicar um link do Drive/Google Docs (ou colar um texto de
-  spec) e pedir para "analisar o documento", "estudar a doc", "ler a documentação",
-  "trazer sugestões de fluxo/usabilidade", "quais as ideias antes de desenvolver",
-  "analisar o EP0X", ou variações — mesmo que não diga "UX". A skill lê o documento
-  inteiro (incluindo comentários), resume em linguagem de produto/UX e conduz um FUNIL
-  INTERATIVO de decisões: apresenta UMA decisão de fluxo por vez com até 3 opções
-  (recomendada marcada) + "Outros", aguarda a escolha do usuário, e adapta as decisões
-  seguintes ao que foi escolhido. Com as escolhas fechadas, AUDITA o fluxo escolhido —
-  caminhos não previstos, erros de fluxo evitáveis, riscos de usabilidade/UX — e cada
-  achado relevante vira nova rodada de decisão no mesmo formato interativo. Só então
-  entrega o placar de decisões e um backlog de ideias pronto para o protótipo. É a etapa
-  de DISCOVERY que antecede a construção: ela NÃO desenha UI — quem implementa é a skill
-  "tela-ds-cs", e só depois que o usuário escolher os fluxos.
+  Analisa um documento de requisitos/especificação (de preferência no Google Drive) e o
+  traduz para a linguagem de UX/Designer Sênior ANTES do desenvolvimento. Use SEMPRE que
+  o usuário indicar um link do Drive/Google Docs (ou colar uma spec) e pedir para
+  analisar/estudar a documentação, trazer sugestões de fluxo/usabilidade ou "analisar o
+  EP0X" — mesmo sem dizer "UX". Lê o documento inteiro (com comentários), resume em
+  linguagem de produto/UX e conduz um funil INTERATIVO: UMA decisão de fluxo por vez,
+  com até 3 opções (recomendada marcada) + "Outros", adaptando as próximas decisões às
+  escolhas. Depois AUDITA o fluxo escolhido (caminhos não previstos, erros evitáveis,
+  riscos de usabilidade) e cada achado relevante vira nova rodada de decisão. Só então
+  entrega o placar e o backlog pronto para o protótipo. É a etapa de DISCOVERY: NÃO
+  desenha UI — quem implementa é a skill "tela-ds-cs", após as escolhas do usuário.
 ---
 
 # Analisar documento → análise de UX (discovery antes do protótipo)
