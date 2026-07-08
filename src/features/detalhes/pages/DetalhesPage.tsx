@@ -747,7 +747,7 @@ export function DetalhesPage() {
               </div>
             )}
 
-            {/* ══ Cobrança e prazo de assinatura (config da criação) ══ */}
+            {/* ══ Lembretes e prazo de assinatura (config da criação) ══ */}
             {doc.status === 'Ativo' && (doc.cobrancaAutomatica || doc.prazoAssinaturaEm) && (() => {
               const proxDias = doc.proximoLembreteEm ? dayjs(doc.proximoLembreteEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
               const prazoDias = doc.prazoAssinaturaEm ? dayjs(doc.prazoAssinaturaEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
@@ -761,7 +761,7 @@ export function DetalhesPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                     <BellOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
                     <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                      Cobrança e prazo de assinatura
+                      Lembretes e prazo de assinatura
                     </Typography.Text>
                     <span style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textMuted }}>· simulado</span>
                   </div>
@@ -771,9 +771,11 @@ export function DetalhesPage() {
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <BellOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
                         <div>
-                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Cobrança automática</Typography.Text>
+                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Lembretes automáticos</Typography.Text>
                           <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                            {doc.cobrancaAutomatica ? `A cada ${doc.cobrancaFrequenciaDias} dias` : 'Desativada'}
+                            {doc.cobrancaAutomatica
+                              ? (doc.cobrancaFrequenciaDias === 1 ? 'Diário' : `A cada ${doc.cobrancaFrequenciaDias} dias`)
+                              : 'Desativados'}
                           </Typography.Text>
                           {doc.cobrancaAutomatica && (
                             <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>

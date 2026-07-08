@@ -35,18 +35,11 @@ const RENOVACAO_OPTIONS = [
   { value: 'personalizado', label: 'Personalizado…'   },
 ]
 
+/* Periodicidade dos lembretes automáticos (EP06 · US 6.1): diário, 3 ou 7 dias. */
 const COBRANCA_FREQ_OPTIONS = [
-  { value: 3,  label: 'A cada 3 dias'  },
-  { value: 7,  label: 'A cada 7 dias'  },
-  { value: 15, label: 'A cada 15 dias' },
-]
-
-const COBRANCA_MAX_OPTIONS = [
-  { value: 1, label: 'Até 1 lembrete'   },
-  { value: 2, label: 'Até 2 lembretes'  },
-  { value: 3, label: 'Até 3 lembretes'  },
-  { value: 5, label: 'Até 5 lembretes'  },
-  { value: 0, label: 'Sem limite'       },
+  { value: 1, label: 'Diário'          },
+  { value: 3, label: 'A cada 3 dias'   },
+  { value: 7, label: 'A cada 7 dias'   },
 ]
 
 /* ─── Tipo da linha da tabela ────────────────────────────────── */
@@ -162,7 +155,6 @@ export function RegrasStep() {
   /* ── Cobrança automática e prazo de assinatura ── */
   const [cobrancaAutomatica, setCobrancaAutomatica] = useState<boolean>(data.cobrancaAutomatica ?? false)
   const [cobrancaFreq,       setCobrancaFreq]       = useState<number>(data.cobrancaFrequenciaDias ?? 3)
-  const [cobrancaMax,        setCobrancaMax]        = useState<number>(data.cobrancaMaxLembretes ?? 3)
   const [prazoAtivo,         setPrazoAtivo]         = useState<boolean>(data.prazoAssinaturaAtivo ?? false)
   const [prazoDias,          setPrazoDias]          = useState<number>(data.prazoAssinaturaDias || 7)
   const [encerramentoAuto,   setEncerramentoAuto]   = useState<boolean>(data.encerramentoAutomatico ?? true)
@@ -355,7 +347,8 @@ export function RegrasStep() {
         canalWhatsapp,
         cobrancaAutomatica:      exigeAceite ? cobrancaAutomatica : false,
         cobrancaFrequenciaDias:  cobrancaFreq,
-        cobrancaMaxLembretes:    cobrancaMax,
+        // EP06 · US 6.1: lembretes seguem até o aceite ou inativação/expiração — sem limite.
+        cobrancaMaxLembretes:    0,
         prazoAssinaturaAtivo:    exigeAceite ? prazoAtivo : false,
         prazoAssinaturaDias:     prazoDias,
         encerramentoAutomatico:  exigeAceite ? encerramentoAuto : true,
@@ -514,11 +507,11 @@ export function RegrasStep() {
         {exigeAceite && (
           <>
             <SectionDivider
-              title="Cobrança e prazo de assinatura"
+              title="Lembretes e prazo de assinatura"
               subtitle="Automatize os lembretes aos pendentes e defina quando o documento encerra — sem depender de cobrança manual."
             />
 
-            {/* Cobrança automática */}
+            {/* Lembretes automáticos (EP06 · US 6.1) */}
             <div style={{ marginBottom: 20 }}>
               <Checkbox
                 checked={cobrancaAutomatica}
@@ -527,30 +520,32 @@ export function RegrasStep() {
               >
                 <div>
                   <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>
-                    Cobrança automática de pendentes
+                    Lembretes automáticos
                   </Text>
                   <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>
-                    O sistema reenvia lembretes aos destinatários que ainda não aceitaram, pelos canais selecionados acima.
+                    O sistema envia lembretes por e-mail aos destinatários com aceite pendente, na frequência
+                    escolhida, até o aceite — ou até o documento expirar ou ser inativado.
                   </Text>
                 </div>
               </Checkbox>
 
               {cobrancaAutomatica && (
-                <div style={{ marginTop: 12, marginLeft: 24, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>Reenviar</Text>
-                  <Select
-                    value={cobrancaFreq}
-                    onChange={setCobrancaFreq}
-                    options={COBRANCA_FREQ_OPTIONS}
-                    style={{ width: 160, fontFamily: FONT }}
-                  />
-                  <Select
-                    value={cobrancaMax}
-                    onChange={setCobrancaMax}
-                    options={COBRANCA_MAX_OPTIONS}
-                    style={{ width: 170, fontFamily: FONT }}
-                  />
-                  <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>por destinatário</Text>
+                <div style={{ marginTop: 12, marginLeft: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>Enviar lembrete</Text>
+                    <Select
+                      value={cobrancaFreq}
+                      onChange={setCobrancaFreq}
+                      options={COBRANCA_FREQ_OPTIONS}
+                      style={{ width: 160, fontFamily: FONT }}
+                    />
+                    <Text style={{ fontSize: 13, fontFamily: FONT, color: colorTokens.textSecondary }}>aos pendentes</Text>
+                  </div>
+                  {renovacaoAtiva && (
+                    <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 8 }}>
+                      Com a recorrência de aceite ativa, a contagem dos lembretes reinicia a cada novo ciclo de pendência.
+                    </Text>
+                  )}
                 </div>
               )}
             </div>

@@ -32,10 +32,10 @@ export interface DocumentFormData {
   canalEmail: boolean
   canalWhatsapp: boolean
 
-  // Step 3 — Cobrança e prazo de assinatura (só relevante quando exigeAceite)
-  cobrancaAutomatica: boolean          // sistema reenvia lembrete aos pendentes
-  cobrancaFrequenciaDias: number       // a cada N dias (preset: 3 | 7 | 15)
-  cobrancaMaxLembretes: number         // limite por destinatário (0 = ilimitado)
+  // Step 3 — Lembretes e prazo de assinatura (só relevante quando exigeAceite)
+  cobrancaAutomatica: boolean          // lembretes automáticos aos pendentes (EP06 · US 6.1)
+  cobrancaFrequenciaDias: number       // periodicidade em dias (1 = diário | 3 | 7)
+  cobrancaMaxLembretes: number         // limite por destinatário (0 = ilimitado; EP06 usa sempre 0)
   prazoAssinaturaAtivo: boolean        // há data-limite para aceitar?
   prazoAssinaturaDias: number          // aceitar em até N dias após o envio
   encerramentoAutomatico: boolean      // true = encerra ao 100% de aceite ou no prazo; false = manual
@@ -71,10 +71,10 @@ const INITIAL_STATE: DocumentFormData = {
   deptConfig: {},
   canalEmail: true,
   canalWhatsapp: false,
-  // Step 3 — Cobrança e prazo
+  // Step 3 — Lembretes e prazo (EP06 · US 6.1: desabilitado por padrão, sem limite)
   cobrancaAutomatica: false,
   cobrancaFrequenciaDias: 3,
-  cobrancaMaxLembretes: 3,
+  cobrancaMaxLembretes: 0,
   prazoAssinaturaAtivo: false,
   prazoAssinaturaDias: 7,
   encerramentoAutomatico: true,
