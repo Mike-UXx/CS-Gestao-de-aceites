@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Menu, Layout } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -19,25 +18,19 @@ interface NavDef {
   icon: React.ReactNode
   label: string
   perm?: Permission
-  children?: { key: string; label: string }[]
 }
 
 const NAV_DEFS: NavDef[] = [
   { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   { key: '/documentos', icon: <FileTextOutlined />, label: 'Documentos' },
-  {
-    key: '/configuracoes',
-    icon: <SettingOutlined />,
-    label: 'Configurações',
-    perm: 'config:acessar',
-    children: [
-      { key: '/configuracoes/classificacoes', label: 'Classificações' },
-    ],
-  },
+  // Configurações leva direto ao hub (Geral); as telas internas
+  // (Classificações, Notificações) são acessadas pelos cards do hub.
+  { key: '/configuracoes', icon: <SettingOutlined />, label: 'Configurações', perm: 'config:acessar' },
 ]
 
-/** Todas as rotas conhecidas (inclui filhas) — para resolver o item ativo. */
-const ALL_KEYS = ['/home', '/documentos', '/configuracoes/classificacoes', '/configuracoes']
+/** Todas as rotas conhecidas — para resolver o item ativo (subrotas de
+    /configuracoes mantêm "Configurações" destacado por prefixo). */
+const ALL_KEYS = ['/home', '/documentos', '/configuracoes']
 
 interface AppSidebarProps {
   collapsed: boolean
@@ -51,21 +44,12 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
 
   const navItems: MenuProps['items'] = NAV_DEFS
     .filter((d) => !d.perm || can(d.perm))
-    .map((d) => ({
-      key: d.key,
-      icon: d.icon,
-      label: d.label,
-      ...(d.children ? { children: d.children } : {}),
-    }))
+    .map((d) => ({ key: d.key, icon: d.icon, label: d.label }))
 
   // Item ativo = rota conhecida mais específica que casa com o pathname
   const selectedKey = ALL_KEYS
     .filter((k) => location.pathname.startsWith(k))
     .sort((a, b) => b.length - a.length)[0] ?? '/home'
-
-  const [openKeys, setOpenKeys] = useState<string[]>(
-    location.pathname.startsWith('/configuracoes') ? ['/configuracoes'] : [],
-  )
 
   return (
     <Sider
@@ -87,8 +71,6 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
       <Menu
         mode="inline"
         selectedKeys={[selectedKey]}
-        openKeys={openKeys}
-        onOpenChange={(keys) => setOpenKeys(keys as string[])}
         onClick={({ key }) => navigate(key)}
         style={{ height: '100%', borderRight: 0, paddingTop: 8 }}
         items={navItems}
