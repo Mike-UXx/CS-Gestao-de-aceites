@@ -128,12 +128,10 @@ export function RevisaoStep() {
     data.renovacaoAceite === 'personalizado'
       ? `A cada ${data.renovacaoMesesPersonalizado} meses`
       : RENOVACAO_LABELS[data.renovacaoAceite] ?? data.renovacaoAceite
-  const cobrancaLimiteLabel = data.cobrancaMaxLembretes === 0
-    ? 'sem limite'
-    : `até ${data.cobrancaMaxLembretes} ${data.cobrancaMaxLembretes === 1 ? 'lembrete' : 'lembretes'}`
+  // EP06 · US 6.1: lembretes até o aceite ou expiração/inativação (sem limite máximo).
   const cobrancaLabel = data.cobrancaAutomatica
-    ? `A cada ${data.cobrancaFrequenciaDias} dias · ${cobrancaLimiteLabel}`
-    : 'Desativada'
+    ? (data.cobrancaFrequenciaDias === 1 ? 'Diário · até o aceite' : `A cada ${data.cobrancaFrequenciaDias} dias · até o aceite`)
+    : 'Desativados'
 
   /* ── Tags de destinatários ── */
   const deptTags  = data.departamentos.map((v) => ({ label: labelOf(DEPARTAMENTOS, v), value: v }))
@@ -401,7 +399,7 @@ export function RevisaoStep() {
         {data.exigeAceite && (
           <>
             <ReviewRow
-              label="Cobrança automática"
+              label="Lembretes automáticos"
               value={
                 <Space size={6}>
                   <ClockCircleOutlined style={{ color: data.cobrancaAutomatica ? colorTokens.primary : colorTokens.textSecondary }} />

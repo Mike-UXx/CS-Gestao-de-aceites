@@ -12,7 +12,7 @@ import { RevisaoStep } from '@/features/criacao/pages/RevisaoStep'
 import { DocumentFormProvider } from '@/features/criacao/context/DocumentFormContext'
 import { ListagemPage } from '@/features/listagem'
 import { DashboardPage } from '@/features/dashboard'
-import { ConfiguracoesPage, ClassificacoesPage } from '@/features/configuracoes'
+import { ConfiguracoesPage, ClassificacoesPage, NotificacoesPage } from '@/features/configuracoes'
 import { EnvioLotePage } from '@/features/envio-lote'
 import { DetalhesPage } from '@/features/detalhes'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
@@ -56,6 +56,7 @@ function AppShell() {
                 <Route path="/documentos/criar/revisao" element={<RequirePermission perm="documento:criar"><RevisaoStep /></RequirePermission>} />
                 <Route path="/configuracoes" element={<RequirePermission perm="config:acessar"><ConfiguracoesPage /></RequirePermission>} />
                 <Route path="/configuracoes/classificacoes" element={<RequirePermission perm="config:acessar"><ClassificacoesPage /></RequirePermission>} />
+                <Route path="/configuracoes/notificacoes" element={<RequirePermission perm="config:acessar"><NotificacoesPage /></RequirePermission>} />
                 <Route path="*" element={<Navigate to="/documentos" replace />} />
               </Routes>
             </div>
