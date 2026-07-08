@@ -10,10 +10,12 @@ description: >-
   inteiro (incluindo comentários), resume em linguagem de produto/UX e conduz um FUNIL
   INTERATIVO de decisões: apresenta UMA decisão de fluxo por vez com até 3 opções
   (recomendada marcada) + "Outros", aguarda a escolha do usuário, e adapta as decisões
-  seguintes ao que foi escolhido. Só depois de todas as escolhas entrega cenários que a
-  documentação talvez não previu (com sugestão) e um backlog de ideias pronto para o
-  protótipo. É a etapa de DISCOVERY que antecede a construção: ela NÃO desenha UI —
-  quem implementa é a skill "tela-ds-cs", e só depois que o usuário escolher os fluxos.
+  seguintes ao que foi escolhido. Com as escolhas fechadas, AUDITA o fluxo escolhido —
+  caminhos não previstos, erros de fluxo evitáveis, riscos de usabilidade/UX — e cada
+  achado relevante vira nova rodada de decisão no mesmo formato interativo. Só então
+  entrega o placar de decisões e um backlog de ideias pronto para o protótipo. É a etapa
+  de DISCOVERY que antecede a construção: ela NÃO desenha UI — quem implementa é a skill
+  "tela-ds-cs", e só depois que o usuário escolher os fluxos.
 ---
 
 # Analisar documento → análise de UX (discovery antes do protótipo)
@@ -91,14 +93,24 @@ existentes, clareza de hierarquia, esforço de implementação, aderência ao De
 A recomendação é opinião de sênior — assuma posição e explique o porquê em 1–2 frases.
 Cada opção: descrição curta + prós/contras em uma linha.
 
-## Passo 4 — Cenários que a documentação talvez não previu
+## Passo 4 — Auditoria do fluxo escolhido (verificação interativa)
 
-**Só entregue este passo depois que todas as decisões do Passo 3 estiverem fechadas** —
-assim os cenários refletem os fluxos escolhidos, não hipóteses descartadas.
+**Roda somente depois que todas as decisões do Passo 3 estiverem fechadas** — o objeto da
+auditoria é o fluxo que o usuário escolheu, não hipóteses descartadas.
 
-Specs quase sempre descrevem o "caminho feliz". O valor de um sênior é antecipar o resto.
-Para cada cenário provável e ausente na doc, diga **o que é**, **por que vai/deve surgir** e
-uma **sugestão de tratamento**. Varra pelo menos estas frentes (use as que fizerem sentido):
+Specs quase sempre descrevem o "caminho feliz", e as escolhas de fluxo podem introduzir
+novos pontos cegos. Vista o chapéu de auditor e tente **quebrar o fluxo escolhido**:
+percorra-o como usuário real (primeiro acesso, uso diário, erro no meio do caminho,
+abandono) e procure:
+
+- **Caminhos não previstos:** entradas alternativas, voltar no meio do fluxo, deep link
+  direto, refresh no meio de uma ação, abandono e retomada.
+- **Erros de fluxo evitáveis:** becos sem saída, estados inalcançáveis, ações
+  irreversíveis sem confirmação, dados perdidos ao navegar, loops.
+- **Usabilidade e experiência:** fricção desnecessária, falta de feedback, inconsistência
+  com o resto do produto, sobrecarga cognitiva, expectativa quebrada.
+
+Frentes de varredura (use as que fizerem sentido):
 
 - **Estados da tela:** vazio, carregando, erro, sucesso, parcial.
 - **Perfis e permissões:** quem pode ver/fazer o quê; o que acontece sem permissão.
@@ -108,13 +120,25 @@ uma **sugestão de tratamento**. Varra pelo menos estas frentes (use as que fize
 - **Acessibilidade e responsivo:** teclado, leitor de tela, contraste, mobile.
 - **Ciclo de vida do dado:** o que expira, arquiva, notifica de novo, ou fica órfão.
 
-Não precisa esgotar tudo — priorize os cenários com maior chance de virar bug ou fricção.
+**Cada achado relevante vira uma rodada de decisão no MESMO formato do Passo 3:**
+apresente o problema (o que é + por que vai surgir) e 2–3 soluções com a recomendada
+marcada — incluindo "Não tratar agora" como opção quando fizer sentido — e **aguarde a
+escolha** antes de seguir. Agrupe achados independentes na mesma rodada (máx. 4);
+adapte os achados seguintes às escolhas já feitas.
+
+**Filtro de relevância:** nem todo achado merece uma pergunta. Se a solução é prática
+consolidada sem trade-off real (ex.: toast de erro quando o salvamento falha), registre
+direto no backlog como nota — o usuário decide fluxo, não obviedades. Escale para rodada
+de decisão apenas o que tem alternativas genuínas com prós/contras. Priorize os achados
+com maior chance de virar bug ou fricção; não precisa esgotar tudo.
+
+Some os tratamentos escolhidos ao placar de decisões.
 
 ## Passo 5 — Backlog de ideias para o protótipo (entrada da `tela-ds-cs`)
 
 Traduza a análise em uma lista **priorizada e acionável** de telas/componentes a construir,
-**refletindo as escolhas do Passo 3** (o backlog descreve o que foi decidido, não as
-alternativas descartadas).
+**refletindo as escolhas do Passo 3 e os tratamentos escolhidos na auditoria do Passo 4**
+(o backlog descreve o que foi decidido, não as alternativas descartadas).
 Cada item já aponta os componentes prováveis do Design System, para o handoff à `tela-ds-cs`
 ser direto — **sem** especificar pixels/tokens aqui (isso é trabalho da `tela-ds-cs`).
 
@@ -132,7 +156,7 @@ explícito o próximo passo:
 > **`tela-ds-cs`** (que garante uso só de componentes/tokens do DS). Não vou desenhar
 > nada antes dessa escolha.
 
-## Estrutura da entrega (em duas fases)
+## Estrutura da entrega (em três fases)
 
 **Fase 1 — imediata após a leitura:**
 ```
@@ -141,10 +165,14 @@ explícito o próximo passo:
 → e em seguida a PRIMEIRA decisão de fluxo (Passo 3), uma por vez.
 ```
 
-**Fase 2 — só depois de todas as decisões fechadas:**
+**Fase 2 — após todas as decisões de fluxo:** auditoria do fluxo escolhido (Passo 4).
+Anuncie a transição ("decisões fechadas — agora vou auditar o fluxo escolhido") e conduza
+os achados relevantes como novas rodadas de decisão, no mesmo formato interativo.
+
+**Fase 3 — só depois das decisões E da auditoria fechadas:**
 ```
-## 2. Resumo das decisões (placar: decisão → sua escolha)
-## 3. Cenários que a documentação talvez não previu (já refletindo as escolhas)
+## 2. Resumo das decisões (placar: fluxos escolhidos + tratamentos da auditoria)
+## 3. Notas registradas (boas práticas aplicadas direto, sem decisão)
 ## 4. Backlog de ideias para o protótipo (pronto para tela-ds-cs)
 ## Próximo passo
 ```
@@ -159,6 +187,11 @@ explícito o próximo passo:
 - **Despejar todas as decisões de uma vez.** O formato é interativo: uma decisão por vez,
   aguardando a escolha do usuário antes de seguir — a parede de opções única foi
   exatamente o formato rejeitado pelo time.
+- **Pular a auditoria pós-decisões ou entregá-la como lista passiva.** Depois das
+  escolhas, o fluxo escolhido é auditado e os achados com trade-off real viram rodadas
+  de decisão — não um relatório para o usuário ler sozinho.
+- **Transformar obviedade em pergunta.** Boas práticas sem alternativa genuína entram
+  direto no backlog como nota; perguntar demais gera fadiga de decisão.
 - **Só repetir a doc.** O valor está em traduzir para UX, recomendar fluxo e antecipar o
   que a doc não previu.
 - **Descer a pixel/token.** Medidas e componentes exatos são responsabilidade da
