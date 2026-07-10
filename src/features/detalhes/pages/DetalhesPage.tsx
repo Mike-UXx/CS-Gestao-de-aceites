@@ -316,6 +316,21 @@ export function DetalhesPage() {
     setTimeout(() => navigate('/documentos'), 600)
   }
 
+  /* ── Autor retira o documento da aprovação (EP04) ── */
+  function handleCancelarAprovacao() {
+    Modal.confirm({
+      title: 'Cancelar aprovação?',
+      content: 'O documento volta para Rascunho e sai da fila dos aprovadores. Você poderá editá-lo e reenviar quando quiser.',
+      okText: 'Cancelar aprovação',
+      cancelText: 'Voltar',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        message.success('Aprovação cancelada. O documento voltou para Rascunho.')
+        setTimeout(() => navigate('/documentos'), 500)
+      },
+    })
+  }
+
   /* ── Handle encerrar (finaliza a coleta de aceites) ── */
   function handleEncerrar() {
     setEncerrarLoading(true)
@@ -538,6 +553,12 @@ export function DetalhesPage() {
                     Aprovar documento
                   </Button>
                 </>
+              )}
+              {/* EP04 · autor retira o envio para aprovação */}
+              {!can('documento:aprovar') && can('documento:gerenciar') && (
+                <Button danger onClick={handleCancelarAprovacao} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
+                  Cancelar aprovação
+                </Button>
               )}
             </Space>
 

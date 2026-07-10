@@ -2,7 +2,7 @@ import { useState } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
 import {
-  Typography, Button, Space, Modal, Tag, Divider,
+  Typography, Button, Space, Modal, Tag, Divider, Select,
   Tooltip, message, Checkbox, DatePicker, ConfigProvider, Radio,
 } from 'antd'
 import {
@@ -85,6 +85,14 @@ function BlockHeader({ title, editRoute }: { title: string; editRoute: string })
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/* Aprovadores disponíveis (perfil Aprovador da gestão responsável) — mock do protótipo (EP04) */
+const APROVADORES_OPTIONS = [
+  { value: 'henrique', label: 'Henrique Alves — Jurídico' },
+  { value: 'marina',   label: 'Marina Costa — Compliance' },
+  { value: 'rafael',   label: 'Rafael Nunes — Diretoria' },
+  { value: 'sofia',    label: 'Sofia Menezes — RH' },
+]
+
 export function RevisaoStep() {
   const navigate = useNavigate()
   const { data, dispatch, saveDraft, clearDraft } = useDocumentForm()
@@ -93,6 +101,8 @@ export function RevisaoStep() {
   const [showConfirm, setShowConfirm] = useState(false)
   /* ── Finalização: publicar direto ou enviar para aprovação ── */
   const [enviarAprovacao, setEnviarAprovacao] = useState(false)
+  /* ── Aprovadores selecionados (EP04 · fluxo de aprovação plano) ── */
+  const [aprovadores, setAprovadores] = useState<string[]>([])
 
   /* ── Agendamento — estado local, validado apenas aqui ── */
   const [agendarEnvio,   setAgendarEnvio]   = useState<boolean>(!(data.envioImediato ?? true))
@@ -145,6 +155,10 @@ export function RevisaoStep() {
 
   /* ── Avançar: valida, persiste no contexto e abre confirm ── */
   function handleNext() {
+    if (enviarAprovacao && aprovadores.length === 0) {
+      setDataError('Selecione ao menos um aprovador para enviar o documento.')
+      return
+    }
     if (!enviarAprovacao && agendarEnvio && !dataLancamento) {
       setDataError('Selecione a data e hora do envio para continuar.')
       return
@@ -167,7 +181,7 @@ export function RevisaoStep() {
     dispatch({ type: 'RESET' })
     message.success(
       enviarAprovacao
-        ? 'Documento enviado para aprovação. Você será avisado quando for revisado.'
+        ? `Documento enviado para aprovação de ${aprovadores.length} aprovador${aprovadores.length !== 1 ? 'es' : ''}. Você será avisado quando for revisado.`
         : !agendarEnvio
           ? 'Documento publicado e enviado com sucesso!'
           : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
@@ -512,10 +526,27 @@ export function RevisaoStep() {
         </Radio.Group>
 
         {enviarAprovacao && (
-          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 4 }}>
-            <Text style={{ fontFamily: FONT, fontSize: 12, color: '#1D39C4' }}>
-              O documento entrará em <strong>Em revisão</strong>. O agendamento de envio é definido após a aprovação.
+          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '14px 16px', marginBottom: 4 }}>
+            <Text style={{ display: 'block', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: '#1D39C4', marginBottom: 8 }}>
+              Aprovadores <span style={{ color: colorTokens.error }}>*</span>
             </Text>
+            <Select
+              mode="multiple"
+              value={aprovadores}
+              onChange={(v) => { setAprovadores(v); if (v.length) setDataError('') }}
+              options={APROVADORES_OPTIONS}
+              placeholder="Selecione um ou mais aprovadores"
+              style={{ width: '100%', fontFamily: FONT }}
+              status={dataError && aprovadores.length === 0 ? 'error' : undefined}
+            />
+            <Text style={{ display: 'block', fontFamily: FONT, fontSize: 12, color: '#1D39C4', marginTop: 8 }}>
+              O documento entrará em <strong>Em revisão</strong>. Qualquer um dos aprovadores pode aprovar ou reprovar; o agendamento é definido após a aprovação.
+            </Text>
+            {dataError && aprovadores.length === 0 && (
+              <Text style={{ display: 'block', fontFamily: FONT, fontSize: 12, color: colorTokens.error, marginTop: 6 }}>
+                {dataError}
+              </Text>
+            )}
           </div>
         )}
 

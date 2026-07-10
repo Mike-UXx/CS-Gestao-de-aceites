@@ -480,6 +480,7 @@ export function ListagemPage() {
       if (activeTab === 'informativos')  return doc.tipo === 'ciencia'
       if (activeTab === 'agendados')     return doc.status === 'Agendado'
       if (activeTab === 'em_revisao')    return doc.status === 'Em revisão'
+      if (activeTab === 'para_aprovar')  return doc.status === 'Em revisão'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
       return matchesSmartFilters(doc, custom.smartFilters)
@@ -502,6 +503,7 @@ export function ListagemPage() {
     informativos:   tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
     agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
     em_revisao:     tableDocumentos.filter((d) => d.status === 'Em revisão').length,
+    para_aprovar:   tableDocumentos.filter((d) => d.status === 'Em revisão').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -520,6 +522,8 @@ export function ListagemPage() {
     { key: 'informativos',  label: tabLabel('Informativos',   counts.informativos) },
     { key: 'agendados',     label: tabLabel('Agendados',      counts.agendados) },
     { key: 'em_revisao',    label: tabLabel('Em revisão',     counts.em_revisao) },
+    // EP04 · fila do aprovador — só aparece para quem tem permissão de aprovar
+    ...(can('documento:aprovar') ? [{ key: 'para_aprovar', label: tabLabel('Para aprovar', counts.para_aprovar) }] : []),
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
@@ -545,7 +549,7 @@ export function ListagemPage() {
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [counts, customTabs, tableDocumentos])
+  ], [counts, customTabs, tableDocumentos, can])
 
   /* ── Ações: duplicar documento ── */
   const handleDuplicar = useCallback((record: DocumentoComMeta) => {
@@ -611,7 +615,7 @@ export function ListagemPage() {
     switch (record.status) {
       case 'Em revisão':
         return [
-          { key: 'revisar', icon: <AuditOutlined />, label: 'Revisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
+          { key: 'revisar', icon: <AuditOutlined />, label: 'Analisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
         ]
       case 'Ativo':
         return [
@@ -945,8 +949,8 @@ export function ListagemPage() {
       const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
-    // Em revisão → Título | Classificações | Responsável | Destinatários | Status | Ações
-    if (activeTab === 'em_revisao') {
+    // Em revisão / Para aprovar → Título | Classificações | Responsável | Destinatários | Status | Ações
+    if (activeTab === 'em_revisao' || activeTab === 'para_aprovar') {
       const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
