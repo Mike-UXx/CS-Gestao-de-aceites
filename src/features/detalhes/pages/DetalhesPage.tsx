@@ -18,7 +18,7 @@ import {
   StopOutlined, ExclamationCircleOutlined, HistoryOutlined,
   SafetyCertificateOutlined, FieldTimeOutlined, InfoCircleOutlined,
   FileTextOutlined, AuditOutlined, SwapOutlined, ArrowLeftOutlined,
-  BellOutlined, ClockCircleOutlined, CheckCircleOutlined,
+  BellOutlined, ClockCircleOutlined, CheckCircleOutlined, MessageOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -360,6 +360,29 @@ export function DetalhesPage() {
   return (
     <div style={{ padding: '28px 32px 56px', fontFamily: FONT }}>
 
+      {/* Accordions no padrão Gestão de Relatos (Figma: "Open accordion" 1203:3948) */}
+      <style>{`
+        .relato-accordion .ant-collapse-item {
+          background: #fff;
+          border: 1px solid #E6E6E6;
+          border-radius: 10px !important;
+          margin-bottom: 12px;
+          box-shadow: 0 2px 3px rgba(156,156,156,0.2);
+          overflow: hidden;
+          transition: border-color .2s;
+        }
+        .relato-accordion .ant-collapse-item:last-child { margin-bottom: 0; }
+        .relato-accordion .ant-collapse-header {
+          padding: 20px 24px !important;
+          align-items: center !important;
+        }
+        .relato-accordion .ant-collapse-content-box { padding: 20px !important; }
+        .relato-accordion .ant-collapse-content { border-top: none !important; }
+        /* Aberto: contorno navy (padrão Relatos) + divisor navy sob o header */
+        .relato-accordion .ant-collapse-item-active { border-color: ${colorTokens.primary} !important; }
+        .relato-accordion .ant-collapse-item-active > .ant-collapse-header { border-bottom: 1px solid ${colorTokens.primary}; }
+      `}</style>
+
       {/* ════ Main Card ════════════════════════════════════════ */}
       <div style={{
         background: '#fff',
@@ -503,14 +526,18 @@ export function DetalhesPage() {
 
             {/* Conversa da revisão + decisão — organizado em accordions (padrão Gestão de Relatos) */}
             <Collapse
+              className="relato-accordion"
+              bordered={false}
               defaultActiveKey={['conversa', 'decisao']}
               expandIconPosition="end"
-              style={{ marginBottom: 20 }}
+              expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} style={{ fontSize: 13, color: colorTokens.textSecondary }} />}
+              style={{ marginBottom: 20, background: 'transparent' }}
               items={[
                 {
                   key: 'conversa',
                   label: (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontWeight: 600, fontSize: 13, color: colorTokens.textPrimary }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.primary }}>
+                      <MessageOutlined style={{ fontSize: 18, color: colorTokens.primary }} />
                       Conversa da revisão
                       <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.primary, background: '#EEF2FF', borderRadius: 10, padding: '0 8px', lineHeight: '18px' }}>{revisaoComentarios.length}</span>
                     </span>
@@ -546,7 +573,8 @@ export function DetalhesPage() {
                 {
                   key: 'decisao',
                   label: (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontWeight: 600, fontSize: 13, color: colorTokens.textPrimary }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.primary }}>
+                      <AuditOutlined style={{ fontSize: 18, color: colorTokens.primary }} />
                       {can('documento:aprovar') ? 'Sua decisão' : 'Comentar'}
                     </span>
                   ),
