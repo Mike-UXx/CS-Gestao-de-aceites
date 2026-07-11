@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col, Divider,
   Space, Modal, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Table, List,
+  Alert, Timeline, Drawer, Table, List, Collapse,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -501,11 +501,22 @@ export function DetalhesPage() {
               </div>
             </div>
 
-            {/* Thread de comentários */}
-            <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 12 }}>
-              Comentários da revisão ({revisaoComentarios.length})
-            </Typography.Text>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            {/* Conversa da revisão + decisão — organizado em accordions (padrão Gestão de Relatos) */}
+            <Collapse
+              defaultActiveKey={['conversa', 'decisao']}
+              expandIconPosition="end"
+              style={{ marginBottom: 20 }}
+              items={[
+                {
+                  key: 'conversa',
+                  label: (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontWeight: 600, fontSize: 13, color: colorTokens.textPrimary }}>
+                      Conversa da revisão
+                      <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.primary, background: '#EEF2FF', borderRadius: 10, padding: '0 8px', lineHeight: '18px' }}>{revisaoComentarios.length}</span>
+                    </span>
+                  ),
+                  children: (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {revisaoComentarios.map((c) => {
                 const isAjuste = c.tipo === 'ajuste'
                 const isAprov = c.tipo === 'aprovacao'
@@ -529,9 +540,18 @@ export function DetalhesPage() {
               {revisaoComentarios.length === 0 && (
                 <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhum comentário ainda.</Typography.Text>
               )}
-            </div>
-
-            {/* Caixa de comentário + ações */}
+                    </div>
+                  ),
+                },
+                {
+                  key: 'decisao',
+                  label: (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontWeight: 600, fontSize: 13, color: colorTokens.textPrimary }}>
+                      {can('documento:aprovar') ? 'Sua decisão' : 'Comentar'}
+                    </span>
+                  ),
+                  children: (
+                    <>
             <Input.TextArea
               value={novoComentario}
               onChange={(e) => setNovoComentario(e.target.value)}
@@ -561,6 +581,11 @@ export function DetalhesPage() {
                 </Button>
               )}
             </Space>
+                    </>
+                  ),
+                },
+              ]}
+            />
 
             <Divider style={{ margin: '20px 0' }} />
           </>
