@@ -420,7 +420,7 @@ export function DetalhesPage() {
               level={3}
               style={{
                 fontFamily: FONT,
-                color: colorTokens.textPrimary,
+                color: colorTokens.primary,
                 margin: 0,
                 fontSize: 22,
                 fontWeight: 700,
@@ -429,9 +429,12 @@ export function DetalhesPage() {
               }}
             >
               {doc.titulo}
+              <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, color: colorTokens.textSecondary, marginLeft: 10 }}>
+                #{doc.id}
+              </Typography.Text>
             </Typography.Title>
 
-            {/* Badges: status · tipo · classificações */}
+            {/* Status do documento (demais metadados vão no card "Detalhes do documento") */}
             <Space size={6} wrap>
               <span style={{
                 display: 'inline-flex', alignItems: 'center',
@@ -443,26 +446,6 @@ export function DetalhesPage() {
               }}>
                 {doc.status}
               </span>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center',
-                padding: '3px 10px', borderRadius: 5,
-                border: `1.5px solid ${doc.tipo === 'adesao' ? colorTokens.primary + '55' : SEA_GREEN + '77'}`,
-                background: 'transparent',
-                fontFamily: FONT, fontSize: 11, fontWeight: 600,
-                color: doc.tipo === 'adesao' ? colorTokens.primary : '#0E9E97',
-              }}>
-                {TIPO_LABEL[doc.tipo]}
-              </span>
-              {doc.classificacoes.map((c) => (
-                <Tag key={c} style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 500,
-                  borderRadius: 4, margin: 0, padding: '1px 8px',
-                  background: '#F5F5F5', border: '1px solid #D9D9D9',
-                  color: colorTokens.textSecondary,
-                }}>
-                  {CLASSIF_MAP[c] ?? c}
-                </Tag>
-              ))}
             </Space>
 
             <Typography.Text style={{
@@ -490,17 +473,58 @@ export function DetalhesPage() {
               <Button
                 style={{
                   fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                  borderColor: '#D9D9D9', borderRadius: 8,
-                  height: 38,
+                  borderColor: '#D9D9D9', borderRadius: 20,
+                  height: 38, paddingInline: 18,
                 }}
               >
-                Ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+                Mais ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
               </Button>
             </Dropdown>
           </Space>
         </div>
 
         <Divider style={{ margin: '20px 0' }} />
+
+        {/* ══ Detalhes do documento — card com faixa azul (padrão Gestão de Relatos) ══ */}
+        {(() => {
+          const metaItem = (icon: React.ReactNode, label: React.ReactNode) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+              <span style={{ color: colorTokens.primary, display: 'inline-flex' }}>{icon}</span>
+              {label}
+            </span>
+          )
+          return (
+            <div style={{
+              border: '1px solid #E6E6E6', borderLeft: `4px solid ${colorTokens.primary}`,
+              borderRadius: 8, padding: '18px 20px', marginBottom: 24,
+            }}>
+              <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary, display: 'block', marginBottom: 14 }}>
+                Detalhes do documento
+              </Typography.Text>
+              <Space size={[24, 10]} wrap>
+                {metaItem(<CalendarOutlined />, <>Criado em <strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{fmt(doc.criadoEm)}</strong></>)}
+                {metaItem(<TeamOutlined />, <>Gestão: <strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{GESTAO_MAP[doc.gestaoResponsavel] ?? doc.gestaoResponsavel}</strong></>)}
+                {metaItem(<FileTextOutlined />, TIPO_LABEL[doc.tipo])}
+                {metaItem(<UserOutlined />, <><strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{doc.totalDestinatarios}</strong> destinatários</>)}
+              </Space>
+              {doc.classificacoes.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <Space size={[6, 6]} wrap>
+                    {doc.classificacoes.map((c) => (
+                      <Tag key={c} style={{
+                        fontFamily: FONT, fontSize: 11, fontWeight: 500,
+                        borderRadius: 4, margin: 0, padding: '1px 8px',
+                        background: '#F5F5F5', border: '1px solid #D9D9D9', color: colorTokens.textSecondary,
+                      }}>
+                        {CLASSIF_MAP[c] ?? c}
+                      </Tag>
+                    ))}
+                  </Space>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ══ Fluxo de aprovação (status "Em revisão") ═════════ */}
         {doc.status === 'Em revisão' && (
