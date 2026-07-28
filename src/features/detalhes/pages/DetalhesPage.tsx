@@ -6,18 +6,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Typography, Tag, Button, Progress, Row, Col, Divider,
+  Typography, Tag, Button, Progress, Row, Col,
   Space, Modal, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Table, List, Collapse, Steps,
+  Alert, Timeline, Drawer, Table, List, Collapse,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
-  DownloadOutlined, UserOutlined, CalendarOutlined,
-  FilePdfOutlined, FileExcelOutlined,
-  DownOutlined, TeamOutlined, EditOutlined,
+  DownloadOutlined, UserOutlined, EyeOutlined,
+  FilePdfOutlined, FileExcelOutlined, MoreOutlined,
+  DownOutlined, CheckSquareOutlined, EditOutlined,
   StopOutlined, ExclamationCircleOutlined, HistoryOutlined,
-  SafetyCertificateOutlined, FieldTimeOutlined, InfoCircleOutlined,
-  FileTextOutlined, AuditOutlined, SwapOutlined, ArrowLeftOutlined,
+  FieldTimeOutlined, InfoCircleOutlined,
+  AuditOutlined, ArrowLeftOutlined,
   BellOutlined, ClockCircleOutlined, CheckCircleOutlined, MessageOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -59,13 +59,13 @@ function buildLifecycle(status: string): Lifecycle {
   let items: { title: string; status: StepStatus }[]
   let caption: string | undefined
   switch (status) {
-    case 'Rascunho':    items = [P('Rascunho'), W('Ativo'), W('Concluído')]; caption = 'Documento em criação — ainda não foi enviado.'; break
-    case 'Em revisão':  items = [D('Rascunho'), P('Em revisão'), W('Ativo'), W('Concluído')]; caption = 'Aguardando a decisão de um aprovador antes da publicação.'; break
-    case 'Agendado':    items = [D('Rascunho'), P('Agendado'), W('Ativo'), W('Concluído')]; caption = 'Aprovado e agendado — será publicado automaticamente na data definida.'; break
-    case 'Ativo':       items = [D('Rascunho'), P('Ativo'), W('Concluído')]; caption = 'Publicado e disponível aos destinatários.'; break
-    case 'Concluído':   items = [D('Rascunho'), D('Ativo'), D('Concluído')]; caption = 'Ciclo encerrado — coleta de aceites finalizada.'; break
-    case 'Expirado':    items = [D('Rascunho'), D('Ativo'), E('Expirado')]; caption = 'Vigência encerrada — publique uma nova versão ou inative o documento.'; break
-    case 'Inativo':     items = [D('Rascunho'), D('Ativo'), E('Inativo')]; caption = 'Documento inativado ou substituído por uma nova versão.'; break
+    case 'Rascunho':    items = [P('Em rascunho'), W('Em aprovação'), W('Ativo')]; caption = 'Documento em criação — ainda não enviado para aprovação.'; break
+    case 'Em revisão':  items = [D('Em rascunho'), P('Em aprovação'), W('Ativo')]; caption = 'Aguardando a decisão de um aprovador antes da publicação.'; break
+    case 'Agendado':    items = [D('Em rascunho'), D('Em aprovação'), P('Agendado'), W('Ativo')]; caption = 'Aprovado e agendado — publicação automática na data definida.'; break
+    case 'Ativo':       items = [D('Em rascunho'), D('Em aprovação'), P('Ativo')]; caption = 'Publicado e disponível aos destinatários.'; break
+    case 'Concluído':   items = [D('Em rascunho'), D('Em aprovação'), D('Ativo'), D('Concluído')]; caption = 'Ciclo encerrado — coleta de aceites finalizada.'; break
+    case 'Expirado':    items = [D('Em rascunho'), D('Em aprovação'), D('Ativo'), E('Expirado')]; caption = 'Vigência encerrada — publique nova versão ou inative o documento.'; break
+    case 'Inativo':     items = [D('Em rascunho'), D('Em aprovação'), D('Ativo'), E('Inativo')]; caption = 'Documento inativado ou substituído por uma nova versão.'; break
     default:            items = [P(status)]
   }
   const current = Math.max(0, items.findIndex((i) => i.status === 'process' || i.status === 'error'))
@@ -232,15 +232,6 @@ export function DetalhesPage() {
   const creatorNome    = primeiraVersao?.responsavel ?? GESTAO_MAP[doc.gestaoResponsavel] ?? doc.gestaoResponsavel
   const creatorDepto   = primeiraVersao?.depto       ?? GESTAO_MAP[doc.gestaoResponsavel] ?? ''
 
-  /* ── Status badge palette ── */
-  const statusPalette: Record<string, { border: string; color: string }> = {
-    Ativo:        { border: '#52c41a', color: '#389e0d' },
-    'Em revisão': { border: '#2F54EB', color: '#1D39C4' },
-    Agendado:     { border: '#FA8C16', color: '#D46B08' },
-    Concluído:    { border: '#BFBFBF', color: '#8C8C8C' },
-    Rascunho:     { border: '#D9D9D9', color: '#8C8C8C' },
-  }
-  const sp = statusPalette[doc.status] ?? statusPalette.Rascunho
 
   /* ── Export de relatório de auditoria ── */
   function handleExportCSV() {
@@ -255,21 +246,6 @@ export function DetalhesPage() {
     else message.warning('Permita pop-ups neste site para gerar o PDF.')
   }
 
-  /* ── Download items (auditoria) ── */
-  const downloadItems: MenuProps['items'] = [
-    {
-      key: 'audit-pdf',
-      icon: <FilePdfOutlined style={{ color: '#FF4D4F' }} />,
-      label: 'Exportar como PDF',
-      onClick: handleExportPDF,
-    },
-    {
-      key: 'audit-excel',
-      icon: <FileExcelOutlined style={{ color: '#52c41a' }} />,
-      label: 'Exportar como Excel',
-      onClick: handleExportCSV,
-    },
-  ]
 
   /* ── Menu de ações contextual (gated por perfil) ── */
   const canGerenciar = can('documento:gerenciar')
@@ -408,15 +384,27 @@ export function DetalhesPage() {
         /* Aberto: contorno navy (padrão Relatos) + divisor navy sob o header */
         .relato-accordion .ant-collapse-item-active { border-color: ${colorTokens.primary} !important; }
         .relato-accordion .ant-collapse-item-active > .ant-collapse-header { border-bottom: 1px solid ${colorTokens.primary}; }
+
+        /* Fluxo de status em setas (chevron) — tela "Detalhes do documento" */
+        .cs-steps { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin: 2px 0 20px; }
+        .cs-step {
+          height: 34px; display: inline-flex; align-items: center;
+          padding: 0 18px 0 26px; color: #fff;
+          font-family: ${FONT}; font-size: 13px; font-weight: 600; white-space: nowrap;
+          clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+        }
+        .cs-step.is-first {
+          clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+          padding-left: 20px;
+        }
+        .cs-step.is-done { background: ${colorTokens.primary}; }
+        .cs-step.is-current { background: #199FE3; }
+        .cs-step.is-wait { background: #E9E9EC; color: #9A9A9A; }
+        .cs-step.is-error { background: #CF1322; }
       `}</style>
 
-      {/* ════ Main Card ════════════════════════════════════════ */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 8,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-        padding: 24,
-      }}>
+      {/* Página de detalhes — header, setas e cards independentes (padrão da tela desenhada) */}
+      <div>
 
         {/* ── Voltar ── */}
         <button
@@ -433,61 +421,42 @@ export function DetalhesPage() {
           Voltar
         </button>
 
-        {/* ══ Header: título + badges + ações ══════════════════ */}
+        {/* ══ Header: título + subtítulo + ações (padrão da tela desenhada) ══ */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 6,
           gap: 16,
+          marginBottom: 20,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Título */}
             <Typography.Title
               level={3}
               style={{
                 fontFamily: FONT,
                 color: colorTokens.primary,
-                margin: 0,
-                fontSize: 22,
+                marginTop: 0,
+                marginBottom: 0,
+                fontSize: 24,
                 fontWeight: 700,
                 lineHeight: '30px',
-                marginBottom: 10,
               }}
             >
               {doc.titulo}
-              <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, color: colorTokens.textSecondary, marginLeft: 10 }}>
-                #{doc.id}
-              </Typography.Text>
             </Typography.Title>
-
-            {/* Status do documento (demais metadados vão no card "Detalhes do documento") */}
-            <Space size={6} wrap>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center',
-                padding: '3px 10px', borderRadius: 5,
-                border: `1.5px solid ${sp.border}`,
-                background: 'transparent',
-                fontFamily: FONT, fontSize: 11, fontWeight: 700,
-                color: sp.color,
-              }}>
-                {doc.status}
-              </span>
-            </Space>
-
             <Typography.Text style={{
               fontFamily: FONT, fontSize: 13,
               color: colorTokens.textSecondary,
-              display: 'block', marginTop: 10,
+              display: 'block', marginTop: 4,
             }}>
-              Consulte os dados do documento e gerencie o progresso dos destinatários
+              Detalhes do documento
             </Typography.Text>
           </div>
 
           {/* Ações do cabeçalho */}
           <Space size={8} style={{ flexShrink: 0 }}>
             <Button
-              icon={<FilePdfOutlined />}
+              icon={<EyeOutlined />}
               onClick={() => setPreviewOpen(true)}
               style={{
                 fontFamily: FONT, fontWeight: 600, fontSize: 13,
@@ -500,839 +469,405 @@ export function DetalhesPage() {
               <Button
                 style={{
                   fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                  borderColor: '#D9D9D9', borderRadius: 20,
-                  height: 38, paddingInline: 18,
+                  borderColor: '#D9D9D9', color: colorTokens.textPrimary, borderRadius: 8,
+                  height: 38, paddingInline: 16,
                 }}
               >
-                Mais ações <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+                Mais ações <MoreOutlined style={{ fontSize: 16, marginLeft: 6 }} />
               </Button>
             </Dropdown>
           </Space>
         </div>
 
-        <Divider style={{ margin: '20px 0' }} />
-
-        {/* ══ Detalhes do documento — card com faixa azul (padrão Gestão de Relatos) ══ */}
+        {/* ══ Corpo: setas de status · card Detalhes · accordions ══ */}
         {(() => {
-          const metaItem = (icon: React.ReactNode, label: React.ReactNode) => (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
-              <span style={{ color: colorTokens.primary, display: 'inline-flex' }}>{icon}</span>
-              {label}
-            </span>
-          )
-          return (
-            <div style={{
-              border: '1px solid #E6E6E6', borderLeft: `4px solid ${colorTokens.primary}`,
-              borderRadius: 8, padding: '18px 20px', marginBottom: 24,
-            }}>
-              <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary, display: 'block', marginBottom: 14 }}>
-                Detalhes do documento
-              </Typography.Text>
-              <Space size={[24, 10]} wrap>
-                {metaItem(<CalendarOutlined />, <>Criado em <strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{fmt(doc.criadoEm)}</strong></>)}
-                {metaItem(<TeamOutlined />, <>Gestão: <strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{GESTAO_MAP[doc.gestaoResponsavel] ?? doc.gestaoResponsavel}</strong></>)}
-                {metaItem(<FileTextOutlined />, TIPO_LABEL[doc.tipo])}
-                {metaItem(<UserOutlined />, <><strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{doc.totalDestinatarios}</strong> destinatários</>)}
-              </Space>
-              {doc.classificacoes.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <Space size={[6, 6]} wrap>
-                    {doc.classificacoes.map((c) => (
-                      <Tag key={c} style={{
-                        fontFamily: FONT, fontSize: 11, fontWeight: 500,
-                        borderRadius: 4, margin: 0, padding: '1px 8px',
-                        background: '#F5F5F5', border: '1px solid #D9D9D9', color: colorTokens.textSecondary,
-                      }}>
-                        {CLASSIF_MAP[c] ?? c}
-                      </Tag>
-                    ))}
-                  </Space>
-                </div>
-              )}
-              {/* Situação — stepper só-leitura do ciclo de vida (EP04) */}
-              {(() => {
-                const lc = buildLifecycle(doc.status)
-                return (
-                  <div style={{ marginTop: 18, borderTop: '1px solid #F0F0F0', paddingTop: 16 }}>
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 14 }}>
-                      Situação
-                    </Typography.Text>
-                    <Steps size="small" current={lc.current} items={lc.items} style={{ maxWidth: 680, fontFamily: FONT }} />
-                    {lc.caption && (
-                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
-                        {lc.caption}
-                      </Typography.Text>
-                    )}
-                  </div>
-                )
-              })()}
+          const lc = buildLifecycle(doc.status)
+          const stepCls = (s: StepStatus) =>
+            s === 'finish' ? 'is-done' : s === 'process' ? 'is-current' : s === 'error' ? 'is-error' : 'is-wait'
+
+          const metaCol = (label: React.ReactNode, value: React.ReactNode) => (
+            <div style={{ minWidth: 110 }}>
+              <div style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, marginBottom: 6 }}>{label}</div>
+              <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: colorTokens.textPrimary }}>{value}</div>
             </div>
+          )
+          const secLabel = (t: string) => (
+            <div style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, marginBottom: 6 }}>{t}</div>
+          )
+          const cardDivider = <div style={{ height: 1, background: '#EFEFEF', margin: '18px 0' }} />
+          const deptCount = (name: string) => 6 + ([...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 34)
+          const deptos = doc.modalidadeEnvio !== 'pessoa' ? (doc.destinatariosPreview ?? []) : []
+
+          /* Lembretes e prazos */
+          const proxDias = doc.proximoLembreteEm ? dayjs(doc.proximoLembreteEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+          const prazoDias = doc.prazoAssinaturaEm ? dayjs(doc.prazoAssinaturaEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
+          const maxTxt = doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 ? ` de ${doc.cobrancaMaxLembretes}` : ''
+          const limiteAtingido = !!doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 && (doc.lembretesEnviados ?? 0) >= doc.cobrancaMaxLembretes
+          const temLembretes = doc.cobrancaAutomatica || !!doc.prazoAssinaturaEm
+
+          return (
+            <>
+              {/* Fluxo de status em setas */}
+              <div className="cs-steps" role="list" aria-label="Situação do documento">
+                {lc.items.map((it, i) => (
+                  <span key={it.title} className={`cs-step ${i === 0 ? 'is-first' : ''} ${stepCls(it.status)}`}>{it.title}</span>
+                ))}
+              </div>
+
+              {/* ── Card: Detalhes do documento (seção única) ── */}
+              <div style={{
+                background: '#fff', border: '1px solid #E6E6E6', borderRadius: 10,
+                boxShadow: '0 2px 3px rgba(156,156,156,0.2)', padding: '22px 24px', marginBottom: 16,
+              }}>
+                <Typography.Text strong style={{ fontFamily: FONT, fontSize: 18, color: colorTokens.textPrimary, display: 'block' }}>
+                  Detalhes do documento
+                </Typography.Text>
+                <div style={{ height: 1, background: '#EFEFEF', margin: '16px -24px 20px' }} />
+
+                {/* Grid de metadados */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '18px 44px' }}>
+                  {metaCol('Criado em', fmt(doc.criadoEm))}
+                  {metaCol('Gestão', GESTAO_MAP[doc.gestaoResponsavel] ?? doc.gestaoResponsavel)}
+                  {metaCol('Classificação', doc.classificacoes.length > 0
+                    ? (
+                      <Space size={[6, 6]} wrap>
+                        {doc.classificacoes.map((c) => (
+                          <Tag key={c} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 500, borderRadius: 4, margin: 0, padding: '1px 8px', background: '#F9F0FF', border: '1px solid #D3ADF7', color: '#722ED1' }}>
+                            {CLASSIF_MAP[c] ?? c}
+                          </Tag>
+                        ))}
+                      </Space>
+                    )
+                    : '—')}
+                  {metaCol('Versionamento', doc.tipo === 'adesao' ? 'Versionado' : 'Não versionado')}
+                  {metaCol('Tipo de aceite', TIPO_LABEL[doc.tipo])}
+                </div>
+
+                {cardDivider}
+
+                {/* Descrição */}
+                {doc.descricao && (
+                  <div style={{ marginBottom: 20 }}>
+                    {secLabel('Descrição')}
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary, lineHeight: '22px' }}>
+                      {doc.descricao}
+                    </Typography.Text>
+                  </div>
+                )}
+
+                {/* Público alvo */}
+                <div style={{ marginBottom: deptos.length > 0 ? 20 : 0 }}>
+                  {secLabel('Público alvo')}
+                  <Tag style={{ fontFamily: FONT, fontSize: 12, fontWeight: 500, borderRadius: 6, margin: 0, padding: '3px 12px', background: '#FAFAFA', border: '1px solid #D9D9D9', color: colorTokens.textPrimary }}>
+                    {doc.modalidadeEnvio === 'pessoa' ? 'Por colaborador' : 'Por departamento'}
+                  </Tag>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+                      total de {doc.totalDestinatarios} destinatários
+                    </Typography.Text>
+                    <Button type="link" size="small" onClick={() => setPublicoOpen(true)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.primary, padding: 0, height: 'auto' }}>
+                      Ver completo ↗
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Departamentos (grupos de avatar) */}
+                {deptos.length > 0 && (
+                  <div>
+                    {secLabel('Departamentos')}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 44px' }}>
+                      {deptos.map((dep, di) => {
+                        const count = deptCount(dep)
+                        const shown = Math.min(3, count)
+                        const extra = count - shown
+                        return (
+                          <div key={dep}>
+                            <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, marginBottom: 6 }}>{dep}:</div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              {Array.from({ length: shown }).map((_, ai) => (
+                                <Avatar key={ai} size={30} style={{ background: AVATAR_COLORS[(di * 3 + ai) % AVATAR_COLORS.length], border: '2px solid #fff', marginLeft: ai > 0 ? -8 : 0, zIndex: 10 - ai, fontFamily: FONT, fontWeight: 700, fontSize: 12 }}>
+                                  {dep.charAt(0).toUpperCase()}
+                                </Avatar>
+                              ))}
+                              {extra > 0 && (
+                                <span style={{ marginLeft: -8, zIndex: 1, height: 30, minWidth: 30, padding: '0 7px', borderRadius: 15, background: '#E6F2FB', border: '2px solid #fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.primary }}>
+                                  +{extra}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Adesão (Ativo/Concluído) */}
+                {(doc.status === 'Ativo' || doc.status === 'Concluído') && (
+                  <>
+                    {cardDivider}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                      <Progress type="circle" percent={pct} size={52} strokeColor={barColor} trailColor="#EDEDED" format={(p) => <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 800, color: barColor }}>{p}%</span>} />
+                      <div>
+                        {secLabel('Adesão dos destinatários')}
+                        <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: colorTokens.textPrimary }}>
+                          {doc.totalAceites} de {doc.totalDestinatarios} · {pendentes} pendente(s)
+                        </Typography.Text>
+                      </div>
+                      <Button size="small" onClick={() => setPendenciasOpen(true)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6, height: 30, marginLeft: 'auto' }}>
+                        {pendentes > 0 ? 'Ver pendentes' : 'Ver destinatários'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {/* Responsável + regras de leitura (dados complementares) */}
+                {cardDivider}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 40px', fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, alignItems: 'center' }}>
+                  <span>Responsável: <strong style={{ color: colorTokens.textPrimary, fontWeight: 600 }}>{creatorNome}{creatorDepto ? ` — ${creatorDepto}` : ''}</strong></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Regras de leitura:
+                    <strong style={{ color: colorTokens.textPrimary, fontWeight: 600, marginLeft: 4 }}>
+                      {personalizaPorDept ? 'Variável por setor' : `${fmtTempo(tempoLeitura)} · ${scrollObrigatorio ? 'scroll obrigatório' : 'sem trava'}`}
+                    </strong>
+                    {personalizaPorDept && (
+                      <Button type="link" size="small" onClick={() => setRegrasDrawerOpen(true)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.primary, padding: '0 0 0 8px', height: 'auto' }}>
+                        Ver regras ↗
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Accordions (padrão Gestão de Relatos) ── */}
+              <Collapse
+                className="relato-accordion"
+                bordered={false}
+                defaultActiveKey={doc.status === 'Em revisão' ? ['fluxo'] : []}
+                expandIconPosition="end"
+                expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} style={{ fontSize: 13, color: colorTokens.textSecondary }} />}
+                style={{ background: 'transparent' }}
+                items={[
+                  {
+                    key: 'lembretes',
+                    label: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.textPrimary }}>
+                        <BellOutlined style={{ fontSize: 18 }} /> Lembretes e prazos
+                      </span>
+                    ),
+                    children: temLembretes ? (
+                      <>
+                        <Row gutter={[16, 12]}>
+                          <Col xs={24} sm={8}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                              <BellOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                              <div>
+                                <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Lembretes automáticos</Typography.Text>
+                                <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
+                                  {doc.cobrancaAutomatica ? (doc.cobrancaFrequenciaDias === 1 ? 'Diário' : `A cada ${doc.cobrancaFrequenciaDias} dias`) : 'Desativados'}
+                                </Typography.Text>
+                                {doc.cobrancaAutomatica && (
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
+                                    {doc.lembretesEnviados ?? 0}{maxTxt} lembrete(s) enviado(s)
+                                  </Typography.Text>
+                                )}
+                              </div>
+                            </div>
+                          </Col>
+                          {doc.cobrancaAutomatica && (
+                            <Col xs={24} sm={8}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <ClockCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                                <div>
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Próximo lembrete</Typography.Text>
+                                  <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: limiteAtingido ? colorTokens.textSecondary : colorTokens.textPrimary }}>
+                                    {limiteAtingido ? 'Limite atingido' : proxDias === null ? '—' : proxDias <= 0 ? 'Hoje' : `Em ${proxDias} dia(s)`}
+                                  </Typography.Text>
+                                  {!limiteAtingido && doc.proximoLembreteEm && (
+                                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>{fmt(doc.proximoLembreteEm)}</Typography.Text>
+                                  )}
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                          {doc.prazoAssinaturaEm && (
+                            <Col xs={24} sm={8}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <FieldTimeOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
+                                <div>
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Prazo para assinatura</Typography.Text>
+                                  <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textPrimary }}>{fmt(doc.prazoAssinaturaEm)}</Typography.Text>
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textSecondary, display: 'block' }}>
+                                    {prazoDias === null ? '' : prazoDias < 0 ? `Encerrado há ${Math.abs(prazoDias)} dia(s)` : prazoDias === 0 ? 'Encerra hoje' : `Faltam ${prazoDias} dia(s)`}
+                                  </Typography.Text>
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                        </Row>
+                        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
+                          Encerramento: <strong>{doc.encerramentoAutomatico ? 'Automático (100% de aceite ou fim do prazo)' : 'Manual'}</strong>
+                        </Typography.Text>
+                      </>
+                    ) : (
+                      <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+                        Nenhum lembrete automático ou prazo de assinatura configurado para este documento.
+                      </Typography.Text>
+                    ),
+                  },
+                  {
+                    key: 'fluxo',
+                    label: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.textPrimary }}>
+                        <CheckSquareOutlined style={{ fontSize: 18 }} /> Fluxo de aprovação
+                      </span>
+                    ),
+                    children: (
+                      <>
+                        {/* Banner do estado da aprovação */}
+                        <div style={{
+                          background: doc.status === 'Em revisão' ? '#F0F5FF' : '#F6FFED',
+                          border: `1px solid ${doc.status === 'Em revisão' ? '#adc6ff' : '#b7eb8f'}`,
+                          borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+                        }}>
+                          {doc.status === 'Em revisão'
+                            ? <AuditOutlined style={{ fontSize: 20, color: '#1D39C4', flexShrink: 0 }} />
+                            : <CheckCircleOutlined style={{ fontSize: 20, color: '#389e0d', flexShrink: 0 }} />}
+                          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: colorTokens.textPrimary }}>
+                            {doc.status === 'Em revisão'
+                              ? (doc.enviadoParaAprovacaoEm
+                                ? <>Enviado para aprovação em <strong>{fmt(doc.enviadoParaAprovacaoEm)}</strong> — aguardando decisão.</>
+                                : 'Documento aguardando revisão de um aprovador.')
+                              : doc.status === 'Rascunho' ? 'Ainda não enviado para aprovação.'
+                              : 'Documento aprovado e publicado.'}
+                          </Typography.Text>
+                        </div>
+
+                        {/* Conversa da revisão */}
+                        {revisaoComentarios.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: doc.status === 'Em revisão' ? 16 : 0 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              <MessageOutlined style={{ fontSize: 13 }} /> Conversa da revisão
+                            </span>
+                            {revisaoComentarios.map((c) => {
+                              const isAjuste = c.tipo === 'ajuste'
+                              const isAprov = c.tipo === 'aprovacao'
+                              const accent = isAjuste ? '#D46B08' : isAprov ? '#389e0d' : colorTokens.primary
+                              return (
+                                <div key={c.id} style={{ border: `1px solid ${accent}22`, background: `${accent}0D`, borderRadius: 8, padding: '10px 14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.autor}</Typography.Text>
+                                    <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, color: accent, background: `${accent}1A`, border: `1px solid ${accent}55`, borderRadius: 4, padding: '0 6px' }}>
+                                      {c.papel}{isAjuste ? ' · ajuste' : isAprov ? ' · aprovação' : ''}
+                                    </span>
+                                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(c.data)}</Typography.Text>
+                                  </div>
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.texto}</Typography.Text>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Decisão / comentar — somente quando em aprovação */}
+                        {doc.status === 'Em revisão' && (
+                          <>
+                            <Input.TextArea
+                              value={novoComentario}
+                              onChange={(e) => setNovoComentario(e.target.value)}
+                              placeholder={can('documento:aprovar') ? 'Comente ou descreva os ajustes necessários…' : 'Adicione um comentário…'}
+                              rows={3}
+                              maxLength={400}
+                              style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 12 }}
+                            />
+                            <Space wrap>
+                              <Button onClick={handleComentar} disabled={!novoComentario.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
+                                Comentar
+                              </Button>
+                              {can('documento:aprovar') && (
+                                <>
+                                  <Button onClick={handleSolicitarAjustes} icon={<EditOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>
+                                    Solicitar ajustes
+                                  </Button>
+                                  <Button type="primary" onClick={handleAprovar} icon={<CheckCircleOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>
+                                    Aprovar documento
+                                  </Button>
+                                </>
+                              )}
+                              {!can('documento:aprovar') && can('documento:gerenciar') && (
+                                <Button danger onClick={handleCancelarAprovacao} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
+                                  Cancelar aprovação
+                                </Button>
+                              )}
+                            </Space>
+                          </>
+                        )}
+
+                        {doc.status !== 'Em revisão' && revisaoComentarios.length === 0 && (
+                          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+                            Nenhum comentário registrado na aprovação.
+                          </Typography.Text>
+                        )}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'historico',
+                    label: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.textPrimary }}>
+                        <HistoryOutlined style={{ fontSize: 18 }} /> Histórico de versões
+                      </span>
+                    ),
+                    children: versoes.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px 0', border: '1px dashed #D9D9D9', borderRadius: 8, background: '#FAFAFA' }}>
+                        <HistoryOutlined style={{ fontSize: 26, color: '#BFBFBF', marginBottom: 8, display: 'block' }} />
+                        <Typography.Text style={{ fontFamily: FONT, color: colorTokens.textSecondary, fontSize: 13 }}>
+                          Nenhum histórico de versão disponível.
+                        </Typography.Text>
+                      </div>
+                    ) : (
+                      <Timeline
+                        style={{ paddingTop: 4 }}
+                        items={versoes.map((v, idx) => {
+                          const isCurrent = idx === 0
+                          return {
+                            dot: (
+                              <div style={{ width: 30, height: 30, borderRadius: '50%', background: isCurrent ? barColor : '#F5F5F5', border: `2px solid ${isCurrent ? barColor : '#D9D9D9'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <span style={{ fontFamily: FONT, fontSize: 9, fontWeight: 800, color: isCurrent ? '#fff' : colorTokens.textSecondary }}>{v.versao}</span>
+                              </div>
+                            ),
+                            children: (
+                              <div style={{ paddingBottom: 20, paddingLeft: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: colorTokens.textPrimary }}>{v.versao}</Typography.Text>
+                                  {isCurrent && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>
+                                  )}
+                                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(v.data)}</Typography.Text>
+                                </div>
+                                <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
+                                  <UserOutlined style={{ marginRight: 5 }} />{v.responsavel} — {v.depto}
+                                </Typography.Text>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                                  <div style={{ background: '#F7F8FF', border: `1px solid ${colorTokens.primary}18`, borderRadius: 6, padding: '8px 12px', flex: 1, minWidth: 0 }}>
+                                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{v.motivo}</Typography.Text>
+                                  </div>
+                                  <Button size="small" icon={<DownloadOutlined />} onClick={() => message.success(`Download do arquivo da ${v.versao} iniciado.`)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6, height: 30, flexShrink: 0 }}>
+                                    Baixar {v.versao}
+                                  </Button>
+                                </div>
+                              </div>
+                            ),
+                          }
+                        })}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </>
           )
         })()}
-
-        {/* ══ Fluxo de aprovação (status "Em revisão") ═════════ */}
-        {doc.status === 'Em revisão' && (
-          <>
-            <div style={{
-              background: '#F0F5FF', border: '1px solid #adc6ff',
-              borderRadius: 8, padding: '14px 18px',
-              display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20,
-            }}>
-              <AuditOutlined style={{ fontSize: 22, color: '#1D39C4', flexShrink: 0 }} />
-              <div>
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: '#1D39C4', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 2 }}>
-                  Aguardando aprovação
-                </Typography.Text>
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, color: colorTokens.textPrimary }}>
-                  {doc.enviadoParaAprovacaoEm
-                    ? <>Enviado para aprovação em <strong>{fmt(doc.enviadoParaAprovacaoEm)}</strong>.</>
-                    : 'Documento aguardando revisão de um aprovador.'}
-                  {can('documento:aprovar') ? ' Revise os comentários e tome uma decisão abaixo.' : ' Acompanhe os comentários do aprovador abaixo.'}
-                </Typography.Text>
-              </div>
-            </div>
-
-            {/* Conversa da revisão + decisão — organizado em accordions (padrão Gestão de Relatos) */}
-            <Collapse
-              className="relato-accordion"
-              bordered={false}
-              defaultActiveKey={['conversa', 'decisao']}
-              expandIconPosition="end"
-              expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} style={{ fontSize: 13, color: colorTokens.textSecondary }} />}
-              style={{ marginBottom: 20, background: 'transparent' }}
-              items={[
-                {
-                  key: 'conversa',
-                  label: (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.primary }}>
-                      <MessageOutlined style={{ fontSize: 18, color: colorTokens.primary }} />
-                      Conversa da revisão
-                      <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.primary, background: '#EEF2FF', borderRadius: 10, padding: '0 8px', lineHeight: '18px' }}>{revisaoComentarios.length}</span>
-                    </span>
-                  ),
-                  children: (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {revisaoComentarios.map((c) => {
-                const isAjuste = c.tipo === 'ajuste'
-                const isAprov = c.tipo === 'aprovacao'
-                const accent = isAjuste ? '#D46B08' : isAprov ? '#389e0d' : colorTokens.primary
-                return (
-                  <div key={c.id} style={{
-                    border: `1px solid ${accent}22`, background: `${accent}0D`,
-                    borderRadius: 8, padding: '10px 14px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.autor}</Typography.Text>
-                      <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, color: accent, background: `${accent}1A`, border: `1px solid ${accent}55`, borderRadius: 4, padding: '0 6px' }}>
-                        {c.papel}{isAjuste ? ' · ajuste' : isAprov ? ' · aprovação' : ''}
-                      </span>
-                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(c.data)}</Typography.Text>
-                    </div>
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{c.texto}</Typography.Text>
-                  </div>
-                )
-              })}
-              {revisaoComentarios.length === 0 && (
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhum comentário ainda.</Typography.Text>
-              )}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'decisao',
-                  label: (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.primary }}>
-                      <AuditOutlined style={{ fontSize: 18, color: colorTokens.primary }} />
-                      {can('documento:aprovar') ? 'Sua decisão' : 'Comentar'}
-                    </span>
-                  ),
-                  children: (
-                    <>
-            <Input.TextArea
-              value={novoComentario}
-              onChange={(e) => setNovoComentario(e.target.value)}
-              placeholder={can('documento:aprovar') ? 'Comente ou descreva os ajustes necessários…' : 'Adicione um comentário…'}
-              rows={3}
-              maxLength={400}
-              style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 12 }}
-            />
-            <Space wrap>
-              <Button onClick={handleComentar} disabled={!novoComentario.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
-                Comentar
-              </Button>
-              {can('documento:aprovar') && (
-                <>
-                  <Button onClick={handleSolicitarAjustes} icon={<EditOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>
-                    Solicitar ajustes
-                  </Button>
-                  <Button type="primary" onClick={handleAprovar} icon={<CheckCircleOutlined />} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>
-                    Aprovar documento
-                  </Button>
-                </>
-              )}
-              {/* EP04 · autor retira o envio para aprovação */}
-              {!can('documento:aprovar') && can('documento:gerenciar') && (
-                <Button danger onClick={handleCancelarAprovacao} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>
-                  Cancelar aprovação
-                </Button>
-              )}
-            </Space>
-                    </>
-                  ),
-                },
-              ]}
-            />
-
-            <Divider style={{ margin: '20px 0' }} />
-          </>
-        )}
-
-        {/* ══ Banner Agendado ══════════════════════════════════ */}
-        {doc.status === 'Agendado' && (
-          <>
-            <div style={{
-              background: '#FFF7E6', border: '1px solid #FA8C16',
-              borderRadius: 8, padding: '14px 18px',
-              display: 'flex', alignItems: 'center', gap: 14,
-              marginBottom: 24,
-            }}>
-              <CalendarOutlined style={{ fontSize: 24, color: '#D46B08', flexShrink: 0 }} />
-              <div>
-                <Typography.Text style={{
-                  fontFamily: FONT, fontSize: 11, fontWeight: 700,
-                  color: '#D46B08', textTransform: 'uppercase',
-                  letterSpacing: '0.06em', display: 'block', marginBottom: 2,
-                }}>
-                  Envio Programado
-                </Typography.Text>
-                <Typography.Text style={{
-                  fontFamily: FONT, fontSize: 14, fontWeight: 500,
-                  color: colorTokens.textPrimary,
-                }}>
-                  Será enviado automaticamente em{' '}
-                  <strong style={{ color: '#D46B08' }}>{fmt(doc.dataLancamento)}</strong>
-                  {' '}para{' '}
-                  <strong>{doc.totalDestinatarios}</strong> destinatários.
-                </Typography.Text>
-              </div>
-            </div>
-            <Divider style={{ margin: '0 0 24px' }} />
-          </>
-        )}
-
-        {/* ══ KPI Dashboard (Ativo e Concluído) ═══════════════ */}
-        {(doc.status === 'Ativo' || doc.status === 'Concluído') && (
-          <>
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-
-              {/* Card 1: Adesão Total */}
-              <Col xs={24} sm={8}>
-                <div style={{
-                  border: `1.5px solid ${barColor}33`,
-                  borderRadius: 8,
-                  padding: '16px 20px',
-                  background: doc.tipo === 'adesao' ? '#F7F8FF' : '#F0FFFD',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 18,
-                  height: '100%',
-                }}>
-                  <Progress
-                    type="circle"
-                    percent={pct}
-                    strokeColor={barColor}
-                    trailColor="#E5E7EB"
-                    size={68}
-                    format={(p) => (
-                      <span style={{
-                        fontFamily: FONT, fontSize: 15,
-                        fontWeight: 800, color: barColor,
-                      }}>
-                        {p}%
-                      </span>
-                    )}
-                  />
-                  <div>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 10, fontWeight: 700,
-                      color: colorTokens.textSecondary, textTransform: 'uppercase',
-                      letterSpacing: '0.06em', display: 'block', marginBottom: 2,
-                    }}>
-                      Adesão Total
-                    </Typography.Text>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 28, fontWeight: 800,
-                      color: barColor, display: 'block', lineHeight: '34px',
-                    }}>
-                      {pct}%
-                    </Typography.Text>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-                    }}>
-                      {doc.totalAceites} de {doc.totalDestinatarios}
-                    </Typography.Text>
-                  </div>
-                </div>
-              </Col>
-
-              {/* Card 2: Pendentes */}
-              <Col xs={24} sm={8}>
-                <div style={{
-                  border: `1.5px solid ${pendentes > 0 ? '#FA8C1666' : '#52c41a55'}`,
-                  borderRadius: 8,
-                  padding: '16px 20px',
-                  background: pendentes > 0 ? '#FFFBF5' : '#F6FFED',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  gap: 8,
-                  height: '100%',
-                  minHeight: 110,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 36, fontWeight: 800,
-                      color: pendentes > 0 ? '#D46B08' : '#389e0d',
-                      lineHeight: '42px',
-                    }}>
-                      {pendentes}
-                    </Typography.Text>
-                    <Typography.Text style={{
-                      fontFamily: FONT, fontSize: 10, fontWeight: 700,
-                      color: colorTokens.textSecondary, textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                    }}>
-                      Pendentes
-                    </Typography.Text>
-                  </div>
-                  {(doc.status === 'Ativo' || doc.status === 'Concluído') && (
-                    <Button
-                      size="small"
-                      onClick={() => setPendenciasOpen(true)}
-                      style={{
-                        fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        borderColor: pendentes > 0 ? '#D46B08' : '#52c41a',
-                        color:       pendentes > 0 ? '#D46B08' : '#389e0d',
-                        background:  pendentes > 0 ? 'transparent' : '#F6FFED',
-                        borderRadius: 6, height: 28, alignSelf: 'flex-start',
-                      }}
-                    >
-                      {pendentes > 0 ? 'Ver Lista de Pendentes' : 'Ver Lista de Destinatários'}
-                    </Button>
-                  )}
-                </div>
-              </Col>
-
-              {/* Card 3: Arquivo */}
-              <Col xs={24} sm={8}>
-                <div style={{
-                  border: '1.5px solid #E5E7EB',
-                  borderRadius: 8,
-                  padding: '16px 20px',
-                  height: '100%',
-                  minHeight: 110,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}>
-                  <Typography.Text style={{
-                    fontFamily: FONT, fontSize: 10, fontWeight: 700,
-                    color: colorTokens.textSecondary, textTransform: 'uppercase',
-                    letterSpacing: '0.06em', display: 'block', marginBottom: 10,
-                  }}>
-                    Arquivo do Documento
-                  </Typography.Text>
-                  {doc.fileName && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <FilePdfOutlined style={{ color: '#FF4D4F', fontSize: 20, flexShrink: 0 }} />
-                      <Typography.Text style={{
-                        fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        color: colorTokens.textPrimary,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {doc.fileName}
-                      </Typography.Text>
-                    </div>
-                  )}
-                  {doc.fileHash && (
-                    <Typography.Text
-                      copyable={{ tooltips: ['Copiar hash SHA-256', 'Copiado!'] }}
-                      style={{
-                        fontFamily: 'monospace', fontSize: 10,
-                        color: colorTokens.textMuted,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        display: 'block',
-                      }}
-                    >
-                      {doc.fileHash.slice(0, 22)}…
-                    </Typography.Text>
-                  )}
-                </div>
-              </Col>
-            </Row>
-
-            {/* Botão download (status Concluído) */}
-            {doc.status === 'Concluído' && canExportar && (
-              <div style={{ marginBottom: 24 }}>
-                <Dropdown menu={{ items: downloadItems }} trigger={['click']}>
-                  <Button
-                    icon={<DownloadOutlined />}
-                    style={{
-                      fontFamily: FONT, fontWeight: 600, fontSize: 13,
-                      borderColor: colorTokens.primary, color: colorTokens.primary,
-                      borderRadius: 8, height: 38,
-                    }}
-                  >
-                    Download Relatório de Auditoria <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
-                  </Button>
-                </Dropdown>
-              </div>
-            )}
-
-            {/* ══ Lembretes e prazo de assinatura (config da criação) ══ */}
-            {doc.status === 'Ativo' && (doc.cobrancaAutomatica || doc.prazoAssinaturaEm) && (() => {
-              const proxDias = doc.proximoLembreteEm ? dayjs(doc.proximoLembreteEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
-              const prazoDias = doc.prazoAssinaturaEm ? dayjs(doc.prazoAssinaturaEm).startOf('day').diff(dayjs().startOf('day'), 'day') : null
-              const maxTxt = doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 ? ` de ${doc.cobrancaMaxLembretes}` : ''
-              const limiteAtingido = !!doc.cobrancaMaxLembretes && doc.cobrancaMaxLembretes > 0 && (doc.lembretesEnviados ?? 0) >= doc.cobrancaMaxLembretes
-              return (
-                <div style={{
-                  border: `1px solid ${colorTokens.primary}22`, background: '#F7F8FF',
-                  borderRadius: 8, padding: '16px 20px', marginBottom: 24,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                    <BellOutlined style={{ color: colorTokens.primary, fontSize: 15 }} />
-                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                      Lembretes e prazo de assinatura
-                    </Typography.Text>
-                    <span style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textMuted }}>· simulado</span>
-                  </div>
-                  <Row gutter={[16, 12]}>
-                    {/* Cobrança automática */}
-                    <Col xs={24} sm={8}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                        <BellOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
-                        <div>
-                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Lembretes automáticos</Typography.Text>
-                          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                            {doc.cobrancaAutomatica
-                              ? (doc.cobrancaFrequenciaDias === 1 ? 'Diário' : `A cada ${doc.cobrancaFrequenciaDias} dias`)
-                              : 'Desativados'}
-                          </Typography.Text>
-                          {doc.cobrancaAutomatica && (
-                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
-                              {doc.lembretesEnviados ?? 0}{maxTxt} lembrete(s) enviado(s)
-                            </Typography.Text>
-                          )}
-                        </div>
-                      </div>
-                    </Col>
-                    {/* Próximo lembrete */}
-                    {doc.cobrancaAutomatica && (
-                      <Col xs={24} sm={8}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                          <ClockCircleOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
-                          <div>
-                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Próximo lembrete</Typography.Text>
-                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: limiteAtingido ? colorTokens.textSecondary : colorTokens.textPrimary }}>
-                              {limiteAtingido
-                                ? 'Limite atingido'
-                                : proxDias === null ? '—'
-                                : proxDias <= 0 ? 'Hoje'
-                                : `Em ${proxDias} dia(s)`}
-                            </Typography.Text>
-                            {!limiteAtingido && doc.proximoLembreteEm && (
-                              <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>
-                                {fmt(doc.proximoLembreteEm)}
-                              </Typography.Text>
-                            )}
-                          </div>
-                        </div>
-                      </Col>
-                    )}
-                    {/* Prazo de assinatura */}
-                    {doc.prazoAssinaturaEm && (
-                      <Col xs={24} sm={8}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                          <FieldTimeOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 3, flexShrink: 0 }} />
-                          <div>
-                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block' }}>Prazo para assinatura</Typography.Text>
-                            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 13, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textPrimary }}>
-                              {fmt(doc.prazoAssinaturaEm)}
-                            </Typography.Text>
-                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: (prazoDias ?? 0) < 0 ? '#CF1322' : colorTokens.textSecondary, display: 'block' }}>
-                              {prazoDias === null ? '' : prazoDias < 0 ? `Encerrado há ${Math.abs(prazoDias)} dia(s)` : prazoDias === 0 ? 'Encerra hoje' : `Faltam ${prazoDias} dia(s)`}
-                            </Typography.Text>
-                          </div>
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
-                    Encerramento: <strong>{doc.encerramentoAutomatico ? 'Automático (100% de aceite ou fim do prazo)' : 'Manual'}</strong>
-                  </Typography.Text>
-                </div>
-              )
-            })()}
-
-            <Divider style={{ margin: '0 0 24px' }} />
-          </>
-        )}
-
-        {/* ══ Detalhes do Documento ══════════════════════════ */}
-        <Typography.Text style={{
-          fontFamily: FONT, fontSize: 11, fontWeight: 700,
-          color: colorTokens.textSecondary, textTransform: 'uppercase',
-          letterSpacing: '0.06em', display: 'block', marginBottom: 16,
-        }}>
-          Detalhes do documento
-        </Typography.Text>
-
-        {/* ── Descrição ── */}
-        {doc.descricao && (
-          <div style={{
-            background: '#fff', border: '1px solid #F0F0F0',
-            borderRadius: 8, padding: 16, marginBottom: 12,
-          }}>
-            <Typography.Text style={{
-              fontFamily: FONT, fontSize: 10, fontWeight: 700,
-              color: colorTokens.textSecondary, textTransform: 'uppercase',
-              letterSpacing: '0.06em', display: 'block', marginBottom: 8,
-            }}>
-              Descrição
-            </Typography.Text>
-            <Typography.Text style={{
-              fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px',
-            }}>
-              {doc.descricao}
-            </Typography.Text>
-          </div>
-        )}
-
-        {/* ── Público-alvo ── */}
-        <div style={{
-          background: '#fff', border: '1px solid #F0F0F0',
-          borderRadius: 8, padding: 16, marginBottom: 12,
-        }}>
-          <Typography.Text strong style={{
-            fontFamily: FONT, fontSize: 13,
-            color: colorTokens.textPrimary, display: 'block', marginBottom: 12,
-          }}>
-            Público-alvo
-          </Typography.Text>
-
-          {doc.modalidadeEnvio === 'pessoa' ? (
-            /* Avatares circulares sobrepostos — destinatários individuais */
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-              {(doc.destinatariosPreview ?? []).slice(0, 3).map((nome, i) => (
-                <Avatar
-                  key={nome}
-                  size={36}
-                  style={{
-                    background: AVATAR_COLORS[i % AVATAR_COLORS.length],
-                    fontFamily: FONT, fontWeight: 700, fontSize: 13,
-                    border: '2px solid #fff',
-                    marginLeft: i > 0 ? -10 : 0,
-                    zIndex: 10 - i,
-                    flexShrink: 0,
-                  }}
-                >
-                  {nome.charAt(0).toUpperCase()}
-                </Avatar>
-              ))}
-              {doc.totalDestinatarios > 3 && (
-                <Avatar
-                  size={36}
-                  style={{
-                    background: '#FA8C16', color: '#fff',
-                    fontFamily: FONT, fontWeight: 700, fontSize: 11,
-                    border: '2px solid #fff',
-                    marginLeft: -10, zIndex: 6, flexShrink: 0,
-                  }}
-                >
-                  +{doc.totalDestinatarios - 3}
-                </Avatar>
-              )}
-            </div>
-          ) : (
-            /* Tags para departamentos/setores */
-            <Space size={[6, 6]} wrap style={{ marginBottom: 10 }}>
-              {(doc.destinatariosPreview ?? []).map((depto) => (
-                <Tag
-                  key={depto}
-                  style={{
-                    fontFamily: FONT, fontSize: 12, fontWeight: 500,
-                    borderRadius: 6, padding: '3px 10px', margin: 0,
-                    background: '#FAFAFA', border: '1px solid #D9D9D9',
-                    color: colorTokens.textPrimary,
-                  }}
-                >
-                  {depto}
-                </Tag>
-              ))}
-            </Space>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <Typography.Text style={{
-              fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-            }}>
-              total de {doc.totalDestinatarios} destinatários
-            </Typography.Text>
-            <Button
-              type="link"
-              size="small"
-              onClick={() => setPublicoOpen(true)}
-              style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: colorTokens.primary, padding: 0, height: 'auto' }}
-            >
-              Ver público-alvo completo ↗
-            </Button>
-          </div>
-        </div>
-
-        {/* ── 3 cards: Responsável · Tipo · Regras ── */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
-
-          {/* Card 1 — Responsável */}
-          <Col xs={24} sm={8}>
-            <div style={{
-              padding: 16, borderRadius: 8,
-              background: '#fff', border: '1px solid #F0F0F0',
-              height: '100%',
-            }}>
-              <Typography.Text strong style={{
-                fontFamily: FONT, fontSize: 13,
-                color: colorTokens.textPrimary, display: 'block', marginBottom: 12,
-              }}>
-                Responsável
-              </Typography.Text>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-                <TeamOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, marginTop: 2, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px' }}>
-                  Criado por: <strong>{creatorNome} — {creatorDepto}</strong>
-                </Typography.Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CalendarOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                  Data: <strong>{fmt(doc.criadoEm)}</strong>
-                </Typography.Text>
-              </div>
-            </div>
-          </Col>
-
-          {/* Card 2 — Tipo de documento */}
-          <Col xs={24} sm={8}>
-            <div style={{
-              padding: 16, borderRadius: 8,
-              background: '#fff', border: '1px solid #F0F0F0',
-              height: '100%',
-            }}>
-              <Typography.Text strong style={{
-                fontFamily: FONT, fontSize: 13,
-                color: colorTokens.textPrimary, display: 'block', marginBottom: 12,
-              }}>
-                Tipo de documento
-              </Typography.Text>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <FileTextOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                  Versionamento: <strong>{doc.tipo === 'adesao' ? 'Versionado' : 'Não versionado'}</strong>
-                </Typography.Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <SafetyCertificateOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                  Tipo: <strong>{TIPO_LABEL[doc.tipo]}</strong>
-                </Typography.Text>
-              </div>
-            </div>
-          </Col>
-
-          {/* Card 3 — Regras de leitura */}
-          <Col xs={24} sm={8}>
-            <div style={{
-              padding: 16, borderRadius: 8,
-              background: '#fff', border: '1px solid #F0F0F0',
-              height: '100%',
-            }}>
-              {/* Header: título + botão "Visualizar regras" (só se personalizaPorDept) */}
-              <div style={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', marginBottom: 12,
-              }}>
-                <Typography.Text strong style={{
-                  fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary,
-                }}>
-                  Regras de leitura
-                </Typography.Text>
-                {personalizaPorDept && (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => setRegrasDrawerOpen(true)}
-                    style={{
-                      fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                      color: colorTokens.primary, padding: 0, height: 'auto',
-                    }}
-                  >
-                    Visualizar regras ↗
-                  </Button>
-                )}
-              </div>
-
-              {/* Labels: variam conforme personalizaPorDept */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <FieldTimeOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                  Tempo mínimo:{' '}
-                  <strong>
-                    {personalizaPorDept ? 'Variável por setor' : tempoLeitura > 0 ? fmtTempo(tempoLeitura) : 'Nenhum'}
-                  </strong>
-                </Typography.Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <SwapOutlined style={{ color: colorTokens.textSecondary, fontSize: 13, flexShrink: 0 }} />
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>
-                  Trava de scroll:{' '}
-                  <strong>
-                    {personalizaPorDept ? 'Personalizada' : scrollObrigatorio ? 'Obrigatória' : 'Sem trava'}
-                  </strong>
-                </Typography.Text>
-              </div>
-            </div>
-          </Col>
-        </Row>
-
-        <Divider style={{ margin: '0 0 24px' }} />
-
-        {/* ══ Histórico de Versões — Timeline (RN17) ══════════ */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <HistoryOutlined style={{ color: colorTokens.textSecondary, fontSize: 14 }} />
-            <Typography.Text style={{
-              fontFamily: FONT, fontSize: 11, fontWeight: 700,
-              color: colorTokens.textSecondary, textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}>
-              Histórico de Versões
-            </Typography.Text>
-          </div>
-
-          {versoes.length === 0 ? (
-            <div style={{
-              textAlign: 'center', padding: '32px 0',
-              border: '1px dashed #D9D9D9', borderRadius: 8,
-              background: '#FAFAFA',
-            }}>
-              <HistoryOutlined style={{
-                fontSize: 28, color: '#BFBFBF',
-                marginBottom: 8, display: 'block',
-              }} />
-              <Typography.Text style={{
-                fontFamily: FONT, color: colorTokens.textSecondary, fontSize: 13,
-              }}>
-                Nenhum histórico de versão disponível.
-              </Typography.Text>
-            </div>
-          ) : (
-            <Timeline
-              style={{ paddingTop: 8 }}
-              items={versoes.map((v, idx) => {
-                const isCurrent = idx === 0   // reversed: idx 0 = versão mais recente
-                return {
-                  dot: (
-                    <div style={{
-                      width: 30, height: 30,
-                      borderRadius: '50%',
-                      background: isCurrent ? barColor : '#F5F5F5',
-                      border: `2px solid ${isCurrent ? barColor : '#D9D9D9'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <span style={{
-                        fontFamily: FONT, fontSize: 9, fontWeight: 800,
-                        color: isCurrent ? '#fff' : colorTokens.textSecondary,
-                      }}>
-                        {v.versao}
-                      </span>
-                    </div>
-                  ),
-                  children: (
-                    <div style={{ paddingBottom: 20, paddingLeft: 4 }}>
-                      {/* Cabeçalho da versão */}
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
-                        <Typography.Text style={{
-                          fontFamily: FONT, fontSize: 14, fontWeight: 700,
-                          color: colorTokens.textPrimary,
-                        }}>
-                          {v.versao}
-                        </Typography.Text>
-                        {isCurrent && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700,
-                            background: barColor + '1A',
-                            color: barColor,
-                            border: `1px solid ${barColor}55`,
-                            borderRadius: 4, padding: '1px 7px',
-                            fontFamily: FONT,
-                          }}>
-                            Versão atual
-                          </span>
-                        )}
-                        <Typography.Text style={{
-                          fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-                        }}>
-                          {fmt(v.data)}
-                        </Typography.Text>
-                      </div>
-
-                      {/* Responsável */}
-                      <Typography.Text style={{
-                        fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary,
-                        display: 'block', marginBottom: 10,
-                      }}>
-                        <UserOutlined style={{ marginRight: 5 }} />
-                        {v.responsavel} — {v.depto}
-                      </Typography.Text>
-
-                      {/* Motivo + download */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                        <div style={{
-                          background: '#F7F8FF',
-                          border: `1px solid ${colorTokens.primary}18`,
-                          borderRadius: 6,
-                          padding: '8px 12px',
-                          flex: 1,
-                          minWidth: 0,
-                        }}>
-                          <Typography.Text style={{
-                            fontFamily: FONT, fontSize: 13,
-                            color: colorTokens.textPrimary,
-                          }}>
-                            {v.motivo}
-                          </Typography.Text>
-                        </div>
-                        <Button
-                          size="small"
-                          icon={<DownloadOutlined />}
-                          onClick={() => message.success(`Download do arquivo da ${v.versao} iniciado.`)}
-                          style={{
-                            fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                            borderColor: colorTokens.primary, color: colorTokens.primary,
-                            borderRadius: 6, height: 30, flexShrink: 0,
-                          }}
-                        >
-                          Baixar {v.versao}
-                        </Button>
-                      </div>
-                    </div>
-                  ),
-                }
-              })}
-            />
-          )}
-        </div>
 
       </div>
 
