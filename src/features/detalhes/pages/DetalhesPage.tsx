@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col, Divider,
   Space, Modal, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Table, List, Collapse,
+  Alert, Timeline, Drawer, Table, List, Collapse, Steps,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -43,6 +43,33 @@ const GESTAO_MAP  = Object.fromEntries(GESTOES_RESPONSAVEIS.map((g) => [g.value,
 const TIPO_LABEL: Record<string, string> = {
   adesao:  'Aceite Formal',
   ciencia: 'Apenas Leitura',
+}
+
+/* ── Ciclo de vida do documento (stepper só-leitura, EP04) ──
+   Jornada canônica: Rascunho → Em revisão → Agendado → Ativo → Concluído,
+   com ramais terminais Expirado e Inativo (inclui "substituído por nova versão").
+   O stepper é adaptativo: não exibe etapas que o documento não percorreu. */
+type StepStatus = 'finish' | 'process' | 'wait' | 'error'
+interface Lifecycle { items: { title: string; status: StepStatus }[]; current: number; caption?: string }
+function buildLifecycle(status: string): Lifecycle {
+  const D = (title: string): { title: string; status: StepStatus } => ({ title, status: 'finish' })
+  const P = (title: string): { title: string; status: StepStatus } => ({ title, status: 'process' })
+  const W = (title: string): { title: string; status: StepStatus } => ({ title, status: 'wait' })
+  const E = (title: string): { title: string; status: StepStatus } => ({ title, status: 'error' })
+  let items: { title: string; status: StepStatus }[]
+  let caption: string | undefined
+  switch (status) {
+    case 'Rascunho':    items = [P('Rascunho'), W('Ativo'), W('Concluído')]; caption = 'Documento em criação — ainda não foi enviado.'; break
+    case 'Em revisão':  items = [D('Rascunho'), P('Em revisão'), W('Ativo'), W('Concluído')]; caption = 'Aguardando a decisão de um aprovador antes da publicação.'; break
+    case 'Agendado':    items = [D('Rascunho'), P('Agendado'), W('Ativo'), W('Concluído')]; caption = 'Aprovado e agendado — será publicado automaticamente na data definida.'; break
+    case 'Ativo':       items = [D('Rascunho'), P('Ativo'), W('Concluído')]; caption = 'Publicado e disponível aos destinatários.'; break
+    case 'Concluído':   items = [D('Rascunho'), D('Ativo'), D('Concluído')]; caption = 'Ciclo encerrado — coleta de aceites finalizada.'; break
+    case 'Expirado':    items = [D('Rascunho'), D('Ativo'), E('Expirado')]; caption = 'Vigência encerrada — publique uma nova versão ou inative o documento.'; break
+    case 'Inativo':     items = [D('Rascunho'), D('Ativo'), E('Inativo')]; caption = 'Documento inativado ou substituído por uma nova versão.'; break
+    default:            items = [P(status)]
+  }
+  const current = Math.max(0, items.findIndex((i) => i.status === 'process' || i.status === 'error'))
+  return { items, current, caption }
 }
 
 /* ── Mock: histórico de versões (RN17) ──────────────────────── */
@@ -522,6 +549,23 @@ export function DetalhesPage() {
                   </Space>
                 </div>
               )}
+              {/* Situação — stepper só-leitura do ciclo de vida (EP04) */}
+              {(() => {
+                const lc = buildLifecycle(doc.status)
+                return (
+                  <div style={{ marginTop: 18, borderTop: '1px solid #F0F0F0', paddingTop: 16 }}>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 14 }}>
+                      Situação
+                    </Typography.Text>
+                    <Steps size="small" current={lc.current} items={lc.items} style={{ maxWidth: 680, fontFamily: FONT }} />
+                    {lc.caption && (
+                      <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginTop: 12 }}>
+                        {lc.caption}
+                      </Typography.Text>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )
         })()}
