@@ -7,7 +7,7 @@
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps } from 'antd'
+import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps, Modal } from 'antd'
 import {
   ArrowLeftOutlined, InfoCircleOutlined, EditOutlined, CheckCircleOutlined,
   FilePdfOutlined, UploadOutlined, PaperClipOutlined, DownloadOutlined, SendOutlined,
@@ -64,6 +64,7 @@ export function ApprovalPage() {
   const [texto, setTexto] = useState('')
   const [arquivoEnviado, setArquivoEnviado] = useState(false)
   const [etapaAtual, setEtapaAtual] = useState(0)
+  const [confirmAprovarOpen, setConfirmAprovarOpen] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -331,7 +332,7 @@ export function ApprovalPage() {
                 {ehAprovador && (
                   <>
                     <Button icon={<EditOutlined />} onClick={handleSolicitarAjuste} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>Solicitar ajuste</Button>
-                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleAprovar} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { background: '#389e0d', borderColor: '#389e0d' }) }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
+                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setConfirmAprovarOpen(true)} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { background: '#389e0d', borderColor: '#389e0d' }) }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
                   </>
                 )}
 
@@ -362,6 +363,36 @@ export function ApprovalPage() {
           </div>
         </Col>
       </Row>
+
+      {/* Confirmação de aprovação — evita aprovar por engano */}
+      <Modal
+        open={confirmAprovarOpen}
+        onCancel={() => setConfirmAprovarOpen(false)}
+        onOk={() => { setConfirmAprovarOpen(false); handleAprovar() }}
+        width={460}
+        centered
+        destroyOnHidden
+        title={
+          <Space>
+            <CheckCircleOutlined style={{ color: '#389e0d', fontSize: 18 }} />
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              {tipoRevisao === 'etapas' ? 'Aprovar esta etapa?' : 'Aprovar documento?'}
+            </Typography.Text>
+          </Space>
+        }
+        okText={tipoRevisao === 'etapas' ? 'Confirmar aprovação da etapa' : 'Confirmar aprovação'}
+        cancelText="Cancelar"
+        okButtonProps={{ style: { fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 38, background: '#389e0d', borderColor: '#389e0d' } }}
+        cancelButtonProps={{ style: { fontFamily: FONT, borderRadius: 8, height: 38 } }}
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, lineHeight: '21px' }}>
+          {tipoRevisao === 'etapas'
+            ? (etapaAtual >= aprovadores.length - 1
+                ? <>Esta é a <strong style={{ color: colorTokens.textPrimary }}>última etapa</strong>. Ao aprovar, todas as etapas ficam concluídas e o documento poderá ser ativado. Confirme que revisou o documento.</>
+                : <>Ao aprovar a etapa de <strong style={{ color: colorTokens.textPrimary }}>{aprovadores[etapaAtual]}</strong>, o fluxo segue para <strong style={{ color: colorTokens.textPrimary }}>{aprovadores[etapaAtual + 1]}</strong>. A ação fica registrada no histórico.</>)
+            : <>Ao aprovar, sua decisão sobre <strong style={{ color: colorTokens.textPrimary }}>{doc.titulo}</strong> fica registrada no histórico da aprovação. Confirme que revisou o documento antes de continuar.</>}
+        </Typography.Text>
+      </Modal>
     </div>
   )
 }
