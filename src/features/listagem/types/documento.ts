@@ -100,6 +100,12 @@ export interface Documento {
   enviadoParaAprovacaoEm?: string
   /** Thread de comentários da revisão */
   comentariosRevisao?: ComentarioRevisao[]
+  /** Tipo de revisão do fluxo de aprovação */
+  tipoRevisao?: 'simultanea' | 'etapas'
+  /** Aprovadores (nomes). Em 'etapas', a ordem define a sequência das etapas. */
+  aprovadores?: string[]
+  /** Índice da etapa atual (0-based) — só em 'etapas'. Etapas anteriores estão aprovadas. */
+  etapaAtual?: number
 }
 
 /** Filtros aplicados na listagem */

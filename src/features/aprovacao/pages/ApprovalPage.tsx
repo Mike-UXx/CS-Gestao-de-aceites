@@ -7,7 +7,7 @@
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Typography, Button, Input, Avatar, Space, message, Row, Col } from 'antd'
+import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps } from 'antd'
 import {
   ArrowLeftOutlined, InfoCircleOutlined, EditOutlined, CheckCircleOutlined,
   FilePdfOutlined, UploadOutlined, PaperClipOutlined, DownloadOutlined, SendOutlined,
@@ -63,13 +63,15 @@ export function ApprovalPage() {
   const [mensagens, setMensagens] = useState<ComentarioRevisao[]>([])
   const [texto, setTexto] = useState('')
   const [arquivoEnviado, setArquivoEnviado] = useState(false)
+  const [etapaAtual, setEtapaAtual] = useState(0)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMensagens(doc?.comentariosRevisao ?? [])
     setTexto('')
     setArquivoEnviado(false)
-  }, [doc?.id])
+    setEtapaAtual(doc?.etapaAtual ?? 0)
+  }, [doc?.id, doc?.etapaAtual])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -95,6 +97,9 @@ export function ApprovalPage() {
   }
 
   const temAjustePendente = mensagens.some((m) => m.tipo === 'ajuste')
+  const tipoRevisao = doc.tipoRevisao ?? 'simultanea'
+  const aprovadores = doc.aprovadores ?? []
+  const etapasConcluidas = tipoRevisao === 'etapas' && etapaAtual >= aprovadores.length
 
   function addMensagem(txt: string, tipo: ComentarioRevisao['tipo']) {
     const nova: ComentarioRevisao = {
@@ -115,6 +120,14 @@ export function ApprovalPage() {
     message.success('Ajuste solicitado ao gestor.')
   }
   function handleAprovar() {
+    if (tipoRevisao === 'etapas') {
+      const nome = aprovadores[etapaAtual] ?? `Etapa ${etapaAtual + 1}`
+      const ultima = etapaAtual >= aprovadores.length - 1
+      addMensagem(ultima ? `Aprovei a etapa "${nome}". Todas as etapas foram concluídas.` : `Aprovei a etapa "${nome}".`, 'aprovacao')
+      setEtapaAtual((e) => e + 1)
+      message.success(ultima ? 'Todas as etapas aprovadas. O documento pode ser ativado.' : `Etapa aprovada. Segue para ${aprovadores[etapaAtual + 1]}.`)
+      return
+    }
     addMensagem('Documento aprovado para publicação.', 'aprovacao')
     message.success('Documento aprovado.')
   }
@@ -167,6 +180,47 @@ export function ApprovalPage() {
           </Space>
         </div>
       </div>
+
+      {/* ── Fluxo de aprovação (tipo de revisão + timeline) ── */}
+      {aprovadores.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #E6E6E6', borderRadius: 10, boxShadow: '0 2px 3px rgba(156,156,156,0.2)', padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: FONT, fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '2px 10px',
+              ...(tipoRevisao === 'etapas'
+                ? { background: '#F9F0FF', border: '1px solid #D3ADF7', color: '#722ED1' }
+                : { background: '#E6F4FF', border: '1px solid #91CAFF', color: '#1677FF' }),
+            }}>
+              {tipoRevisao === 'etapas' ? 'Revisão em etapas' : 'Revisão simultânea'}
+            </span>
+            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+              {tipoRevisao === 'etapas'
+                ? (etapasConcluidas ? 'Todas as etapas foram aprovadas.' : `Aprovação sequencial — etapa atual: ${aprovadores[etapaAtual]}.`)
+                : `${aprovadores.length} aprovadores revisam em paralelo.`}
+            </Typography.Text>
+          </div>
+          {tipoRevisao === 'etapas' ? (
+            <Steps
+              size="small"
+              current={etapaAtual}
+              items={aprovadores.map((nome, i) => ({
+                title: nome,
+                status: (i < etapaAtual ? 'finish' : i === etapaAtual ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
+              }))}
+              style={{ fontFamily: FONT }}
+            />
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {aprovadores.map((nome) => (
+                <span key={nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F5F6F8', borderRadius: 20, padding: '4px 12px 4px 4px' }}>
+                  <Avatar size={26} style={{ background: avatarColor(nome), fontFamily: FONT, fontWeight: 700, fontSize: 11 }}>{iniciais(nome)}</Avatar>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>{nome}</Typography.Text>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Split: PDF (esquerda) + Chat (direita) ── */}
       <Row gutter={[16, 16]}>
@@ -274,7 +328,7 @@ export function ApprovalPage() {
                 {ehAprovador && (
                   <>
                     <Button icon={<EditOutlined />} onClick={handleSolicitarAjuste} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>Solicitar ajuste</Button>
-                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleAprovar} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>Aprovar</Button>
+                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleAprovar} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { background: '#389e0d', borderColor: '#389e0d' }) }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
                   </>
                 )}
 
