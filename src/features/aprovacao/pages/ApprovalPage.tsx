@@ -279,8 +279,11 @@ export function ApprovalPage() {
                 const own = m.autor === 'Você'
                 const isAjuste = m.tipo === 'ajuste'
                 const isAprov = m.tipo === 'aprovacao'
-                const bubbleBg = own ? '#1677FF' : isAjuste ? '#FFF3E0' : isAprov ? '#F6FFED' : '#F1F2F4'
-                const bubbleColor = own ? '#fff' : colorTokens.textPrimary
+                // O tipo tem prioridade sobre "próprio": ajuste sempre em laranja claro e
+                // aprovação em verde claro (texto escuro), para dar contraste ao título colorido.
+                // Só o comentário padrão do usuário logado permanece azul.
+                const bubbleBg = isAjuste ? '#FFF3E0' : isAprov ? '#F6FFED' : own ? '#1677FF' : '#F1F2F4'
+                const bubbleColor = (!isAjuste && !isAprov && own) ? '#fff' : colorTokens.textPrimary
                 const bubbleBorder = isAjuste ? '1px solid #FFD591' : isAprov ? '1px solid #B7EB8F' : 'none'
                 return (
                   <div key={m.id} style={{ display: 'flex', flexDirection: own ? 'row-reverse' : 'row', gap: 10, marginBottom: 18 }}>
