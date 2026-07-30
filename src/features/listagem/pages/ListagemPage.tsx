@@ -397,6 +397,7 @@ export function ListagemPage() {
 
   const [search,           setSearch]           = useState('')
   const [activeTab,        setActiveTab]        = useState('todos')
+  const [carouselTab,      setCarouselTab]      = useState<'rascunho' | 'aprovacao'>('rascunho')
   const [pagination,       setPagination]       = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
   const [encerrarTarget,        setEncerrarTarget]        = useState<DocumentoComMeta | null>(null)
   const [deleteTarget,          setDeleteTarget]          = useState<DocumentoComMeta | null>(null)
@@ -467,10 +468,17 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela (sem rascunhos; escopado por gestão do perfil) ── */
+  /* ── Documentos da tabela — só ciclo publicado (Ativo/Agendado/Inativo/Concluído/Expirado).
+        Rascunho e Em aprovação saem da tabela e vão para o carrossel. ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && d.status !== 'Em revisão' && podeVerGestao(d.gestaoResponsavel))
   }, [podeVerGestao])
+
+  /* ── Documentos em aprovação (carrossel) ── */
+  const emAprovacao = useMemo(
+    () => MOCK_DOCUMENTOS.filter((d) => d.status === 'Em revisão' && podeVerGestao(d.gestaoResponsavel)),
+    [podeVerGestao],
+  )
 
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
@@ -478,9 +486,6 @@ export function ListagemPage() {
       if (activeTab === 'todos')         return true
       if (activeTab === 'exigem_aceite') return doc.tipo === 'adesao'
       if (activeTab === 'informativos')  return doc.tipo === 'ciencia'
-      if (activeTab === 'agendados')     return doc.status === 'Agendado'
-      if (activeTab === 'em_revisao')    return doc.status === 'Em revisão'
-      if (activeTab === 'para_aprovar')  return doc.status === 'Em revisão'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
       return matchesSmartFilters(doc, custom.smartFilters)
@@ -501,9 +506,6 @@ export function ListagemPage() {
     todos:          tableDocumentos.length,
     exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
     informativos:   tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
-    agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
-    em_revisao:     tableDocumentos.filter((d) => d.status === 'Em revisão').length,
-    para_aprovar:   tableDocumentos.filter((d) => d.status === 'Em revisão').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -520,10 +522,6 @@ export function ListagemPage() {
     { key: 'todos',         label: tabLabel('Todos',          counts.todos) },
     { key: 'exigem_aceite', label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
     { key: 'informativos',  label: tabLabel('Informativos',   counts.informativos) },
-    { key: 'agendados',     label: tabLabel('Agendados',      counts.agendados) },
-    { key: 'em_revisao',    label: tabLabel('Em revisão',     counts.em_revisao) },
-    // EP04 · fila do aprovador — só aparece para quem tem permissão de aprovar
-    ...(can('documento:aprovar') ? [{ key: 'para_aprovar', label: tabLabel('Para aprovar', counts.para_aprovar) }] : []),
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
@@ -549,7 +547,7 @@ export function ListagemPage() {
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [counts, customTabs, tableDocumentos, can])
+  ], [counts, customTabs, tableDocumentos])
 
   /* ── Ações: duplicar documento ── */
   const handleDuplicar = useCallback((record: DocumentoComMeta) => {
@@ -569,6 +567,19 @@ export function ListagemPage() {
     setDeleteTarget(null)
     message.success('Rascunho excluído.')
   }, [deleteTarget])
+
+  /* ── Ações: cancelar envio para aprovação (volta a Rascunho) ── */
+  const handleCancelAprovacao = useCallback((doc: Documento) => {
+    Modal.confirm({
+      title: 'Cancelar envio para aprovação?',
+      icon: <ExclamationCircleOutlined style={{ color: '#FA8C16' }} />,
+      content: `"${doc.titulo}" voltará para Rascunho e sairá da fila dos aprovadores.`,
+      okText: 'Cancelar aprovação',
+      cancelText: 'Voltar',
+      okButtonProps: { danger: true },
+      onOk: () => message.success('Documento devolvido para Rascunho.'),
+    })
+  }, [])
 
   /* ── Ações: encerrar vigência ── */
   const handleConfirmEncerrar = useCallback(() => {
@@ -944,16 +955,6 @@ export function ListagemPage() {
       const keys = ['titulo', 'responsavel', 'classificacoes', 'publico', 'progresso', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
-    // Agendados → Título | Classificações | Responsável | Destinatários | Agendado para | Ações
-    if (activeTab === 'agendados') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
-      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
-    }
-    // Em revisão / Para aprovar → Título | Classificações | Responsável | Destinatários | Status | Ações
-    if (activeTab === 'em_revisao' || activeTab === 'para_aprovar') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'status', 'acoes']
-      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
-    }
     // Custom tabs: respeita ordem drag-and-drop
     const custom = customTabs.find((t) => t.key === activeTab)
     if (custom) {
@@ -1054,127 +1055,140 @@ export function ListagemPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════
-         Card: Rascunhos
+         Carrossel: Documentos em rascunho + em aprovação
       ════════════════════════════════════════════════════════ */}
-      {rascunhos.length > 0 && (
-        <div style={{
-          background: '#fff', borderRadius: 12,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-          padding: 24, marginBottom: 24,
-        }}>
-          {/* Header da seção */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>
-              Rascunhos
-            </Typography.Text>
-            <span style={{
-              padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
-              background: colorTokens.primary, color: '#fff',
-            }}>
-              {rascunhos.length}
-            </span>
-          </div>
-
-          {/* Carrossel */}
-          <div style={{ position: 'relative' }}>
-            {/* Seta esquerda */}
-            {rascunhos.length > 3 && (
-              <button
-                onClick={() => scrollCarousel(-1)}
-                style={{
-                  position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)',
-                  zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-                  border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <LeftOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
-              </button>
-            )}
-
-            {/* Cards */}
-            <div
-              ref={scrollRef}
-              className="drafts-scroll"
+      {(rascunhos.length > 0 || emAprovacao.length > 0) && (() => {
+        const isRascunho = carouselTab === 'rascunho'
+        const items: Documento[] = isRascunho ? rascunhos : emAprovacao
+        const carTab = (key: 'rascunho' | 'aprovacao', label: string, count: number) => {
+          const active = carouselTab === key
+          return (
+            <button
+              onClick={() => setCarouselTab(key)}
               style={{
-                display: 'flex', gap: 0, overflowX: 'auto',
-                border: '1px solid #EBEBEB', borderRadius: 8,
-                background: '#fff',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '0 0 12px', marginBottom: -1,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                fontFamily: FONT, fontSize: 14, fontWeight: active ? 600 : 500,
+                color: active ? colorTokens.primary : colorTokens.textSecondary,
+                borderBottom: `2px solid ${active ? colorTokens.primary : 'transparent'}`,
               }}
             >
-              {rascunhos.map((draft, i) => (
-                <div
-                  key={draft.id}
-                  style={{
-                    minWidth: 300, flex: '0 0 auto',
-                    padding: '16px 20px',
-                    borderRight: i < rascunhos.length - 1 ? '1px solid #F0F0F0' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 16,
-                  }}
-                >
-                  {/* Info */}
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text strong style={{
-                      fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary,
-                      display: 'block', lineHeight: '18px',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                      {draft.titulo}
-                    </Typography.Text>
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textSecondary }}>
-                      Editado {dayjs(draft.criadoEm).fromNow()}
-                    </Typography.Text>
-                  </div>
-
-                  {/* Ações */}
-                  <Space size={6} style={{ flexShrink: 0 }}>
-                    <Button
-                      size="small"
-                      onClick={() => navigate(STEP_ROUTES[draft._stepAtual ?? 0])}
-                      style={{
-                        fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        color: colorTokens.primary, borderColor: colorTokens.primary,
-                        background: '#fff', borderRadius: 6, height: 28, padding: '0 10px',
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<DeleteOutlined style={{ fontSize: 13 }} />}
-                      onClick={() => setDeleteTarget(draft)}
-                      style={{
-                        color: colorTokens.textSecondary, padding: 0,
-                        width: 24, height: 24, display: 'inline-flex',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    />
-                  </Space>
-                </div>
-              ))}
+              {label}
+              <span style={{
+                padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                background: active ? '#E8F6FD' : 'rgba(0,0,0,0.06)',
+                color: active ? colorTokens.primary : 'rgba(0,0,0,0.55)',
+              }}>{count}</span>
+            </button>
+          )
+        }
+        return (
+          <div style={{
+            background: '#fff', borderRadius: 12,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+            padding: 24, marginBottom: 24,
+          }}>
+            {/* Abas do carrossel */}
+            <div style={{ display: 'flex', gap: 28, borderBottom: '1px solid #F0F0F0', marginBottom: 16 }}>
+              {carTab('rascunho', 'Documentos em rascunho', rascunhos.length)}
+              {carTab('aprovacao', 'Documentos em aprovação', emAprovacao.length)}
             </div>
 
-            {/* Seta direita */}
-            {rascunhos.length > 3 && (
-              <button
-                onClick={() => scrollCarousel(1)}
-                style={{
-                  position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)',
-                  zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-                  border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <RightOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
-              </button>
+            {/* Carrossel da aba ativa */}
+            {items.length === 0 ? (
+              <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+                {isRascunho ? 'Nenhum rascunho no momento.' : 'Nenhum documento em aprovação.'}
+              </Typography.Text>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                {items.length > 3 && (
+                  <button
+                    onClick={() => scrollCarousel(-1)}
+                    style={{
+                      position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)',
+                      zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+                      border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <LeftOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
+                  </button>
+                )}
+
+                <div
+                  ref={scrollRef}
+                  className="drafts-scroll"
+                  style={{
+                    display: 'flex', gap: 0, overflowX: 'auto',
+                    border: '1px solid #EBEBEB', borderRadius: 8, background: '#fff',
+                  }}
+                >
+                  {items.map((item, i) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        minWidth: 300, flex: '0 0 auto', padding: '16px 20px',
+                        borderRight: i < items.length - 1 ? '1px solid #F0F0F0' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                      }}
+                    >
+                      {/* Info — clique leva ao destino (rascunho: etapa; aprovação: tela de aprovação) */}
+                      <div
+                        onClick={() => isRascunho
+                          ? navigate(STEP_ROUTES[(item as DocumentoComMeta)._stepAtual ?? 0])
+                          : navigate(`/documentos/${item.id}/aprovacao`)}
+                        style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
+                      >
+                        <Typography.Text strong style={{
+                          fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary,
+                          display: 'block', lineHeight: '18px',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {item.titulo}
+                        </Typography.Text>
+                        <Typography.Text style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textSecondary }}>
+                          {isRascunho
+                            ? `Editado ${dayjs(item.criadoEm).fromNow()}`
+                            : `Em revisão ${dayjs(item.enviadoParaAprovacaoEm ?? item.criadoEm).fromNow()}`}
+                        </Typography.Text>
+                      </div>
+
+                      {/* Ação — excluir (rascunho) / cancelar aprovação */}
+                      <Button
+                        size="small"
+                        icon={<DeleteOutlined style={{ fontSize: 13 }} />}
+                        onClick={() => isRascunho ? setDeleteTarget(item as DocumentoComMeta) : handleCancelAprovacao(item)}
+                        style={{
+                          width: 32, height: 32, flexShrink: 0,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          color: colorTokens.textSecondary, borderColor: '#E8E8E8', borderRadius: 8,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {items.length > 3 && (
+                  <button
+                    onClick={() => scrollCarousel(1)}
+                    style={{
+                      position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)',
+                      zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+                      border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <RightOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ════════════════════════════════════════════════════════
          Card: Listagem — Tabs + Tabela
