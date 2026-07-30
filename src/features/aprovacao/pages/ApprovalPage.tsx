@@ -7,10 +7,11 @@
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps, Modal } from 'antd'
+import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps, Modal, Select } from 'antd'
 import {
   ArrowLeftOutlined, InfoCircleOutlined, EditOutlined, CheckCircleOutlined,
   FilePdfOutlined, UploadOutlined, PaperClipOutlined, DownloadOutlined, SendOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
@@ -37,6 +38,15 @@ function iniciais(nome: string) {
 function fmtData(iso: string) {
   return dayjs(iso).format('DD/MM/YYYY HH:mm')
 }
+
+/* Categorias da justificativa (spec 3.1: UX/UI, Negócio, Técnico, Erro de Dados) */
+const CATEGORIA_OPTIONS = [
+  { value: 'ux-ui',   label: 'UX/UI' },
+  { value: 'negocio', label: 'Negócio' },
+  { value: 'tecnico', label: 'Técnico' },
+  { value: 'dados',   label: 'Erro de Dados' },
+]
+const CATEGORIA_LABEL: Record<string, string> = Object.fromEntries(CATEGORIA_OPTIONS.map((o) => [o.value, o.label]))
 
 const APPROVAL_CSS = `
   .aprov-panel {
@@ -65,6 +75,9 @@ export function ApprovalPage() {
   const [arquivoEnviado, setArquivoEnviado] = useState(false)
   const [etapaAtual, setEtapaAtual] = useState(0)
   const [confirmAprovarOpen, setConfirmAprovarOpen] = useState(false)
+  const [justTipo, setJustTipo] = useState<'ajuste' | 'rejeicao' | null>(null)
+  const [justCategoria, setJustCategoria] = useState<string | undefined>(undefined)
+  const [justTexto, setJustTexto] = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -102,9 +115,10 @@ export function ApprovalPage() {
   const aprovadores = doc.aprovadores ?? []
   const etapasConcluidas = tipoRevisao === 'etapas' && etapaAtual >= aprovadores.length
 
-  function addMensagem(txt: string, tipo: ComentarioRevisao['tipo']) {
+  function addMensagem(txt: string, tipo: ComentarioRevisao['tipo'], categoria?: ComentarioRevisao['categoria']) {
     const nova: ComentarioRevisao = {
       id: `c-${Date.now()}`, autor: 'Você', papel: papelAtual, texto: txt, data: new Date().toISOString(), tipo,
+      ...(categoria ? { categoria } : {}),
     }
     setMensagens((prev) => [...prev, nova])
   }
@@ -114,11 +128,23 @@ export function ApprovalPage() {
     addMensagem(texto.trim(), 'comentario')
     setTexto('')
   }
-  function handleSolicitarAjuste() {
-    if (!texto.trim()) { message.warning('Descreva o ajuste necessário antes de enviar.'); return }
-    addMensagem(texto.trim(), 'ajuste')
-    setTexto('')
-    message.success('Ajuste solicitado ao gestor.')
+  /* Abre a modal de justificativa categorizada (ajuste ou rejeição) */
+  function abrirJustificativa(tipo: 'ajuste' | 'rejeicao') {
+    setJustTipo(tipo)
+    setJustCategoria(undefined)
+    setJustTexto('')
+  }
+  function handleConfirmJustificativa() {
+    if (!justTipo || !justCategoria || !justTexto.trim()) return
+    const isRej = justTipo === 'rejeicao'
+    addMensagem(justTexto.trim(), justTipo, justCategoria as ComentarioRevisao['categoria'])
+    setJustTipo(null); setJustCategoria(undefined); setJustTexto('')
+    if (isRej) {
+      message.success('Documento rejeitado. Volta para Rascunho com a justificativa registrada.')
+      setTimeout(() => navigate('/documentos'), 900)
+    } else {
+      message.success('Ajuste solicitado ao gestor.')
+    }
   }
   function handleAprovar() {
     if (tipoRevisao === 'etapas') {
@@ -280,12 +306,13 @@ export function ApprovalPage() {
                 const own = m.autor === 'Você'
                 const isAjuste = m.tipo === 'ajuste'
                 const isAprov = m.tipo === 'aprovacao'
-                // O tipo tem prioridade sobre "próprio": ajuste sempre em laranja claro e
-                // aprovação em verde claro (texto escuro), para dar contraste ao título colorido.
-                // Só o comentário padrão do usuário logado permanece azul.
-                const bubbleBg = isAjuste ? '#FFF3E0' : isAprov ? '#F6FFED' : own ? '#1677FF' : '#F1F2F4'
-                const bubbleColor = (!isAjuste && !isAprov && own) ? '#fff' : colorTokens.textPrimary
-                const bubbleBorder = isAjuste ? '1px solid #FFD591' : isAprov ? '1px solid #B7EB8F' : 'none'
+                const isRejeicao = m.tipo === 'rejeicao'
+                // O tipo tem prioridade sobre "próprio": ajuste=laranja claro, aprovação=verde claro,
+                // rejeição=vermelho claro (texto escuro, título colorido legível). Só o comentário
+                // padrão do usuário logado permanece azul.
+                const bubbleBg = isAjuste ? '#FFF3E0' : isAprov ? '#F6FFED' : isRejeicao ? '#FFF1F0' : own ? '#1677FF' : '#F1F2F4'
+                const bubbleColor = (!isAjuste && !isAprov && !isRejeicao && own) ? '#fff' : colorTokens.textPrimary
+                const bubbleBorder = isAjuste ? '1px solid #FFD591' : isAprov ? '1px solid #B7EB8F' : isRejeicao ? '1px solid #FFA39E' : 'none'
                 return (
                   <div key={m.id} style={{ display: 'flex', flexDirection: own ? 'row-reverse' : 'row', gap: 10, marginBottom: 18 }}>
                     <Avatar size={38} style={{ background: own ? colorTokens.primary : avatarColor(m.autor), fontFamily: FONT, fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
@@ -299,8 +326,15 @@ export function ApprovalPage() {
                         </div>
                       )}
                       <div style={{ background: bubbleBg, color: bubbleColor, border: bubbleBorder, borderRadius: 10, padding: '10px 14px' }}>
-                        {isAjuste && (
-                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: '#D46B08', display: 'block', marginBottom: 4 }}>Solicitação de ajuste</Typography.Text>
+                        {(isAjuste || isRejeicao) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                            <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: isRejeicao ? '#CF1322' : '#D46B08' }}>
+                              {isRejeicao ? 'Documento rejeitado' : 'Solicitação de ajuste'}
+                            </Typography.Text>
+                            {m.categoria && (
+                              <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, color: isRejeicao ? '#CF1322' : '#D46B08', background: '#fff', border: `1px solid ${isRejeicao ? '#FFA39E' : '#FFD591'}`, borderRadius: 4, padding: '0 6px' }}>{CATEGORIA_LABEL[m.categoria]}</span>
+                            )}
+                          </div>
                         )}
                         {isAprov && (
                           <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: '#389e0d', display: 'block', marginBottom: 4 }}>Documento aprovado</Typography.Text>
@@ -331,7 +365,8 @@ export function ApprovalPage() {
                 {/* Aprovador */}
                 {ehAprovador && (
                   <>
-                    <Button icon={<EditOutlined />} onClick={handleSolicitarAjuste} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>Solicitar ajuste</Button>
+                    <Button icon={<EditOutlined />} onClick={() => abrirJustificativa('ajuste')} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { borderColor: '#FA8C16', color: '#D46B08' }) }}>Solicitar ajuste</Button>
+                    <Button danger icon={<CloseCircleOutlined />} onClick={() => abrirJustificativa('rejeicao')} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>Rejeitar</Button>
                     <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setConfirmAprovarOpen(true)} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { background: '#389e0d', borderColor: '#389e0d' }) }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
                   </>
                 )}
@@ -363,6 +398,58 @@ export function ApprovalPage() {
           </div>
         </Col>
       </Row>
+
+      {/* Justificativa categorizada — Solicitar ajuste / Rejeitar (spec 3.1) */}
+      <Modal
+        open={justTipo !== null}
+        onCancel={() => setJustTipo(null)}
+        onOk={handleConfirmJustificativa}
+        width={480}
+        centered
+        destroyOnHidden
+        okText={justTipo === 'rejeicao' ? 'Rejeitar documento' : 'Enviar solicitação'}
+        cancelText="Cancelar"
+        okButtonProps={{ disabled: !justCategoria || !justTexto.trim(), danger: justTipo === 'rejeicao', style: { fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 38, ...(justTipo === 'ajuste' ? { background: '#FA8C16', borderColor: '#FA8C16' } : {}) } }}
+        cancelButtonProps={{ style: { fontFamily: FONT, borderRadius: 8, height: 38 } }}
+        title={
+          <Space>
+            {justTipo === 'rejeicao'
+              ? <CloseCircleOutlined style={{ color: '#CF1322', fontSize: 18 }} />
+              : <EditOutlined style={{ color: '#D46B08', fontSize: 18 }} />}
+            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+              {justTipo === 'rejeicao' ? 'Rejeitar documento' : 'Solicitar ajuste'}
+            </Typography.Text>
+          </Space>
+        }
+      >
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 16, lineHeight: '20px' }}>
+          {justTipo === 'rejeicao'
+            ? 'A rejeição devolve o documento ao autor como Rascunho. A justificativa fica registrada no histórico.'
+            : 'Descreva o que precisa ser ajustado. O gestor recebe a solicitação com a categoria e o comentário.'}
+        </Typography.Text>
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 6 }}>
+          Categoria <span style={{ color: colorTokens.error }}>*</span>
+        </Typography.Text>
+        <Select
+          value={justCategoria}
+          onChange={setJustCategoria}
+          options={CATEGORIA_OPTIONS}
+          placeholder="Selecione a categoria da justificativa"
+          style={{ width: '100%', fontFamily: FONT, marginBottom: 14 }}
+        />
+        <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 6 }}>
+          Comentário <span style={{ color: colorTokens.error }}>*</span>
+        </Typography.Text>
+        <Input.TextArea
+          value={justTexto}
+          onChange={(e) => setJustTexto(e.target.value)}
+          placeholder={justTipo === 'rejeicao' ? 'Explique o motivo da rejeição…' : 'Descreva o ajuste necessário…'}
+          rows={4}
+          maxLength={600}
+          showCount
+          style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none' }}
+        />
+      </Modal>
 
       {/* Confirmação de aprovação — evita aprovar por engano */}
       <Modal

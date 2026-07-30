@@ -13,8 +13,10 @@ export interface ComentarioRevisao {
   papel: 'Gestor' | 'Aprovador'
   texto: string
   data: string // ISO 8601
-  /** comentario padrão · ajuste solicitado · aprovação */
-  tipo?: 'comentario' | 'ajuste' | 'aprovacao'
+  /** comentario padrão · ajuste solicitado · aprovação · rejeição */
+  tipo?: 'comentario' | 'ajuste' | 'aprovacao' | 'rejeicao'
+  /** categoria da justificativa (ajuste/rejeição): UX/UI · Negócio · Técnico · Erro de Dados */
+  categoria?: 'ux-ui' | 'negocio' | 'tecnico' | 'dados'
 }
 
 /** Modalidade de envio do documento */
