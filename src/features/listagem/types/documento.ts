@@ -144,7 +144,7 @@ export const STATUS_COLOR: Record<DocumentoStatus, string> = {
 /** Label exibida na UI para cada status */
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {
   Rascunho:      'Rascunho',
-  'Em revisão':  'Em revisão',
+  'Em revisão':  'Em aprovação',
   Ativo:         'Ativo',
   Agendado:      'Agendado',
   Concluído:     'Concluído',

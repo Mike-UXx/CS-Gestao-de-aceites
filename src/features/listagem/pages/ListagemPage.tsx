@@ -384,6 +384,9 @@ const PAGE_CSS = `
     -ms-overflow-style: none;
   }
   .drafts-scroll::-webkit-scrollbar { display: none; }
+  /* Hover discreto nos cards do carrossel */
+  .carousel-card { transition: background 0.15s ease; }
+  .carousel-card:hover { background: #FAFAFA; }
 `
 
 /* ═══════════════════════════════════════════════════════════════
@@ -915,7 +918,6 @@ export function ListagemPage() {
             border: `1px solid ${p.border}`, background: p.bg,
             fontFamily: FONT, fontSize: 12, fontWeight: 600, color: p.color, whiteSpace: 'nowrap',
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.dot, display: 'inline-block', flexShrink: 0 }} />
             {STATUS_LABEL[status]}
           </span>
         )
@@ -1128,6 +1130,7 @@ export function ListagemPage() {
                   {items.map((item, i) => (
                     <div
                       key={item.id}
+                      className="carousel-card"
                       style={{
                         minWidth: 300, flex: '0 0 auto', padding: '16px 20px',
                         borderRight: i < items.length - 1 ? '1px solid #F0F0F0' : 'none',
@@ -1151,7 +1154,7 @@ export function ListagemPage() {
                         <Typography.Text style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textSecondary }}>
                           {isRascunho
                             ? `Editado ${dayjs(item.criadoEm).fromNow()}`
-                            : `Em revisão ${dayjs(item.enviadoParaAprovacaoEm ?? item.criadoEm).fromNow()}`}
+                            : `Em aprovação ${dayjs(item.enviadoParaAprovacaoEm ?? item.criadoEm).fromNow()}`}
                         </Typography.Text>
                       </div>
 
