@@ -92,6 +92,37 @@ function barColor(tipo: Documento['tipo'], status: DocumentoStatus, pct: number)
   return tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
 }
 
+/* ── SLA/prazo → texto + cor (verde/neutro no prazo, laranja vencendo, vermelho atrasado) ── */
+function slaInfo(deadlineISO?: string): { text: string; color: string } | null {
+  if (!deadlineISO) return null
+  const dias = dayjs(deadlineISO).startOf('day').diff(dayjs().startOf('day'), 'day')
+  if (dias < 0) return { text: `atrasado ${Math.abs(dias)}d`, color: '#CF1322' }
+  if (dias === 0) return { text: 'vence hoje', color: '#D46B08' }
+  if (dias <= 2) return { text: `vence em ${dias}d`, color: '#D46B08' }
+  return { text: `${dias}d restantes`, color: '#8C8C8C' }
+}
+
+/* ── Resumo do andamento da aprovação (badges dos cards do carrossel) ── */
+function aprovacaoResumo(doc: Documento): { progresso: string; concluido: boolean; sla: { text: string; color: string } | null } {
+  const aprovadores = doc.aprovadores ?? []
+  if (doc.tipoRevisao === 'etapas') {
+    const etapa = doc.etapaAtual ?? 0
+    const concluido = aprovadores.length > 0 && etapa >= aprovadores.length
+    return {
+      progresso: concluido ? 'Aprovado' : (aprovadores.length ? `Etapa ${etapa + 1}/${aprovadores.length}` : 'Em aprovação'),
+      concluido,
+      sla: concluido ? null : slaInfo((doc.slaEtapas ?? [])[etapa]),
+    }
+  }
+  const aprovados = (doc.aprovadosPor ?? []).length
+  const concluido = aprovadores.length > 0 && aprovados >= aprovadores.length
+  return {
+    progresso: aprovadores.length ? `${aprovados}/${aprovadores.length} aprovaram` : 'Em aprovação',
+    concluido,
+    sla: concluido ? null : slaInfo(doc.slaEm),
+  }
+}
+
 /* ── Verifica se um documento atende aos filtros inteligentes de uma aba customizada ── */
 function matchesSmartFilters(doc: Documento, sf: SmartFilters): boolean {
   // Tipo de documento
@@ -1158,6 +1189,22 @@ export function ListagemPage() {
                             ? `Editado ${dayjs(item.criadoEm).fromNow()}`
                             : `Em aprovação ${dayjs(item.enviadoParaAprovacaoEm ?? item.criadoEm).fromNow()}`}
                         </Typography.Text>
+                        {!isRascunho && (() => {
+                          const r = aprovacaoResumo(item)
+                          return (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                              <span style={{
+                                fontFamily: FONT, fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '1px 7px', whiteSpace: 'nowrap',
+                                ...(r.concluido
+                                  ? { background: '#F6FFED', border: '1px solid #B7EB8F', color: '#389e0d' }
+                                  : { background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, color: colorTokens.primary }),
+                              }}>{r.progresso}</span>
+                              {r.sla && (
+                                <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '1px 7px', whiteSpace: 'nowrap', background: '#fff', border: `1px solid ${r.sla.color}55`, color: r.sla.color }}>{r.sla.text}</span>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </div>
 
                       {/* Ação — excluir (rascunho) / cancelar aprovação */}
