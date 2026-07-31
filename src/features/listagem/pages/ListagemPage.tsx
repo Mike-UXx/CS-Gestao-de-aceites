@@ -471,16 +471,18 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela — tudo menos Rascunho. "Em aprovação" (status Em revisão)
-        aparece na tabela com o status Em aprovação e também no carrossel de acesso rápido. ── */
+  /* ── Documentos da tabela — tudo menos Rascunho. "Em aprovação" (Em revisão) é SEMPRE
+        visível (o Gestor acompanha o fluxo e publica/agenda); os demais status respeitam
+        o escopo por gestão do perfil. ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && (d.status === 'Em revisão' || podeVerGestao(d.gestaoResponsavel)))
   }, [podeVerGestao])
 
-  /* ── Documentos em aprovação (carrossel) ── */
+  /* ── Documentos em aprovação (carrossel) — sem escopo por gestão: o Gestor precisa
+        acompanhar todos os documentos em aprovação para publicá-los após aprovados. ── */
   const emAprovacao = useMemo(
-    () => MOCK_DOCUMENTOS.filter((d) => d.status === 'Em revisão' && podeVerGestao(d.gestaoResponsavel)),
-    [podeVerGestao],
+    () => MOCK_DOCUMENTOS.filter((d) => d.status === 'Em revisão'),
+    [],
   )
 
   /* ── Filtragem da tabela ── */
