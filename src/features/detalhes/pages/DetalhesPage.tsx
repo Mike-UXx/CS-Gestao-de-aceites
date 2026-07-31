@@ -23,6 +23,7 @@ import {
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
+import { VERSION_HISTORY } from '@/data/mockVersoes'
 import type { ComentarioRevisao } from '@/features/listagem/types/documento'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS, COLABORADORES } from '@/data/mockClassifications'
 import { colorTokens } from '@/theme/tokens'
@@ -67,38 +68,6 @@ function buildLifecycle(status: string): Lifecycle {
   return { items, current, caption }
 }
 
-/* ── Mock: histórico de versões (RN17) ──────────────────────── */
-const VERSION_HISTORY: Record<string, {
-  versao: string; data: string; responsavel: string; depto: string; motivo: string
-}[]> = {
-  'doc-001': [
-    { versao: 'V1', data: '2024-10-10', responsavel: 'Ana Silva',    depto: 'Compliance', motivo: 'Publicação inicial do documento.' },
-    { versao: 'V2', data: '2025-02-14', responsavel: 'Bruno Costa',  depto: 'Jurídico',   motivo: 'Revisão de cláusulas para adequação à Lei 14.611/2023.' },
-    { versao: 'V3', data: '2025-12-31', responsavel: 'Carla Mendes', depto: 'Compliance', motivo: 'Atualização dos itens 4.2 e 7.1 — nova política de privacidade LGPD.' },
-  ],
-  'doc-002': [
-    { versao: 'V1', data: '2025-03-10', responsavel: 'Daniel Oliveira', depto: 'TI',      motivo: 'Publicação inicial.' },
-    { versao: 'V2', data: '2025-08-01', responsavel: 'Eduarda Lima',    depto: 'TI',      motivo: 'Inclusão de seção sobre segurança em nuvem (AWS/Azure).' },
-  ],
-  'doc-003': [
-    { versao: 'V1', data: '2025-01-08', responsavel: 'Felipe Rocha',    depto: 'Jurídico', motivo: 'Publicação inicial do termo.' },
-  ],
-  'doc-004': [
-    { versao: 'V1', data: '2025-02-01', responsavel: 'Gabriela Souza',  depto: 'RH',       motivo: 'Publicação inicial da política de home office.' },
-  ],
-  'doc-005': [
-    { versao: 'V1', data: '2025-10-15', responsavel: 'Henrique Alves',  depto: 'TI',       motivo: 'Publicação para entrega dos ativos do ciclo 2025.' },
-  ],
-  'doc-006': [
-    { versao: 'V1', data: '2025-03-20', responsavel: 'Isabela Ferreira', depto: 'TI',      motivo: 'Criação do manual atualizado para 2025.' },
-  ],
-  'doc-007': [
-    { versao: 'V1', data: '2025-03-28', responsavel: 'João Pedro',      depto: 'TI',       motivo: 'Publicação inicial da política de dispositivos móveis.' },
-  ],
-  'doc-008': [
-    { versao: 'V1', data: '2025-02-14', responsavel: 'Karina Matos',    depto: 'RH',       motivo: 'Comunicado sobre atualização do plano de saúde — vigência março 2025.' },
-  ],
-}
 
 /* ── Mock: documentos com regras personalizadas por departamento */
 interface DeptRule { setor: string; tempo: number; scroll: boolean }
@@ -152,7 +121,6 @@ export function DetalhesPage() {
   const [justificativa,      setJustificativa]      = useState('')
   const [inativarLoading,    setInativarLoading]    = useState(false)
   const [historicoOpen,      setHistoricoOpen]      = useState(false)
-  const [versoesDrawerOpen,  setVersoesDrawerOpen]  = useState(false)
   const [encerrarOpen,       setEncerrarOpen]       = useState(false)
   const [encerrarLoading,    setEncerrarLoading]    = useState(false)
   const [revisaoComentarios, setRevisaoComentarios] = useState<ComentarioRevisao[]>([])
@@ -218,7 +186,7 @@ export function DetalhesPage() {
     : []
 
   const historicoItems: MenuProps['items'] = [
-    { key: 'historico', icon: <AuditOutlined />, label: 'Histórico de ações', onClick: () => setHistoricoOpen(true) },
+    { key: 'historico', icon: <HistoryOutlined />, label: 'Histórico do documento', onClick: () => setHistoricoOpen(true) },
   ]
 
   const exportItems: MenuProps['items'] = canExportar ? [
@@ -666,38 +634,6 @@ export function DetalhesPage() {
             ),
           }
 
-          const accHistorico = {
-            key: 'historico',
-            label: (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: 16, color: colorTokens.textPrimary }}>
-                <HistoryOutlined style={{ fontSize: 18 }} /> Histórico de versões
-              </span>
-            ),
-            children: versoes.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', border: '1px dashed #D9D9D9', borderRadius: 8, background: '#FAFAFA' }}>
-                <HistoryOutlined style={{ fontSize: 26, color: '#BFBFBF', marginBottom: 8, display: 'block' }} />
-                <Typography.Text style={{ fontFamily: FONT, color: colorTokens.textSecondary, fontSize: 13 }}>
-                  Nenhum histórico de versão disponível.
-                </Typography.Text>
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: barColor, color: '#fff', fontFamily: FONT, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{versoes[0].versao}</span>
-                  <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>{versoes[0].versao}</Typography.Text>
-                  <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(versoes[0].data)} · {versoes[0].responsavel}</Typography.Text>
-                </div>
-                <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Resumo da mudança</div>
-                <div style={{ background: '#F7F8FF', border: `1px solid ${colorTokens.primary}18`, borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{versoes[0].motivo}</Typography.Text>
-                </div>
-                <Button onClick={() => setVersoesDrawerOpen(true)} icon={<HistoryOutlined />} style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8 }}>
-                  Ver histórico completo ({versoes.length} {versoes.length === 1 ? 'versão' : 'versões'})
-                </Button>
-              </div>
-            ),
-          }
 
           return (
             <>
@@ -811,7 +747,7 @@ export function DetalhesPage() {
                 expandIconPosition="end"
                 expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} style={{ fontSize: 13, color: colorTokens.textSecondary }} />}
                 style={{ background: 'transparent' }}
-                items={[accFluxo, accLembretes, accHistorico]}
+                items={[accFluxo, accLembretes]}
               />
             </>
           )
@@ -1025,56 +961,6 @@ export function DetalhesPage() {
 
       <HistoricoDrawer open={historicoOpen} onClose={() => setHistoricoOpen(false)} docId={doc.id} />
 
-      {/* ════ Drawer: Histórico de versões (resumo textual da mudança, só-leitura) ════ */}
-      <Drawer
-        open={versoesDrawerOpen}
-        onClose={() => setVersoesDrawerOpen(false)}
-        placement="right"
-        width={480}
-        title={
-          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-            Histórico de versões
-          </Typography.Text>
-        }
-        styles={{ header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' }, body: { padding: '16px 24px 24px' } }}
-        destroyOnHidden
-      >
-        {/* Nota de versionamento semântico */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#EEF2FF', border: `1px solid ${colorTokens.primary}22`, borderRadius: 8, padding: '10px 14px', marginBottom: 18 }}>
-          <InfoCircleOutlined style={{ color: colorTokens.primary, fontSize: 14, marginTop: 2, flexShrink: 0 }} />
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, lineHeight: '18px' }}>
-            Cada versão registra um <strong style={{ color: colorTokens.textPrimary }}>resumo da mudança</strong>. Ajustes menores incrementam a versão; um novo ciclo de aprovação gera uma versão maior.
-          </Typography.Text>
-        </div>
-
-        {versoes.length === 0 ? (
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhuma versão registrada.</Typography.Text>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {versoes.map((v, idx) => {
-              const isCurrent = idx === 0
-              return (
-                <div key={v.versao} style={{ border: `1px solid ${isCurrent ? barColor + '55' : '#EBEBEB'}`, borderRadius: 10, padding: '14px 16px', background: isCurrent ? barColor + '08' : '#fff' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                    <span style={{ width: 30, height: 30, borderRadius: '50%', background: isCurrent ? barColor : '#F0F0F0', color: isCurrent ? '#fff' : colorTokens.textSecondary, fontFamily: FONT, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{v.versao}</span>
-                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>{v.versao}</Typography.Text>
-                    {isCurrent && <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>}
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, marginLeft: 'auto' }}>{fmt(v.data)}</Typography.Text>
-                  </div>
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
-                    <UserOutlined style={{ marginRight: 5 }} />{v.responsavel} — {v.depto}
-                  </Typography.Text>
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Resumo da mudança</div>
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px' }}>{v.motivo}</Typography.Text>
-                  </div>
-                  <Button size="small" icon={<DownloadOutlined />} onClick={() => message.success(`Download do arquivo da ${v.versao} iniciado.`)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6 }}>Baixar {v.versao}</Button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </Drawer>
 
       {/* ════ Modal: Pré-visualização do documento ═════════════ */}
       <Modal
