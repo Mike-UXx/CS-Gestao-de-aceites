@@ -471,10 +471,10 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela — só ciclo publicado (Ativo/Agendado/Inativo/Concluído/Expirado).
-        Rascunho e Em aprovação saem da tabela e vão para o carrossel. ── */
+  /* ── Documentos da tabela — tudo menos Rascunho. "Em aprovação" (status Em revisão)
+        aparece na tabela com o status Em aprovação e também no carrossel de acesso rápido. ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && d.status !== 'Em revisão' && podeVerGestao(d.gestaoResponsavel))
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
   }, [podeVerGestao])
 
   /* ── Documentos em aprovação (carrossel) ── */
@@ -629,7 +629,7 @@ export function ListagemPage() {
     switch (record.status) {
       case 'Em revisão':
         return [
-          { key: 'revisar', icon: <AuditOutlined />, label: 'Analisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
+          { key: 'revisar', icon: <AuditOutlined />, label: 'Abrir aprovação', onClick: () => navigate(`/documentos/${record.id}/aprovacao`) },
         ]
       case 'Ativo':
         return [
@@ -688,7 +688,7 @@ export function ListagemPage() {
           <Typography.Text
             strong
             ellipsis
-            onClick={() => navigate(`/documentos/${record.id}`)}
+            onClick={() => navigate(record.status === 'Em revisão' ? `/documentos/${record.id}/aprovacao` : `/documentos/${record.id}`)}
             style={{
               fontFamily: FONT, fontSize: 13, color: colorTokens.primary,
               lineHeight: '20px', cursor: 'pointer', display: 'block',
