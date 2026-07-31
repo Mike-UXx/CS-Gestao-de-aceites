@@ -42,6 +42,16 @@ function fmtData(iso: string) {
   return dayjs(iso).format('DD/MM/YYYY HH:mm')
 }
 
+/* SLA/prazo → texto + cor (verde/neutro no prazo, laranja vencendo, vermelho atrasado) */
+function slaInfo(deadlineISO?: string): { text: string; color: string } | null {
+  if (!deadlineISO) return null
+  const dias = dayjs(deadlineISO).startOf('day').diff(dayjs().startOf('day'), 'day')
+  if (dias < 0) return { text: `atrasado ${Math.abs(dias)}d`, color: '#CF1322' }
+  if (dias === 0) return { text: 'vence hoje', color: '#D46B08' }
+  if (dias <= 2) return { text: `vence em ${dias}d`, color: '#D46B08' }
+  return { text: `${dias}d restantes`, color: '#8C8C8C' }
+}
+
 /* Categorias da solicitação de ajuste */
 const CATEGORIA_OPTIONS = [
   { value: 'detalhe', label: 'Detalhe do documento' },
@@ -87,7 +97,7 @@ export function ApprovalPage() {
   const [ajusteCategoria, setAjusteCategoria] = useState<string | undefined>(undefined)
   const [ajusteTexto, setAjusteTexto] = useState('')
   const [editOpen, setEditOpen] = useState(false)
-  const [simultaneaAprovada, setSimultaneaAprovada] = useState(false)
+  const [aprovadosSim, setAprovadosSim] = useState<string[]>([])
   const [agendarOpen, setAgendarOpen] = useState(false)
   const [dataPublicacao, setDataPublicacao] = useState<Dayjs | null>(null)
   const [detalhes, setDetalhes] = useState<Detalhes>({ titulo: '', descricao: '', classificacoes: [], gestaoResponsavel: '' })
@@ -99,7 +109,7 @@ export function ApprovalPage() {
     setTexto('')
     setArquivoEnviado(false)
     setEtapaAtual(doc?.etapaAtual ?? 0)
-    setSimultaneaAprovada(false)
+    setAprovadosSim(doc?.aprovadosPor ?? [])
     setDetalhes({
       titulo: doc?.titulo ?? '',
       descricao: doc?.descricao ?? '',
@@ -135,7 +145,7 @@ export function ApprovalPage() {
   const aprovadores = doc.aprovadores ?? []
   const etapasConcluidas = tipoRevisao === 'etapas' && etapaAtual >= aprovadores.length
   // Documento totalmente aprovado → estado de finalização (gestor publica/agenda/reenvia)
-  const documentoAprovado = etapasConcluidas || (tipoRevisao === 'simultanea' && simultaneaAprovada)
+  const documentoAprovado = etapasConcluidas || (tipoRevisao === 'simultanea' && aprovadores.length > 0 && aprovadosSim.length >= aprovadores.length)
 
   function addMensagem(txt: string, tipo: ComentarioRevisao['tipo'], categoria?: ComentarioRevisao['categoria']) {
     const nova: ComentarioRevisao = {
@@ -170,9 +180,12 @@ export function ApprovalPage() {
       message.success(ultima ? 'Todas as etapas aprovadas. O documento pode ser ativado.' : `Etapa aprovada. Segue para ${aprovadores[etapaAtual + 1]}.`)
       return
     }
-    addMensagem('Documento aprovado para publicação.', 'aprovacao')
-    setSimultaneaAprovada(true)
-    message.success('Documento aprovado.')
+    const proximo = aprovadores.find((a) => !aprovadosSim.includes(a))
+    if (!proximo) return
+    addMensagem(`Aprovado por ${proximo}.`, 'aprovacao')
+    const total = aprovadosSim.length + 1
+    setAprovadosSim((prev) => [...prev, proximo])
+    message.success(total >= aprovadores.length ? 'Todos os aprovadores aprovaram. Documento aprovado.' : `Aprovação registrada (${total} de ${aprovadores.length}).`)
   }
   function handleEnviarNovoArquivo() {
     setArquivoEnviado(true)
@@ -209,7 +222,7 @@ export function ApprovalPage() {
       cancelButtonProps: { style: { fontFamily: FONT } },
       onOk: () => {
         setEtapaAtual(0)
-        setSimultaneaAprovada(false)
+        setAprovadosSim([])
         setArquivoEnviado(false)
         addMensagem('Documento reenviado para uma nova rodada de aprovação.', 'comentario')
         message.success('Nova rodada de aprovação iniciada.')
@@ -287,30 +300,50 @@ export function ApprovalPage() {
             <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
               {tipoRevisao === 'etapas'
                 ? (etapasConcluidas ? 'Todas as etapas foram aprovadas.' : `Aprovação sequencial — etapa atual: ${aprovadores[etapaAtual]}.`)
-                : (documentoAprovado ? 'Documento aprovado por todos os aprovadores.' : `${aprovadores.length} aprovadores revisam em paralelo.`)}
+                : (documentoAprovado ? 'Documento aprovado por todos os aprovadores.' : `${aprovadosSim.length} de ${aprovadores.length} aprovaram · revisão simultânea.`)}
             </Typography.Text>
+            {tipoRevisao === 'simultanea' && !documentoAprovado && (() => {
+              const info = slaInfo(doc.slaEm)
+              return info ? <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: info.color, background: '#fff', border: `1px solid ${info.color}55`, borderRadius: 4, padding: '1px 8px' }}>SLA: {info.text}</span> : null
+            })()}
           </div>
           {tipoRevisao === 'etapas' ? (
             <Steps
               size="small"
               current={etapaAtual}
               items={[
-                ...aprovadores.map((nome, i) => ({
-                  title: nome,
-                  status: (i < etapaAtual ? 'finish' : i === etapaAtual ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
-                })),
+                ...aprovadores.map((nome, i) => {
+                  const sla = (doc.slaEtapas ?? [])[i]
+                  const info = slaInfo(sla)
+                  const description = i < etapaAtual
+                    ? <span style={{ fontFamily: FONT, fontSize: 11, color: '#389e0d' }}>aprovada</span>
+                    : i === etapaAtual
+                      ? (info ? <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: info.color }}>{info.text}</span> : undefined)
+                      : (sla ? <span style={{ fontFamily: FONT, fontSize: 11, color: '#8C8C8C' }}>prazo {dayjs(sla).format('DD/MM')}</span> : undefined)
+                  return {
+                    title: nome,
+                    description,
+                    status: (i < etapaAtual ? 'finish' : i === etapaAtual ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
+                  }
+                }),
                 { title: 'Documento aprovado', status: (etapasConcluidas ? 'finish' : 'wait') as 'finish' | 'wait', icon: <CheckCircleOutlined /> },
               ]}
               style={{ fontFamily: FONT }}
             />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              {aprovadores.map((nome) => (
-                <span key={nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F5F6F8', borderRadius: 20, padding: '4px 12px 4px 4px' }}>
-                  <Avatar size={26} style={{ background: avatarColor(nome), fontFamily: FONT, fontWeight: 700, fontSize: 11 }}>{iniciais(nome)}</Avatar>
-                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>{nome}</Typography.Text>
-                </span>
-              ))}
+              {aprovadores.map((nome) => {
+                const aprovou = aprovadosSim.includes(nome)
+                return (
+                  <span key={nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: aprovou ? '#F6FFED' : '#F5F6F8', border: `1px solid ${aprovou ? '#B7EB8F' : 'transparent'}`, borderRadius: 20, padding: '4px 12px 4px 4px' }}>
+                    <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                      <Avatar size={26} style={{ background: avatarColor(nome), fontFamily: FONT, fontWeight: 700, fontSize: 11 }}>{iniciais(nome)}</Avatar>
+                      {aprovou && <CheckCircleOutlined style={{ position: 'absolute', right: -3, bottom: -3, color: '#389e0d', fontSize: 12, background: '#fff', borderRadius: '50%' }} />}
+                    </span>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>{nome}</Typography.Text>
+                  </span>
+                )
+              })}
             </div>
           )}
         </div>
@@ -611,7 +644,7 @@ export function ApprovalPage() {
           <Space>
             <CheckCircleOutlined style={{ color: '#389e0d', fontSize: 18 }} />
             <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
-              {tipoRevisao === 'etapas' ? 'Aprovar esta etapa?' : 'Aprovar documento?'}
+              {tipoRevisao === 'etapas' ? 'Aprovar esta etapa?' : 'Registrar sua aprovação?'}
             </Typography.Text>
           </Space>
         }
@@ -625,7 +658,7 @@ export function ApprovalPage() {
             ? (etapaAtual >= aprovadores.length - 1
                 ? <>Esta é a <strong style={{ color: colorTokens.textPrimary }}>última etapa</strong>. Ao aprovar, todas as etapas ficam concluídas e o documento poderá ser ativado. Confirme que revisou o documento.</>
                 : <>Ao aprovar a etapa de <strong style={{ color: colorTokens.textPrimary }}>{aprovadores[etapaAtual]}</strong>, o fluxo segue para <strong style={{ color: colorTokens.textPrimary }}>{aprovadores[etapaAtual + 1]}</strong>. A ação fica registrada no histórico.</>)
-            : <>Ao aprovar, sua decisão sobre <strong style={{ color: colorTokens.textPrimary }}>{detalhes.titulo}</strong> fica registrada no histórico da aprovação. Confirme que revisou o documento antes de continuar.</>}
+            : <>Sua aprovação será registrada. O documento é aprovado quando <strong style={{ color: colorTokens.textPrimary }}>todos os {aprovadores.length} aprovadores</strong> aprovarem — {aprovadosSim.length} de {aprovadores.length} até agora.</>}
         </Typography.Text>
       </Modal>
 

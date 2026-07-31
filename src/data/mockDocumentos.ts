@@ -235,8 +235,11 @@ export const MOCK_DOCUMENTOS: Documento[] = [
     enviadoParaAprovacaoEm: '2026-06-16T14:00:00Z',
     tipoRevisao: 'simultanea',
     aprovadores: ['Marina Costa', 'Rafael Nunes', 'Sofia Menezes'],
+    aprovadosPor: ['Marina Costa'],
+    slaEm: '2026-08-01T18:00:00Z',
     comentariosRevisao: [
       { id: 'c1', autor: 'Mariana Cardoso', papel: 'Gestor', texto: 'Segue para aprovação do conselho antes da publicação. Revisei os canais de denúncia.', data: '2026-06-16T14:00:00Z', tipo: 'comentario' },
+      { id: 'c2', autor: 'Marina Costa', papel: 'Aprovador', texto: 'De acordo com as diretrizes de compliance. Aprovado.', data: '2026-07-28T11:00:00Z', tipo: 'aprovacao' },
     ],
   },
   {
@@ -261,6 +264,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
     tipoRevisao: 'etapas',
     aprovadores: ['Henrique Alves', 'Rafael Nunes', 'Marina Costa'],
     etapaAtual: 3,
+    slaEtapas: ['2026-06-18T18:00:00Z', '2026-06-19T18:00:00Z', '2026-06-20T18:00:00Z'],
     comentariosRevisao: [
       { id: 'c1', autor: 'Lucas Teixeira', papel: 'Gestor', texto: 'Documento pronto para revisão da diretoria de TI.', data: '2026-06-17T09:30:00Z', tipo: 'comentario' },
       { id: 'c2', autor: 'Henrique Alves', papel: 'Aprovador', texto: 'Incluir o tempo de retenção mínimo (90 dias) na seção 3 antes de publicar.', data: '2026-06-17T16:00:00Z', tipo: 'ajuste', categoria: 'dados' },
@@ -291,6 +295,8 @@ export const MOCK_DOCUMENTOS: Documento[] = [
     enviadoParaAprovacaoEm: '2026-07-29T07:30:00Z',
     tipoRevisao: 'simultanea',
     aprovadores: ['Marina Costa', 'Henrique Alves'],
+    aprovadosPor: [],
+    slaEm: '2026-08-07T18:00:00Z',
     comentariosRevisao: [
       { id: 'c1', autor: 'Lucas Degane', papel: 'Gestor', texto: 'Documento pronto para revisão jurídica. Aguardo retorno sobre a cláusula 8.', data: '2026-07-29T07:30:00Z', tipo: 'comentario' },
     ],
@@ -317,6 +323,7 @@ export const MOCK_DOCUMENTOS: Documento[] = [
     tipoRevisao: 'etapas',
     aprovadores: ['Sofia Menezes', 'Rafael Nunes'],
     etapaAtual: 1,
+    slaEtapas: ['2026-07-18T18:00:00Z', '2026-07-31T18:00:00Z'],
     comentariosRevisao: [
       { id: 'c1', autor: 'Juliana Garcia', papel: 'Gestor', texto: 'Segue para aprovação. Ajustei as bases legais no item 4.', data: '2026-07-14T10:00:00Z', tipo: 'comentario' },
     ],

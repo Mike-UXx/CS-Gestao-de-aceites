@@ -108,6 +108,12 @@ export interface Documento {
   aprovadores?: string[]
   /** Índice da etapa atual (0-based) — só em 'etapas'. Etapas anteriores estão aprovadas. */
   etapaAtual?: number
+  /** SLA/prazo por etapa (ISO), na ordem de `aprovadores` — revisão em etapas */
+  slaEtapas?: string[]
+  /** SLA/prazo geral da aprovação (ISO) — revisão simultânea */
+  slaEm?: string
+  /** Aprovadores que já aprovaram (nomes) — estado inicial da revisão simultânea */
+  aprovadosPor?: string[]
 }
 
 /** Filtros aplicados na listagem */
