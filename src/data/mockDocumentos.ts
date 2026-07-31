@@ -260,10 +260,14 @@ export const MOCK_DOCUMENTOS: Documento[] = [
     enviadoParaAprovacaoEm: '2026-06-17T09:30:00Z',
     tipoRevisao: 'etapas',
     aprovadores: ['Henrique Alves', 'Rafael Nunes', 'Marina Costa'],
-    etapaAtual: 0,
+    etapaAtual: 3,
     comentariosRevisao: [
       { id: 'c1', autor: 'Lucas Teixeira', papel: 'Gestor', texto: 'Documento pronto para revisão da diretoria de TI.', data: '2026-06-17T09:30:00Z', tipo: 'comentario' },
-      { id: 'c2', autor: 'Henrique Alves', papel: 'Aprovador', texto: 'Incluir o tempo de retenção mínimo (90 dias) na seção 3 antes de publicar.', data: '2026-06-17T16:00:00Z', tipo: 'ajuste' },
+      { id: 'c2', autor: 'Henrique Alves', papel: 'Aprovador', texto: 'Incluir o tempo de retenção mínimo (90 dias) na seção 3 antes de publicar.', data: '2026-06-17T16:00:00Z', tipo: 'ajuste', categoria: 'dados' },
+      { id: 'c3', autor: 'Lucas Teixeira', papel: 'Gestor', texto: 'Ajustado — incluí os 90 dias de retenção na seção 3.', data: '2026-06-18T10:00:00Z', tipo: 'comentario' },
+      { id: 'c4', autor: 'Henrique Alves', papel: 'Aprovador', texto: 'Aprovei a etapa "Henrique Alves".', data: '2026-06-18T14:00:00Z', tipo: 'aprovacao' },
+      { id: 'c5', autor: 'Rafael Nunes', papel: 'Aprovador', texto: 'Aprovei a etapa "Rafael Nunes".', data: '2026-06-19T09:00:00Z', tipo: 'aprovacao' },
+      { id: 'c6', autor: 'Marina Costa', papel: 'Aprovador', texto: 'Aprovei a etapa "Marina Costa". Todas as etapas concluídas.', data: '2026-06-19T15:00:00Z', tipo: 'aprovacao' },
     ],
   },
   {

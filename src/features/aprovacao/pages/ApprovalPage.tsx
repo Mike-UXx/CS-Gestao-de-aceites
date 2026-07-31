@@ -6,13 +6,16 @@
 ───────────────────────────────────────────────────────────── */
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps, Modal, Select, Tag } from 'antd'
+import { Typography, Button, Input, Avatar, Space, message, Row, Col, Steps, Modal, Select, Tag, DatePicker, ConfigProvider } from 'antd'
 import {
   ArrowLeftOutlined, InfoCircleOutlined, EditOutlined, CheckCircleOutlined,
   FilePdfOutlined, UploadOutlined, PaperClipOutlined, DownloadOutlined, SendOutlined,
+  RedoOutlined, CalendarOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
+import ptBR from 'antd/locale/pt_BR'
 import { MOCK_DOCUMENTOS } from '@/data/mockDocumentos'
 import type { ComentarioRevisao } from '@/features/listagem/types/documento'
 import { CLASSIFICATIONS, GESTOES_RESPONSAVEIS } from '@/data/mockClassifications'
@@ -84,6 +87,9 @@ export function ApprovalPage() {
   const [ajusteCategoria, setAjusteCategoria] = useState<string | undefined>(undefined)
   const [ajusteTexto, setAjusteTexto] = useState('')
   const [editOpen, setEditOpen] = useState(false)
+  const [simultaneaAprovada, setSimultaneaAprovada] = useState(false)
+  const [agendarOpen, setAgendarOpen] = useState(false)
+  const [dataPublicacao, setDataPublicacao] = useState<Dayjs | null>(null)
   const [detalhes, setDetalhes] = useState<Detalhes>({ titulo: '', descricao: '', classificacoes: [], gestaoResponsavel: '' })
   const [editDraft, setEditDraft] = useState<Detalhes>({ titulo: '', descricao: '', classificacoes: [], gestaoResponsavel: '' })
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -93,6 +99,7 @@ export function ApprovalPage() {
     setTexto('')
     setArquivoEnviado(false)
     setEtapaAtual(doc?.etapaAtual ?? 0)
+    setSimultaneaAprovada(false)
     setDetalhes({
       titulo: doc?.titulo ?? '',
       descricao: doc?.descricao ?? '',
@@ -127,6 +134,8 @@ export function ApprovalPage() {
   const tipoRevisao = doc.tipoRevisao ?? 'simultanea'
   const aprovadores = doc.aprovadores ?? []
   const etapasConcluidas = tipoRevisao === 'etapas' && etapaAtual >= aprovadores.length
+  // Documento totalmente aprovado → estado de finalização (gestor publica/agenda/reenvia)
+  const documentoAprovado = etapasConcluidas || (tipoRevisao === 'simultanea' && simultaneaAprovada)
 
   function addMensagem(txt: string, tipo: ComentarioRevisao['tipo'], categoria?: ComentarioRevisao['categoria']) {
     const nova: ComentarioRevisao = {
@@ -162,6 +171,7 @@ export function ApprovalPage() {
       return
     }
     addMensagem('Documento aprovado para publicação.', 'aprovacao')
+    setSimultaneaAprovada(true)
     message.success('Documento aprovado.')
   }
   function handleEnviarNovoArquivo() {
@@ -176,6 +186,35 @@ export function ApprovalPage() {
   function handleConcluir() {
     message.success('Aprovação concluída. Documento ativado.')
     setTimeout(() => navigate('/documentos'), 700)
+  }
+  /* ── Finalização (gestor, após aprovação completa) ── */
+  function handlePublicarAgora() {
+    message.success('Documento publicado e ativado.')
+    setTimeout(() => navigate('/documentos'), 700)
+  }
+  function handleConfirmAgendar() {
+    if (!dataPublicacao) return
+    setAgendarOpen(false)
+    message.success(`Publicação agendada para ${dataPublicacao.format('DD/MM/YYYY [às] HH:mm')}.`)
+    setTimeout(() => navigate('/documentos'), 800)
+  }
+  function handleReenviarAprovacao() {
+    Modal.confirm({
+      title: 'Reenviar para nova aprovação?',
+      icon: <RedoOutlined style={{ color: colorTokens.primary }} />,
+      content: 'Inicia um novo ciclo de aprovação com os mesmos aprovadores. O histórico da conversa é preservado.',
+      okText: 'Reenviar',
+      cancelText: 'Cancelar',
+      okButtonProps: { style: { fontFamily: FONT, fontWeight: 600, background: colorTokens.primary, borderColor: colorTokens.primary } },
+      cancelButtonProps: { style: { fontFamily: FONT } },
+      onOk: () => {
+        setEtapaAtual(0)
+        setSimultaneaAprovada(false)
+        setArquivoEnviado(false)
+        addMensagem('Documento reenviado para uma nova rodada de aprovação.', 'comentario')
+        message.success('Nova rodada de aprovação iniciada.')
+      },
+    })
   }
   function abrirEdicao() {
     setEditDraft({ ...detalhes })
@@ -223,7 +262,9 @@ export function ApprovalPage() {
             {detalhes.titulo}
           </Typography.Title>
           <Space size={8} wrap>
-            <span style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#1677FF', background: '#E6F4FF', border: '1px solid #91CAFF', borderRadius: 6, padding: '2px 10px' }}>Em aprovação</span>
+            {documentoAprovado
+              ? <span style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#389e0d', background: '#F6FFED', border: '1px solid #B7EB8F', borderRadius: 6, padding: '2px 10px' }}>Aprovado</span>
+              : <span style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#1677FF', background: '#E6F4FF', border: '1px solid #91CAFF', borderRadius: 6, padding: '2px 10px' }}>Em aprovação</span>}
             <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
               Revise o documento e converse com {ehAprovador ? 'o gestor' : 'os aprovadores'} para alinhar ajustes.
             </Typography.Text>
@@ -246,17 +287,20 @@ export function ApprovalPage() {
             <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
               {tipoRevisao === 'etapas'
                 ? (etapasConcluidas ? 'Todas as etapas foram aprovadas.' : `Aprovação sequencial — etapa atual: ${aprovadores[etapaAtual]}.`)
-                : `${aprovadores.length} aprovadores revisam em paralelo.`}
+                : (documentoAprovado ? 'Documento aprovado por todos os aprovadores.' : `${aprovadores.length} aprovadores revisam em paralelo.`)}
             </Typography.Text>
           </div>
           {tipoRevisao === 'etapas' ? (
             <Steps
               size="small"
               current={etapaAtual}
-              items={aprovadores.map((nome, i) => ({
-                title: nome,
-                status: (i < etapaAtual ? 'finish' : i === etapaAtual ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
-              }))}
+              items={[
+                ...aprovadores.map((nome, i) => ({
+                  title: nome,
+                  status: (i < etapaAtual ? 'finish' : i === etapaAtual ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
+                })),
+                { title: 'Documento aprovado', status: (etapasConcluidas ? 'finish' : 'wait') as 'finish' | 'wait', icon: <CheckCircleOutlined /> },
+              ]}
               style={{ fontFamily: FONT }}
             />
           ) : (
@@ -276,7 +320,7 @@ export function ApprovalPage() {
       <div style={{ background: '#fff', border: '1px solid #E6E6E6', borderRadius: 10, boxShadow: '0 2px 3px rgba(156,156,156,0.2)', padding: '16px 20px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>Detalhes do documento</Typography.Text>
-          {!ehAprovador && (
+          {!ehAprovador && !documentoAprovado && (
             <Button size="small" icon={<EditOutlined />} onClick={abrirEdicao} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6 }}>Editar</Button>
           )}
         </div>
@@ -320,7 +364,7 @@ export function ApprovalPage() {
               </div>
               <Space size={8}>
                 <Button size="small" icon={<DownloadOutlined />} onClick={() => message.success('Download do documento iniciado.')} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6 }}>Baixar</Button>
-                {!ehAprovador && (
+                {!ehAprovador && !documentoAprovado && (
                   <Button size="small" type="primary" icon={<UploadOutlined />} onClick={handleEnviarNovoArquivo} disabled={arquivoEnviado} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderRadius: 6, background: arquivoEnviado ? undefined : colorTokens.primary, borderColor: arquivoEnviado ? undefined : colorTokens.primary }}>
                     {arquivoEnviado ? 'Arquivo enviado' : 'Enviar novo arquivo'}
                   </Button>
@@ -401,41 +445,63 @@ export function ApprovalPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* input + ações */}
-            <div style={{ borderTop: '1px solid #F0F0F0', padding: '12px 16px 14px' }}>
-              <Input.TextArea
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Escreva sua mensagem"
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                maxLength={600}
-                style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 10 }}
-              />
-              <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button icon={<SendOutlined />} onClick={handleComentar} disabled={!texto.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>Enviar</Button>
-
-                {/* Aprovador — solicitar ajuste / aprovar */}
-                {ehAprovador && (
+            {documentoAprovado ? (
+              /* Finalização — gestor publica/agenda/reenvia; aprovador vê o histórico */
+              <div style={{ borderTop: '1px solid #F0F0F0', padding: '14px 16px' }}>
+                {ehAprovador ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckCircleOutlined style={{ color: '#389e0d', fontSize: 16, flexShrink: 0 }} />
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Aprovação concluída — conversa em modo histórico.</Typography.Text>
+                  </div>
+                ) : (
                   <>
-                    <Button icon={<EditOutlined />} onClick={abrirAjuste} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { borderColor: '#FA8C16', color: '#D46B08' }) }}>Solicitar ajuste</Button>
-                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setConfirmAprovarOpen(true)} disabled={etapasConcluidas} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, ...(etapasConcluidas ? {} : { background: '#389e0d', borderColor: '#389e0d' }) }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: '#389e0d', display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      <CheckCircleOutlined style={{ marginRight: 6 }} />Documento aprovado — finalize a publicação
+                    </Typography.Text>
+                    <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
+                      <Button icon={<RedoOutlined />} onClick={handleReenviarAprovacao} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>Reenviar para aprovação</Button>
+                      <Button icon={<CalendarOutlined />} onClick={() => setAgendarOpen(true)} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: colorTokens.primary, color: colorTokens.primary }}>Agendar publicação</Button>
+                      <Button type="primary" icon={<CheckCircleOutlined />} onClick={handlePublicarAgora} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>Publicar agora</Button>
+                    </Space>
                   </>
                 )}
+              </div>
+            ) : (
+              <div style={{ borderTop: '1px solid #F0F0F0', padding: '12px 16px 14px' }}>
+                <Input.TextArea
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  placeholder="Escreva sua mensagem"
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  maxLength={600}
+                  style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none', marginBottom: 10 }}
+                />
+                <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
+                  <Button icon={<SendOutlined />} onClick={handleComentar} disabled={!texto.trim()} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8 }}>Enviar</Button>
 
-                {/* Gestor — após enviar novo arquivo: reenviar / concluir */}
-                {!ehAprovador && arquivoEnviado && (
-                  <>
-                    <Button icon={<PaperClipOutlined />} onClick={handleReenviar} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: colorTokens.primary, color: colorTokens.primary }}>Reenviar para aprovação</Button>
-                    <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleConcluir} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>Concluir e ativar</Button>
-                  </>
+                  {/* Aprovador — solicitar ajuste / aprovar */}
+                  {ehAprovador && (
+                    <>
+                      <Button icon={<EditOutlined />} onClick={abrirAjuste} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: '#FA8C16', color: '#D46B08' }}>Solicitar ajuste</Button>
+                      <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setConfirmAprovarOpen(true)} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>{tipoRevisao === 'etapas' ? 'Aprovar etapa' : 'Aprovar'}</Button>
+                    </>
+                  )}
+
+                  {/* Gestor — após enviar novo arquivo: reenviar / concluir */}
+                  {!ehAprovador && arquivoEnviado && (
+                    <>
+                      <Button icon={<PaperClipOutlined />} onClick={handleReenviar} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, borderColor: colorTokens.primary, color: colorTokens.primary }}>Reenviar para aprovação</Button>
+                      <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleConcluir} style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, background: '#389e0d', borderColor: '#389e0d' }}>Concluir e ativar</Button>
+                    </>
+                  )}
+                </Space>
+                {!ehAprovador && temAjustePendente && !arquivoEnviado && (
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: '#D46B08', display: 'block', marginTop: 8 }}>
+                    <EditOutlined style={{ marginRight: 6 }} />Há um ajuste solicitado — envie o arquivo corrigido (botão ao lado de "Baixar") para seguir.
+                  </Typography.Text>
                 )}
-              </Space>
-              {!ehAprovador && temAjustePendente && !arquivoEnviado && (
-                <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: '#D46B08', display: 'block', marginTop: 8 }}>
-                  <EditOutlined style={{ marginRight: 6 }} />Há um ajuste solicitado — envie o arquivo corrigido (botão ao lado de "Baixar") para seguir.
-                </Typography.Text>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </Col>
       </Row>
@@ -562,6 +628,44 @@ export function ApprovalPage() {
             : <>Ao aprovar, sua decisão sobre <strong style={{ color: colorTokens.textPrimary }}>{detalhes.titulo}</strong> fica registrada no histórico da aprovação. Confirme que revisou o documento antes de continuar.</>}
         </Typography.Text>
       </Modal>
+
+      {/* Modal — Agendar publicação (gestor, após aprovação) */}
+      <ConfigProvider locale={ptBR}>
+        <Modal
+          open={agendarOpen}
+          onCancel={() => setAgendarOpen(false)}
+          onOk={handleConfirmAgendar}
+          width={440}
+          centered
+          destroyOnHidden
+          okText="Agendar publicação"
+          cancelText="Cancelar"
+          okButtonProps={{ disabled: !dataPublicacao, style: { fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 38, ...(dataPublicacao ? { background: colorTokens.primary, borderColor: colorTokens.primary, color: '#fff' } : {}) } }}
+          cancelButtonProps={{ style: { fontFamily: FONT, borderRadius: 8, height: 38 } }}
+          title={
+            <Space>
+              <CalendarOutlined style={{ color: colorTokens.primary, fontSize: 18 }} />
+              <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>Agendar publicação</Typography.Text>
+            </Space>
+          }
+        >
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary, display: 'block', marginBottom: 14, lineHeight: '20px' }}>
+            O documento aprovado será publicado automaticamente na data e hora escolhidas.
+          </Typography.Text>
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: colorTokens.textPrimary, display: 'block', marginBottom: 6 }}>
+            Data e hora <span style={{ color: colorTokens.error }}>*</span>
+          </Typography.Text>
+          <DatePicker
+            value={dataPublicacao}
+            onChange={(d) => setDataPublicacao(d)}
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
+            placeholder="Selecione data e hora"
+            disabledDate={(c) => c.isBefore(dayjs().startOf('day'))}
+            style={{ width: '100%', fontFamily: FONT }}
+          />
+        </Modal>
+      </ConfigProvider>
     </div>
   )
 }
