@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Typography, Tag, Button, Progress, Row, Col,
   Space, Modal, Avatar, Dropdown, message, Input,
-  Alert, Timeline, Drawer, Table, List, Collapse,
+  Alert, Drawer, Table, List, Collapse,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -152,6 +152,7 @@ export function DetalhesPage() {
   const [justificativa,      setJustificativa]      = useState('')
   const [inativarLoading,    setInativarLoading]    = useState(false)
   const [historicoOpen,      setHistoricoOpen]      = useState(false)
+  const [versoesDrawerOpen,  setVersoesDrawerOpen]  = useState(false)
   const [encerrarOpen,       setEncerrarOpen]       = useState(false)
   const [encerrarLoading,    setEncerrarLoading]    = useState(false)
   const [revisaoComentarios, setRevisaoComentarios] = useState<ComentarioRevisao[]>([])
@@ -680,41 +681,21 @@ export function DetalhesPage() {
                 </Typography.Text>
               </div>
             ) : (
-              <Timeline
-                style={{ paddingTop: 4 }}
-                items={versoes.map((v, idx) => {
-                  const isCurrent = idx === 0
-                  return {
-                    dot: (
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: isCurrent ? barColor : '#F5F5F5', border: `2px solid ${isCurrent ? barColor : '#D9D9D9'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontFamily: FONT, fontSize: 9, fontWeight: 800, color: isCurrent ? '#fff' : colorTokens.textSecondary }}>{v.versao}</span>
-                      </div>
-                    ),
-                    children: (
-                      <div style={{ paddingBottom: 20, paddingLeft: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
-                          <Typography.Text style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: colorTokens.textPrimary }}>{v.versao}</Typography.Text>
-                          {isCurrent && (
-                            <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>
-                          )}
-                          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(v.data)}</Typography.Text>
-                        </div>
-                        <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
-                          <UserOutlined style={{ marginRight: 5 }} />{v.responsavel} — {v.depto}
-                        </Typography.Text>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                          <div style={{ background: '#F7F8FF', border: `1px solid ${colorTokens.primary}18`, borderRadius: 6, padding: '8px 12px', flex: 1, minWidth: 0 }}>
-                            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{v.motivo}</Typography.Text>
-                          </div>
-                          <Button size="small" icon={<DownloadOutlined />} onClick={() => message.success(`Download do arquivo da ${v.versao} iniciado.`)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6, height: 30, flexShrink: 0 }}>
-                            Baixar {v.versao}
-                          </Button>
-                        </div>
-                      </div>
-                    ),
-                  }
-                })}
-              />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: barColor, color: '#fff', fontFamily: FONT, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{versoes[0].versao}</span>
+                  <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>{versoes[0].versao}</Typography.Text>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary }}>{fmt(versoes[0].data)} · {versoes[0].responsavel}</Typography.Text>
+                </div>
+                <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Resumo da mudança</div>
+                <div style={{ background: '#F7F8FF', border: `1px solid ${colorTokens.primary}18`, borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary }}>{versoes[0].motivo}</Typography.Text>
+                </div>
+                <Button onClick={() => setVersoesDrawerOpen(true)} icon={<HistoryOutlined />} style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 8 }}>
+                  Ver histórico completo ({versoes.length} {versoes.length === 1 ? 'versão' : 'versões'})
+                </Button>
+              </div>
             ),
           }
 
@@ -1043,6 +1024,57 @@ export function DetalhesPage() {
       </Drawer>
 
       <HistoricoDrawer open={historicoOpen} onClose={() => setHistoricoOpen(false)} docId={doc.id} />
+
+      {/* ════ Drawer: Histórico de versões (resumo textual da mudança, só-leitura) ════ */}
+      <Drawer
+        open={versoesDrawerOpen}
+        onClose={() => setVersoesDrawerOpen(false)}
+        placement="right"
+        width={480}
+        title={
+          <Typography.Text strong style={{ fontFamily: FONT, fontSize: 15, color: colorTokens.textPrimary }}>
+            Histórico de versões
+          </Typography.Text>
+        }
+        styles={{ header: { padding: '20px 24px', borderBottom: '1px solid #F0F0F0' }, body: { padding: '16px 24px 24px' } }}
+        destroyOnHidden
+      >
+        {/* Nota de versionamento semântico */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#EEF2FF', border: `1px solid ${colorTokens.primary}22`, borderRadius: 8, padding: '10px 14px', marginBottom: 18 }}>
+          <InfoCircleOutlined style={{ color: colorTokens.primary, fontSize: 14, marginTop: 2, flexShrink: 0 }} />
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, lineHeight: '18px' }}>
+            Cada versão registra um <strong style={{ color: colorTokens.textPrimary }}>resumo da mudança</strong>. Ajustes menores incrementam a versão; um novo ciclo de aprovação gera uma versão maior.
+          </Typography.Text>
+        </div>
+
+        {versoes.length === 0 ? (
+          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>Nenhuma versão registrada.</Typography.Text>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {versoes.map((v, idx) => {
+              const isCurrent = idx === 0
+              return (
+                <div key={v.versao} style={{ border: `1px solid ${isCurrent ? barColor + '55' : '#EBEBEB'}`, borderRadius: 10, padding: '14px 16px', background: isCurrent ? barColor + '08' : '#fff' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: '50%', background: isCurrent ? barColor : '#F0F0F0', color: isCurrent ? '#fff' : colorTokens.textSecondary, fontFamily: FONT, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{v.versao}</span>
+                    <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>{v.versao}</Typography.Text>
+                    {isCurrent && <span style={{ fontSize: 10, fontWeight: 700, background: barColor + '1A', color: barColor, border: `1px solid ${barColor}55`, borderRadius: 4, padding: '1px 7px', fontFamily: FONT }}>Versão atual</span>}
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, marginLeft: 'auto' }}>{fmt(v.data)}</Typography.Text>
+                  </div>
+                  <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
+                    <UserOutlined style={{ marginRight: 5 }} />{v.responsavel} — {v.depto}
+                  </Typography.Text>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, color: colorTokens.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Resumo da mudança</div>
+                    <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, lineHeight: '20px' }}>{v.motivo}</Typography.Text>
+                  </div>
+                  <Button size="small" icon={<DownloadOutlined />} onClick={() => message.success(`Download do arquivo da ${v.versao} iniciado.`)} style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, borderColor: colorTokens.primary, color: colorTokens.primary, borderRadius: 6 }}>Baixar {v.versao}</Button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Drawer>
 
       {/* ════ Modal: Pré-visualização do documento ═════════════ */}
       <Modal
