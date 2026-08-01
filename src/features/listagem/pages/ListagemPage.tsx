@@ -92,6 +92,37 @@ function barColor(tipo: Documento['tipo'], status: DocumentoStatus, pct: number)
   return tipo === 'adesao' ? colorTokens.primary : SEA_GREEN
 }
 
+/* ── SLA/prazo → texto + cor (verde/neutro no prazo, laranja vencendo, vermelho atrasado) ── */
+function slaInfo(deadlineISO?: string): { text: string; color: string } | null {
+  if (!deadlineISO) return null
+  const dias = dayjs(deadlineISO).startOf('day').diff(dayjs().startOf('day'), 'day')
+  if (dias < 0) return { text: `atrasado ${Math.abs(dias)}d`, color: '#CF1322' }
+  if (dias === 0) return { text: 'vence hoje', color: '#D46B08' }
+  if (dias <= 2) return { text: `vence em ${dias}d`, color: '#D46B08' }
+  return { text: `${dias}d restantes`, color: '#8C8C8C' }
+}
+
+/* ── Resumo do andamento da aprovação (badges dos cards do carrossel) ── */
+function aprovacaoResumo(doc: Documento): { progresso: string; concluido: boolean; sla: { text: string; color: string } | null } {
+  const aprovadores = doc.aprovadores ?? []
+  if (doc.tipoRevisao === 'etapas') {
+    const etapa = doc.etapaAtual ?? 0
+    const concluido = aprovadores.length > 0 && etapa >= aprovadores.length
+    return {
+      progresso: concluido ? 'Aprovado' : (aprovadores.length ? `Etapa ${etapa + 1}/${aprovadores.length}` : 'Em aprovação'),
+      concluido,
+      sla: concluido ? null : slaInfo((doc.slaEtapas ?? [])[etapa]),
+    }
+  }
+  const aprovados = (doc.aprovadosPor ?? []).length
+  const concluido = aprovadores.length > 0 && aprovados >= aprovadores.length
+  return {
+    progresso: aprovadores.length ? `${aprovados}/${aprovadores.length} aprovaram` : 'Em aprovação',
+    concluido,
+    sla: concluido ? null : slaInfo(doc.slaEm),
+  }
+}
+
 /* ── Verifica se um documento atende aos filtros inteligentes de uma aba customizada ── */
 function matchesSmartFilters(doc: Documento, sf: SmartFilters): boolean {
   // Tipo de documento
@@ -384,6 +415,9 @@ const PAGE_CSS = `
     -ms-overflow-style: none;
   }
   .drafts-scroll::-webkit-scrollbar { display: none; }
+  /* Hover discreto nos cards do carrossel */
+  .carousel-card { transition: background 0.15s ease; }
+  .carousel-card:hover { background: #FAFAFA; }
 `
 
 /* ═══════════════════════════════════════════════════════════════
@@ -397,14 +431,13 @@ export function ListagemPage() {
 
   const [search,           setSearch]           = useState('')
   const [activeTab,        setActiveTab]        = useState('todos')
+  const [carouselTab,      setCarouselTab]      = useState<'rascunho' | 'aprovacao'>('rascunho')
   const [pagination,       setPagination]       = useState<TablePaginationConfig>({ current: 1, pageSize: 5 })
   const [encerrarTarget,        setEncerrarTarget]        = useState<DocumentoComMeta | null>(null)
   const [deleteTarget,          setDeleteTarget]          = useState<DocumentoComMeta | null>(null)
   const [inativarTarget,        setInativarTarget]        = useState<DocumentoComMeta | null>(null)
   const [inativarJustificativa, setInativarJustificativa] = useState('')
   const [deletarAgendadoTarget, setDeletarAgendadoTarget] = useState<DocumentoComMeta | null>(null)
-  const [novaVersaoTarget,      setNovaVersaoTarget]      = useState<DocumentoComMeta | null>(null)
-  const [novaVersaoMotivo,      setNovaVersaoMotivo]      = useState('')
   const [relatoriosTarget,      setRelatoriosTarget]      = useState<DocumentoComMeta | null>(null)
   const [customTabs,            setCustomTabs]            = useState<CustomTab[]>([])
   const [tabDrawerOpen,         setTabDrawerOpen]         = useState(false)
@@ -467,10 +500,19 @@ export function ListagemPage() {
     setRascunhos(list)
   }, [demoRascunhos])
 
-  /* ── Documentos da tabela (sem rascunhos; escopado por gestão do perfil) ── */
+  /* ── Documentos da tabela — tudo menos Rascunho. "Em aprovação" (Em revisão) é SEMPRE
+        visível (o Gestor acompanha o fluxo e publica/agenda); os demais status respeitam
+        o escopo por gestão do perfil. ── */
   const tableDocumentos = useMemo(() => {
-    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && podeVerGestao(d.gestaoResponsavel))
+    return MOCK_DOCUMENTOS.filter((d) => d.status !== 'Rascunho' && (d.status === 'Em revisão' || podeVerGestao(d.gestaoResponsavel)))
   }, [podeVerGestao])
+
+  /* ── Documentos em aprovação (carrossel) — sem escopo por gestão: o Gestor precisa
+        acompanhar todos os documentos em aprovação para publicá-los após aprovados. ── */
+  const emAprovacao = useMemo(
+    () => MOCK_DOCUMENTOS.filter((d) => d.status === 'Em revisão'),
+    [],
+  )
 
   /* ── Filtragem da tabela ── */
   const filtered = useMemo(() => tableDocumentos.filter((doc) => {
@@ -478,8 +520,6 @@ export function ListagemPage() {
       if (activeTab === 'todos')         return true
       if (activeTab === 'exigem_aceite') return doc.tipo === 'adesao'
       if (activeTab === 'informativos')  return doc.tipo === 'ciencia'
-      if (activeTab === 'agendados')     return doc.status === 'Agendado'
-      if (activeTab === 'em_revisao')    return doc.status === 'Em revisão'
       const custom = customTabs.find((t) => t.key === activeTab)
       if (!custom) return true
       return matchesSmartFilters(doc, custom.smartFilters)
@@ -500,8 +540,6 @@ export function ListagemPage() {
     todos:          tableDocumentos.length,
     exigem_aceite:  tableDocumentos.filter((d) => d.tipo === 'adesao').length,
     informativos:   tableDocumentos.filter((d) => d.tipo === 'ciencia').length,
-    agendados:      tableDocumentos.filter((d) => d.status === 'Agendado').length,
-    em_revisao:     tableDocumentos.filter((d) => d.status === 'Em revisão').length,
   }), [tableDocumentos])
 
   /* ── Tabs (natureza + customizáveis) ── */
@@ -518,8 +556,6 @@ export function ListagemPage() {
     { key: 'todos',         label: tabLabel('Todos',          counts.todos) },
     { key: 'exigem_aceite', label: tabLabel('Exigem aceite',  counts.exigem_aceite) },
     { key: 'informativos',  label: tabLabel('Informativos',   counts.informativos) },
-    { key: 'agendados',     label: tabLabel('Agendados',      counts.agendados) },
-    { key: 'em_revisao',    label: tabLabel('Em revisão',     counts.em_revisao) },
     ...customTabs.map((t) => ({
       key: t.key,
       label: (
@@ -566,6 +602,19 @@ export function ListagemPage() {
     message.success('Rascunho excluído.')
   }, [deleteTarget])
 
+  /* ── Ações: cancelar envio para aprovação (volta a Rascunho) ── */
+  const handleCancelAprovacao = useCallback((doc: Documento) => {
+    Modal.confirm({
+      title: 'Cancelar envio para aprovação?',
+      icon: <ExclamationCircleOutlined style={{ color: '#FA8C16' }} />,
+      content: `"${doc.titulo}" voltará para Rascunho e sairá da fila dos aprovadores.`,
+      okText: 'Cancelar aprovação',
+      cancelText: 'Voltar',
+      okButtonProps: { danger: true },
+      onOk: () => message.success('Documento devolvido para Rascunho.'),
+    })
+  }, [])
+
   /* ── Ações: encerrar vigência ── */
   const handleConfirmEncerrar = useCallback(() => {
     if (!encerrarTarget) return
@@ -588,14 +637,6 @@ export function ListagemPage() {
     setDeletarAgendadoTarget(null)
   }, [deletarAgendadoTarget])
 
-  /* ── Ações: nova versão ── */
-  const handleConfirmNovaVersao = useCallback(() => {
-    if (!novaVersaoTarget || !novaVersaoMotivo.trim()) return
-    message.success(`Nova versão de "${novaVersaoTarget.titulo}" criada com sucesso. O documento foi enviado para revisão.`, 5)
-    setNovaVersaoTarget(null)
-    setNovaVersaoMotivo('')
-  }, [novaVersaoTarget, novaVersaoMotivo])
-
   /* ── Carrossel: scroll ── */
   const scrollCarousel = useCallback((dir: number) => {
     scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
@@ -611,13 +652,13 @@ export function ListagemPage() {
     switch (record.status) {
       case 'Em revisão':
         return [
-          { key: 'revisar', icon: <AuditOutlined />, label: 'Revisar documento', onClick: () => navigate(`/documentos/${record.id}`) },
+          { key: 'revisar', icon: <AuditOutlined />, label: 'Abrir aprovação', onClick: () => navigate(`/documentos/${record.id}/aprovacao`) },
         ]
       case 'Ativo':
         return [
           { key: 'editar-doc',  icon: <EditOutlined />,               label: 'Editar detalhes',   onClick: () => navigate(`/documentos/${record.id}/editar`) },
           { type: 'divider' as const },
-          { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => navigate(`/documentos/${record.id}/nova-versao`) },
           { type: 'divider' as const },
           { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Relatório de aceites',     onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
@@ -635,7 +676,7 @@ export function ListagemPage() {
         ]
       case 'Expirado':
         return [
-          { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => navigate(`/documentos/${record.id}/nova-versao`) },
           { type: 'divider' as const },
           duplicar,
         ]
@@ -670,7 +711,7 @@ export function ListagemPage() {
           <Typography.Text
             strong
             ellipsis
-            onClick={() => navigate(`/documentos/${record.id}`)}
+            onClick={() => navigate(record.status === 'Em revisão' ? `/documentos/${record.id}/aprovacao` : `/documentos/${record.id}`)}
             style={{
               fontFamily: FONT, fontSize: 13, color: colorTokens.primary,
               lineHeight: '20px', cursor: 'pointer', display: 'block',
@@ -900,7 +941,6 @@ export function ListagemPage() {
             border: `1px solid ${p.border}`, background: p.bg,
             fontFamily: FONT, fontSize: 12, fontWeight: 600, color: p.color, whiteSpace: 'nowrap',
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.dot, display: 'inline-block', flexShrink: 0 }} />
             {STATUS_LABEL[status]}
           </span>
         )
@@ -938,16 +978,6 @@ export function ListagemPage() {
     // Informativos → Título | Responsável | Classificações | Destinatários | Progresso | Status | Ações
     if (activeTab === 'informativos') {
       const keys = ['titulo', 'responsavel', 'classificacoes', 'publico', 'progresso', 'status', 'acoes']
-      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
-    }
-    // Agendados → Título | Classificações | Responsável | Destinatários | Agendado para | Ações
-    if (activeTab === 'agendados') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'data_envio', 'acoes']
-      return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
-    }
-    // Em revisão → Título | Classificações | Responsável | Destinatários | Status | Ações
-    if (activeTab === 'em_revisao') {
-      const keys = ['titulo', 'classificacoes', 'responsavel', 'publico', 'status', 'acoes']
       return keys.map((k) => columns.find((c) => c.key === k)).filter(Boolean) as typeof columns
     }
     // Custom tabs: respeita ordem drag-and-drop
@@ -1050,127 +1080,157 @@ export function ListagemPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════
-         Card: Rascunhos
+         Carrossel: Documentos em rascunho + em aprovação
       ════════════════════════════════════════════════════════ */}
-      {rascunhos.length > 0 && (
-        <div style={{
-          background: '#fff', borderRadius: 12,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-          padding: 24, marginBottom: 24,
-        }}>
-          {/* Header da seção */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Typography.Text strong style={{ fontFamily: FONT, fontSize: 14, color: colorTokens.textPrimary }}>
-              Rascunhos
-            </Typography.Text>
-            <span style={{
-              padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
-              background: colorTokens.primary, color: '#fff',
-            }}>
-              {rascunhos.length}
-            </span>
-          </div>
-
-          {/* Carrossel */}
-          <div style={{ position: 'relative' }}>
-            {/* Seta esquerda */}
-            {rascunhos.length > 3 && (
-              <button
-                onClick={() => scrollCarousel(-1)}
-                style={{
-                  position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)',
-                  zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-                  border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <LeftOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
-              </button>
-            )}
-
-            {/* Cards */}
-            <div
-              ref={scrollRef}
-              className="drafts-scroll"
+      {(rascunhos.length > 0 || emAprovacao.length > 0) && (() => {
+        const isRascunho = carouselTab === 'rascunho'
+        const items: Documento[] = isRascunho ? rascunhos : emAprovacao
+        const carTab = (key: 'rascunho' | 'aprovacao', label: string, count: number) => {
+          const active = carouselTab === key
+          return (
+            <button
+              onClick={() => setCarouselTab(key)}
               style={{
-                display: 'flex', gap: 0, overflowX: 'auto',
-                border: '1px solid #EBEBEB', borderRadius: 8,
-                background: '#fff',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '0 0 12px', marginBottom: -1,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                fontFamily: FONT, fontSize: 14, fontWeight: active ? 600 : 500,
+                color: active ? colorTokens.primary : colorTokens.textSecondary,
+                borderBottom: `2px solid ${active ? colorTokens.primary : 'transparent'}`,
               }}
             >
-              {rascunhos.map((draft, i) => (
-                <div
-                  key={draft.id}
-                  style={{
-                    minWidth: 300, flex: '0 0 auto',
-                    padding: '16px 20px',
-                    borderRight: i < rascunhos.length - 1 ? '1px solid #F0F0F0' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 16,
-                  }}
-                >
-                  {/* Info */}
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text strong style={{
-                      fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary,
-                      display: 'block', lineHeight: '18px',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                      {draft.titulo}
-                    </Typography.Text>
-                    <Typography.Text style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textSecondary }}>
-                      Editado {dayjs(draft.criadoEm).fromNow()}
-                    </Typography.Text>
-                  </div>
-
-                  {/* Ações */}
-                  <Space size={6} style={{ flexShrink: 0 }}>
-                    <Button
-                      size="small"
-                      onClick={() => navigate(STEP_ROUTES[draft._stepAtual ?? 0])}
-                      style={{
-                        fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        color: colorTokens.primary, borderColor: colorTokens.primary,
-                        background: '#fff', borderRadius: 6, height: 28, padding: '0 10px',
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<DeleteOutlined style={{ fontSize: 13 }} />}
-                      onClick={() => setDeleteTarget(draft)}
-                      style={{
-                        color: colorTokens.textSecondary, padding: 0,
-                        width: 24, height: 24, display: 'inline-flex',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    />
-                  </Space>
-                </div>
-              ))}
+              {label}
+              <span style={{
+                padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                background: active ? '#E8F6FD' : 'rgba(0,0,0,0.06)',
+                color: active ? colorTokens.primary : 'rgba(0,0,0,0.55)',
+              }}>{count}</span>
+            </button>
+          )
+        }
+        return (
+          <div style={{
+            background: '#fff', borderRadius: 12,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+            padding: 24, marginBottom: 24,
+          }}>
+            {/* Abas do carrossel */}
+            <div style={{ display: 'flex', gap: 28, borderBottom: '1px solid #F0F0F0', marginBottom: 16 }}>
+              {carTab('rascunho', 'Documentos em rascunho', rascunhos.length)}
+              {carTab('aprovacao', 'Documentos em aprovação', emAprovacao.length)}
             </div>
 
-            {/* Seta direita */}
-            {rascunhos.length > 3 && (
-              <button
-                onClick={() => scrollCarousel(1)}
-                style={{
-                  position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)',
-                  zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-                  border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <RightOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
-              </button>
+            {/* Carrossel da aba ativa */}
+            {items.length === 0 ? (
+              <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textSecondary }}>
+                {isRascunho ? 'Nenhum rascunho no momento.' : 'Nenhum documento em aprovação.'}
+              </Typography.Text>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                {items.length > 3 && (
+                  <button
+                    onClick={() => scrollCarousel(-1)}
+                    style={{
+                      position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)',
+                      zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+                      border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <LeftOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
+                  </button>
+                )}
+
+                <div
+                  ref={scrollRef}
+                  className="drafts-scroll"
+                  style={{
+                    display: 'flex', gap: 0, overflowX: 'auto',
+                    border: '1px solid #EBEBEB', borderRadius: 8, background: '#fff',
+                  }}
+                >
+                  {items.map((item, i) => (
+                    <div
+                      key={item.id}
+                      className="carousel-card"
+                      style={{
+                        minWidth: 300, flex: '0 0 auto', padding: '16px 20px',
+                        borderRight: i < items.length - 1 ? '1px solid #F0F0F0' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                      }}
+                    >
+                      {/* Info — clique leva ao destino (rascunho: etapa; aprovação: tela de aprovação) */}
+                      <div
+                        onClick={() => isRascunho
+                          ? navigate(STEP_ROUTES[(item as DocumentoComMeta)._stepAtual ?? 0])
+                          : navigate(`/documentos/${item.id}/aprovacao`)}
+                        style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
+                      >
+                        <Typography.Text strong style={{
+                          fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary,
+                          display: 'block', lineHeight: '18px',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {item.titulo}
+                        </Typography.Text>
+                        <Typography.Text style={{ fontFamily: FONT, fontSize: 11, color: colorTokens.textSecondary }}>
+                          {isRascunho
+                            ? `Editado ${dayjs(item.criadoEm).fromNow()}`
+                            : `Em aprovação ${dayjs(item.enviadoParaAprovacaoEm ?? item.criadoEm).fromNow()}`}
+                        </Typography.Text>
+                        {!isRascunho && (() => {
+                          const r = aprovacaoResumo(item)
+                          return (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                              <span style={{
+                                fontFamily: FONT, fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '1px 7px', whiteSpace: 'nowrap',
+                                ...(r.concluido
+                                  ? { background: '#F6FFED', border: '1px solid #B7EB8F', color: '#389e0d' }
+                                  : { background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, color: colorTokens.primary }),
+                              }}>{r.progresso}</span>
+                              {r.sla && (
+                                <span style={{ fontFamily: FONT, fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '1px 7px', whiteSpace: 'nowrap', background: '#fff', border: `1px solid ${r.sla.color}55`, color: r.sla.color }}>{r.sla.text}</span>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
+
+                      {/* Ação — excluir (rascunho) / cancelar aprovação */}
+                      <Button
+                        size="small"
+                        icon={<DeleteOutlined style={{ fontSize: 13 }} />}
+                        onClick={() => isRascunho ? setDeleteTarget(item as DocumentoComMeta) : handleCancelAprovacao(item)}
+                        style={{
+                          width: 32, height: 32, flexShrink: 0,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          color: colorTokens.textSecondary, borderColor: '#E8E8E8', borderRadius: 8,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {items.length > 3 && (
+                  <button
+                    onClick={() => scrollCarousel(1)}
+                    style={{
+                      position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)',
+                      zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+                      border: '1px solid #E8E8E8', background: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <RightOutlined style={{ fontSize: 10, color: colorTokens.textSecondary }} />
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ════════════════════════════════════════════════════════
          Card: Listagem — Tabs + Tabela
@@ -1420,63 +1480,6 @@ export function ListagemPage() {
             <strong style={{ color: colorTokens.textPrimary }}>"{deletarAgendadoTarget?.titulo}"</strong>?
             Como o documento ainda não foi enviado, é possível removê-lo do sistema.
           </Typography.Text>
-        </div>
-      </Modal>
-
-      {/* ════════════════════════════════════════════════════════
-         Modal — Nova Versão (Ativo tipo adesao)
-      ════════════════════════════════════════════════════════ */}
-      <Modal
-        className="encerrar-modal"
-        open={!!novaVersaoTarget}
-        onCancel={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }}
-        width={500} centered
-        title={
-          <Space>
-            <HistoryOutlined style={{ color: colorTokens.primary }} />
-            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16 }}>Criar nova versão</span>
-          </Space>
-        }
-        footer={
-          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button onClick={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }} style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}>
-              Cancelar
-            </Button>
-            <Button
-              type="primary"
-              disabled={!novaVersaoMotivo.trim()}
-              onClick={handleConfirmNovaVersao}
-              icon={<HistoryOutlined />}
-              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13, background: colorTokens.primary }}
-            >
-              Criar nova versão
-            </Button>
-          </Space>
-        }
-      >
-        <div style={{ padding: '4px 0 8px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
-            borderRadius: 8, background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, marginBottom: 20,
-          }}>
-            <HistoryOutlined style={{ color: colorTokens.primary, fontSize: 14, marginTop: 2, flexShrink: 0 }} />
-            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary, lineHeight: '20px' }}>
-              Uma nova versão do documento será criada. Os destinatários serão notificados e precisarão reasinar o documento atualizado.
-            </Typography.Text>
-          </div>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, display: 'block', marginBottom: 8, fontWeight: 600 }}>
-            Motivo / Mudanças <span style={{ color: '#FF4D4F' }}>*</span>
-          </Typography.Text>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
-            Descreva o que foi alterado nesta nova versão. Este texto ficará registrado no histórico de versões.
-          </Typography.Text>
-          <Input.TextArea
-            rows={4} maxLength={500} showCount
-            value={novaVersaoMotivo}
-            onChange={(e) => setNovaVersaoMotivo(e.target.value)}
-            placeholder="Ex.: Atualização do item 3.2 para adequação à nova resolução LGPD. Revisão das penalidades previstas no item 5."
-            style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none' }}
-          />
         </div>
       </Modal>
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import 'dayjs/locale/pt-br'
 import {
-  Typography, Button, Space, Modal, Tag, Divider,
+  Typography, Button, Space, Modal, Tag, Divider, Select,
   Tooltip, message, Checkbox, DatePicker, ConfigProvider, Radio,
 } from 'antd'
 import {
@@ -85,6 +85,14 @@ function BlockHeader({ title, editRoute }: { title: string; editRoute: string })
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/* Aprovadores disponíveis (perfil Aprovador da gestão responsável) — mock do protótipo (EP04) */
+const APROVADORES_OPTIONS = [
+  { value: 'henrique', label: 'Henrique Alves — Jurídico' },
+  { value: 'marina',   label: 'Marina Costa — Compliance' },
+  { value: 'rafael',   label: 'Rafael Nunes — Diretoria' },
+  { value: 'sofia',    label: 'Sofia Menezes — RH' },
+]
+
 export function RevisaoStep() {
   const navigate = useNavigate()
   const { data, dispatch, saveDraft, clearDraft } = useDocumentForm()
@@ -93,6 +101,10 @@ export function RevisaoStep() {
   const [showConfirm, setShowConfirm] = useState(false)
   /* ── Finalização: publicar direto ou enviar para aprovação ── */
   const [enviarAprovacao, setEnviarAprovacao] = useState(false)
+  /* ── Aprovadores selecionados (EP04 · fluxo de aprovação) ── */
+  const [aprovadores, setAprovadores] = useState<string[]>([])
+  /* ── Tipo de revisão: simultânea (todos juntos) ou em etapas (sequencial) ── */
+  const [tipoRevisao, setTipoRevisao] = useState<'simultanea' | 'etapas'>('simultanea')
 
   /* ── Agendamento — estado local, validado apenas aqui ── */
   const [agendarEnvio,   setAgendarEnvio]   = useState<boolean>(!(data.envioImediato ?? true))
@@ -145,6 +157,10 @@ export function RevisaoStep() {
 
   /* ── Avançar: valida, persiste no contexto e abre confirm ── */
   function handleNext() {
+    if (enviarAprovacao && aprovadores.length === 0) {
+      setDataError('Selecione ao menos um aprovador para enviar o documento.')
+      return
+    }
     if (!enviarAprovacao && agendarEnvio && !dataLancamento) {
       setDataError('Selecione a data e hora do envio para continuar.')
       return
@@ -167,7 +183,7 @@ export function RevisaoStep() {
     dispatch({ type: 'RESET' })
     message.success(
       enviarAprovacao
-        ? 'Documento enviado para aprovação. Você será avisado quando for revisado.'
+        ? `Documento enviado para aprovação (${tipoRevisao === 'etapas' ? 'revisão em etapas' : 'revisão simultânea'}) de ${aprovadores.length} aprovador${aprovadores.length !== 1 ? 'es' : ''}.`
         : !agendarEnvio
           ? 'Documento publicado e enviado com sucesso!'
           : `Envio agendado para ${dataLancamento?.format('DD/MM/YYYY [às] HH:mm[h]')}.`,
@@ -512,10 +528,67 @@ export function RevisaoStep() {
         </Radio.Group>
 
         {enviarAprovacao && (
-          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 4 }}>
-            <Text style={{ fontFamily: FONT, fontSize: 12, color: '#1D39C4' }}>
-              O documento entrará em <strong>Em revisão</strong>. O agendamento de envio é definido após a aprovação.
+          <div style={{ background: '#F0F5FF', border: '1px solid #adc6ff', borderRadius: 8, padding: '14px 16px', marginBottom: 4 }}>
+            {/* Tipo de revisão */}
+            <Text style={{ display: 'block', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: '#1D39C4', marginBottom: 8 }}>
+              Tipo de revisão
             </Text>
+            <Radio.Group
+              value={tipoRevisao}
+              onChange={(e) => setTipoRevisao(e.target.value)}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}
+            >
+              <Radio value="simultanea" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+                <div>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Revisão simultânea</Text>
+                  <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>Todos os aprovadores revisam ao mesmo tempo e podem comentar ou solicitar ajustes livremente.</Text>
+                </div>
+              </Radio>
+              <Radio value="etapas" style={{ fontFamily: FONT, alignItems: 'flex-start' }}>
+                <div>
+                  <Text style={{ fontSize: 13, fontFamily: FONT, fontWeight: 500, color: colorTokens.textPrimary, display: 'block' }}>Revisão em etapas</Text>
+                  <Text style={{ fontSize: 12, fontFamily: FONT, color: colorTokens.textSecondary, display: 'block', marginTop: 2 }}>Um aprovador por etapa, em sequência — o próximo só recebe acesso quando o anterior aprovar.</Text>
+                </div>
+              </Radio>
+            </Radio.Group>
+
+            <Text style={{ display: 'block', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: '#1D39C4', marginBottom: 8 }}>
+              {tipoRevisao === 'etapas' ? 'Aprovadores (na ordem das etapas)' : 'Aprovadores'} <span style={{ color: colorTokens.error }}>*</span>
+            </Text>
+            <Select
+              mode="multiple"
+              value={aprovadores}
+              onChange={(v) => { setAprovadores(v); if (v.length) setDataError('') }}
+              options={APROVADORES_OPTIONS}
+              placeholder={tipoRevisao === 'etapas' ? 'Selecione os aprovadores na ordem desejada' : 'Selecione um ou mais aprovadores'}
+              style={{ width: '100%', fontFamily: FONT }}
+              status={dataError && aprovadores.length === 0 ? 'error' : undefined}
+            />
+
+            {/* Prévia da sequência (só em etapas) */}
+            {tipoRevisao === 'etapas' && aprovadores.length > 0 && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {aprovadores.map((v, i) => (
+                  <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#1D39C4', color: '#fff', fontFamily: FONT, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                    <Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textPrimary }}>
+                      {labelOf(APROVADORES_OPTIONS, v)}
+                    </Text>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Text style={{ display: 'block', fontFamily: FONT, fontSize: 12, color: '#1D39C4', marginTop: 10 }}>
+              {tipoRevisao === 'etapas'
+                ? <>O documento entrará em <strong>Em aprovação</strong> e seguirá a ordem acima — cada aprovador só age quando chega a sua etapa.</>
+                : <>O documento entrará em <strong>Em aprovação</strong>. Qualquer aprovador pode aprovar ou solicitar ajustes; o agendamento é definido após a aprovação.</>}
+            </Text>
+            {dataError && aprovadores.length === 0 && (
+              <Text style={{ display: 'block', fontFamily: FONT, fontSize: 12, color: colorTokens.error, marginTop: 6 }}>
+                {dataError}
+              </Text>
+            )}
           </div>
         )}
 

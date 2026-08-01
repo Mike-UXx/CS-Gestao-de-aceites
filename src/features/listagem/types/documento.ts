@@ -15,6 +15,8 @@ export interface ComentarioRevisao {
   data: string // ISO 8601
   /** comentario padrão · ajuste solicitado · aprovação */
   tipo?: 'comentario' | 'ajuste' | 'aprovacao'
+  /** categoria da solicitação de ajuste: Detalhe do documento · Dados do documento */
+  categoria?: 'detalhe' | 'dados'
 }
 
 /** Modalidade de envio do documento */
@@ -100,6 +102,18 @@ export interface Documento {
   enviadoParaAprovacaoEm?: string
   /** Thread de comentários da revisão */
   comentariosRevisao?: ComentarioRevisao[]
+  /** Tipo de revisão do fluxo de aprovação */
+  tipoRevisao?: 'simultanea' | 'etapas'
+  /** Aprovadores (nomes). Em 'etapas', a ordem define a sequência das etapas. */
+  aprovadores?: string[]
+  /** Índice da etapa atual (0-based) — só em 'etapas'. Etapas anteriores estão aprovadas. */
+  etapaAtual?: number
+  /** SLA/prazo por etapa (ISO), na ordem de `aprovadores` — revisão em etapas */
+  slaEtapas?: string[]
+  /** SLA/prazo geral da aprovação (ISO) — revisão simultânea */
+  slaEm?: string
+  /** Aprovadores que já aprovaram (nomes) — estado inicial da revisão simultânea */
+  aprovadosPor?: string[]
 }
 
 /** Filtros aplicados na listagem */
@@ -144,7 +158,7 @@ export const STATUS_COLOR: Record<DocumentoStatus, string> = {
 /** Label exibida na UI para cada status */
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {
   Rascunho:      'Rascunho',
-  'Em revisão':  'Em revisão',
+  'Em revisão':  'Em aprovação',
   Ativo:         'Ativo',
   Agendado:      'Agendado',
   Concluído:     'Concluído',

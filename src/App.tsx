@@ -15,7 +15,9 @@ import { DashboardPage } from '@/features/dashboard'
 import { ConfiguracoesPage, ClassificacoesPage, NotificacoesPage } from '@/features/configuracoes'
 import { EnvioLotePage } from '@/features/envio-lote'
 import { DetalhesPage } from '@/features/detalhes'
+import { ApprovalPage } from '@/features/aprovacao/pages/ApprovalPage'
 import { EditarAtivoPage, EditarAgendadoPage } from '@/features/edicao'
+import { NovaVersaoPage } from '@/features/versao/pages/NovaVersaoPage'
 import { colorTokens } from '@/theme/tokens'
 import { RoleProvider, useRole } from '@/auth/RoleContext'
 import type { Permission } from '@/auth/roles'
@@ -45,6 +47,8 @@ function AppShell() {
                 <Route path="/home" element={<DashboardPage />} />
                 <Route path="/documentos" element={<ListagemPage />} />
                 <Route path="/documentos/:id" element={<DetalhesPage />} />
+                <Route path="/documentos/:id/aprovacao" element={<ApprovalPage />} />
+                <Route path="/documentos/:id/nova-versao" element={<RequirePermission perm="documento:criar"><NovaVersaoPage /></RequirePermission>} />
                 <Route path="/documentos/:id/editar" element={<EditarAtivoPage />} />
                 <Route path="/documentos/:id/editar-agendado" element={<EditarAgendadoPage />} />
                 <Route path="/documentos/listagem" element={<Navigate to="/documentos" replace />} />
