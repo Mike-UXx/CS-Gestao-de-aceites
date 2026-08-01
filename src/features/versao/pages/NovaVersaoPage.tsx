@@ -70,7 +70,16 @@ export function NovaVersaoPage() {
   const podePublicar = !!arquivo && !!aceite && !!resumo.trim() && (!alterarValidade || !!novaValidade)
 
   function handlePublicar() {
-    if (!podePublicar) return
+    if (!podePublicar || !doc) return
+    // Registra a nova versão no histórico do documento — o resumo (IA) vira o "Resumo da mudança".
+    const hist = VERSION_HISTORY[doc.id] ?? (VERSION_HISTORY[doc.id] = [])
+    hist.push({
+      versao: nova,
+      data: dayjs().format('YYYY-MM-DD'),
+      responsavel: 'Gestor responsável',
+      depto: (doc.gestaoResponsavel || '').toUpperCase() || '—',
+      motivo: resumo.trim(),
+    })
     const dec = aceite === 'reiniciar'
       ? 'Aceite reiniciado para todos os destinatários.'
       : 'Quem já aceitou foi apenas notificado; pendentes aceitam a nova versão.'
