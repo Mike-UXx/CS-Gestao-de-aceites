@@ -185,8 +185,12 @@ export function DetalhesPage() {
     ? [{ key: 'editar-agendado', icon: <EditOutlined />, label: 'Editar documento', onClick: () => navigate(`/documentos/${doc.id}/editar-agendado`) }]
     : []
 
+  const novaVersaoItems: MenuProps['items'] = canGerenciar && (doc.status === 'Ativo' || doc.status === 'Expirado')
+    ? [{ key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => navigate(`/documentos/${doc.id}/nova-versao`) }]
+    : []
+
   const historicoItems: MenuProps['items'] = [
-    { key: 'historico', icon: <HistoryOutlined />, label: 'Histórico do documento', onClick: () => setHistoricoOpen(true) },
+    { key: 'historico', icon: <AuditOutlined />, label: 'Histórico do documento', onClick: () => setHistoricoOpen(true) },
   ]
 
   const exportItems: MenuProps['items'] = canExportar ? [
@@ -209,7 +213,7 @@ export function DetalhesPage() {
 
   // Junta as seções não-vazias com divisores entre elas (sem órfãos).
   const actionItems: MenuProps['items'] = [
-    [...(editarItems ?? []), ...historicoItems],
+    [...(editarItems ?? []), ...novaVersaoItems, ...historicoItems],
     verItems ?? [],
     exportItems ?? [],
     finalizarItems ?? [],

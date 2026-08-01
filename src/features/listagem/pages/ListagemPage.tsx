@@ -438,8 +438,6 @@ export function ListagemPage() {
   const [inativarTarget,        setInativarTarget]        = useState<DocumentoComMeta | null>(null)
   const [inativarJustificativa, setInativarJustificativa] = useState('')
   const [deletarAgendadoTarget, setDeletarAgendadoTarget] = useState<DocumentoComMeta | null>(null)
-  const [novaVersaoTarget,      setNovaVersaoTarget]      = useState<DocumentoComMeta | null>(null)
-  const [novaVersaoMotivo,      setNovaVersaoMotivo]      = useState('')
   const [relatoriosTarget,      setRelatoriosTarget]      = useState<DocumentoComMeta | null>(null)
   const [customTabs,            setCustomTabs]            = useState<CustomTab[]>([])
   const [tabDrawerOpen,         setTabDrawerOpen]         = useState(false)
@@ -639,14 +637,6 @@ export function ListagemPage() {
     setDeletarAgendadoTarget(null)
   }, [deletarAgendadoTarget])
 
-  /* ── Ações: nova versão ── */
-  const handleConfirmNovaVersao = useCallback(() => {
-    if (!novaVersaoTarget || !novaVersaoMotivo.trim()) return
-    message.success(`Nova versão de "${novaVersaoTarget.titulo}" criada com sucesso. O documento foi enviado para revisão.`, 5)
-    setNovaVersaoTarget(null)
-    setNovaVersaoMotivo('')
-  }, [novaVersaoTarget, novaVersaoMotivo])
-
   /* ── Carrossel: scroll ── */
   const scrollCarousel = useCallback((dir: number) => {
     scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
@@ -668,7 +658,7 @@ export function ListagemPage() {
         return [
           { key: 'editar-doc',  icon: <EditOutlined />,               label: 'Editar detalhes',   onClick: () => navigate(`/documentos/${record.id}/editar`) },
           { type: 'divider' as const },
-          { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { key: 'nova-versao', icon: <HistoryOutlined />,             label: 'Nova versão',       onClick: () => navigate(`/documentos/${record.id}/nova-versao`) },
           { type: 'divider' as const },
           { key: 'relatorios',  icon: <TeamOutlined />,                 label: 'Relatório de aceites',     onClick: () => setRelatoriosTarget(record) },
           { type: 'divider' as const },
@@ -686,7 +676,7 @@ export function ListagemPage() {
         ]
       case 'Expirado':
         return [
-          { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => { setNovaVersaoTarget(record); setNovaVersaoMotivo('') } },
+          { key: 'nova-versao', icon: <HistoryOutlined />, label: 'Nova versão', onClick: () => navigate(`/documentos/${record.id}/nova-versao`) },
           { type: 'divider' as const },
           duplicar,
         ]
@@ -1490,63 +1480,6 @@ export function ListagemPage() {
             <strong style={{ color: colorTokens.textPrimary }}>"{deletarAgendadoTarget?.titulo}"</strong>?
             Como o documento ainda não foi enviado, é possível removê-lo do sistema.
           </Typography.Text>
-        </div>
-      </Modal>
-
-      {/* ════════════════════════════════════════════════════════
-         Modal — Nova Versão (Ativo tipo adesao)
-      ════════════════════════════════════════════════════════ */}
-      <Modal
-        className="encerrar-modal"
-        open={!!novaVersaoTarget}
-        onCancel={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }}
-        width={500} centered
-        title={
-          <Space>
-            <HistoryOutlined style={{ color: colorTokens.primary }} />
-            <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16 }}>Criar nova versão</span>
-          </Space>
-        }
-        footer={
-          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button onClick={() => { setNovaVersaoTarget(null); setNovaVersaoMotivo('') }} style={{ fontFamily: FONT, fontWeight: 500, borderRadius: 8, height: 36, fontSize: 13 }}>
-              Cancelar
-            </Button>
-            <Button
-              type="primary"
-              disabled={!novaVersaoMotivo.trim()}
-              onClick={handleConfirmNovaVersao}
-              icon={<HistoryOutlined />}
-              style={{ fontFamily: FONT, fontWeight: 600, borderRadius: 8, height: 36, fontSize: 13, background: colorTokens.primary }}
-            >
-              Criar nova versão
-            </Button>
-          </Space>
-        }
-      >
-        <div style={{ padding: '4px 0 8px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
-            borderRadius: 8, background: '#EEF2FF', border: `1px solid ${colorTokens.primary}33`, marginBottom: 20,
-          }}>
-            <HistoryOutlined style={{ color: colorTokens.primary, fontSize: 14, marginTop: 2, flexShrink: 0 }} />
-            <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.primary, lineHeight: '20px' }}>
-              Uma nova versão do documento será criada. Os destinatários serão notificados e precisarão reasinar o documento atualizado.
-            </Typography.Text>
-          </div>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 13, color: colorTokens.textPrimary, display: 'block', marginBottom: 8, fontWeight: 600 }}>
-            Motivo / Mudanças <span style={{ color: '#FF4D4F' }}>*</span>
-          </Typography.Text>
-          <Typography.Text style={{ fontFamily: FONT, fontSize: 12, color: colorTokens.textSecondary, display: 'block', marginBottom: 10 }}>
-            Descreva o que foi alterado nesta nova versão. Este texto ficará registrado no histórico de versões.
-          </Typography.Text>
-          <Input.TextArea
-            rows={4} maxLength={500} showCount
-            value={novaVersaoMotivo}
-            onChange={(e) => setNovaVersaoMotivo(e.target.value)}
-            placeholder="Ex.: Atualização do item 3.2 para adequação à nova resolução LGPD. Revisão das penalidades previstas no item 5."
-            style={{ fontFamily: FONT, fontSize: 13, borderRadius: 8, resize: 'none' }}
-          />
         </div>
       </Modal>
 
